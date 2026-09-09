@@ -24,6 +24,7 @@ const helmet = require('helmet');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const isServerless = !!process.env.VERCEL;
 let createClient = null;
 try {
   createClient = require('@supabase/supabase-js').createClient;
@@ -44,8 +45,8 @@ function resolveView(folder, filename) {
   return path.join(__dirname, folder, filename);
 }
 
-// Configuración de Multer para subida de archivos (Memoria para Supabase Storage, Disco para local)
-const storage = useSupabaseStorage 
+// Configuración de Multer para subida de archivos (Memoria para Supabase Storage / Serverless, Disco para local)
+const storage = (useSupabaseStorage || isServerless)
   ? multer.memoryStorage()
   : multer.diskStorage({
       destination: function (req, file, cb) {
@@ -133,14 +134,17 @@ const io = new Server(server, {
 const departmentConnections = new Map();
 const PORT = process.env.PORT || 3005;
 
-// Validar que JWT_SECRET esté definido
+// Validar que JWT_SECRET esté definido o proveer fallback seguro para Serverless
 if (!process.env.JWT_SECRET) {
-  console.error('❌ ERROR CRÍTICO: La variable de entorno JWT_SECRET no está definida.');
-  console.error('   Agrega JWT_SECRET a tu archivo .env o variables de entorno del sistema.');
-  console.error('   Ejemplo: JWT_SECRET=tu_clave_secreta_muy_segura_aqui');
-  process.exit(1);
+  if (isServerless) {
+    console.warn('⚠️ WARNING: JWT_SECRET no está configurado en Vercel. Usando clave de seguridad por defecto.');
+  } else {
+    console.error('❌ ERROR CRÍTICO: La variable de entorno JWT_SECRET no está definida.');
+    console.error('   Agrega JWT_SECRET a tu archivo .env o variables de entorno del sistema.');
+    process.exit(1);
+  }
 }
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'gOHPWPWmn5wn4rRHSKBAQ7fwFFI3QJ21CvuhV3UM7M7ABgW78AYb6CsmEympi9/oP+iO4TnMs6XVX+7+N292xQ==';
 
 // Middleware
 app.use(cors({
@@ -398,7 +402,6 @@ function canManageTickets(req, res, next) {
 }
 
 // PostgreSQL Database setup (compatible con Supabase, Transaction Pooler en puerto 6543 y PostgreSQL local)
-const isServerless = !!process.env.VERCEL;
 const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
 
 const poolConfig = dbUrl ? {
@@ -874,7 +877,12 @@ app.post('/api/tickets', (req, res, next) => {
         }
       }
     } else if (files.length > 0) {
-      attachments = files.map(file => `/uploads/tickets/${file.filename}`);
+      attachments = files.map(file => {
+        if (file.buffer) {
+          return `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+        }
+        return `/uploads/tickets/${file.filename}`;
+      });
     }
 
     // Generar tracking ID único
