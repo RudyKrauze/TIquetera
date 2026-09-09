@@ -17,10 +17,12 @@ BASE_URL=https://tu-app-tiquetera.vercel.app
 ALLOWED_ORIGINS=https://tu-app-tiquetera.vercel.app
 
 # ==========================================
-# SEGURIDAD (JWT)
+# SEGURIDAD (JWT Y CREDENCIALES DE ADMIN)
 # ==========================================
 # Reemplazar con una clave aleatoria de 64 o 128 caracteres
 JWT_SECRET=gOHPWPWmn5wn4rRHSKBAQ7fwFFI3QJ21CvuhV3UM7M7ABgW78AYb6CsmEympi9/oP+iO4TnMs6XVX+7+N292xQ==
+ADMIN_EMAIL=admin@tiquetera.com
+ADMIN_PASSWORD=admin123
 
 # ==========================================
 # BASE DE DATOS (SUPABASE TRANSACTION POOLER)

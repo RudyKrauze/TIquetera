@@ -28,8 +28,8 @@ async function initializeDatabase(pool) {
 
       const defaultUsers = [
         {
-          email: 'admin@tiquetera.com',
-          password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
+          email: process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@tiquetera.com',
+          password: process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
           name: 'Administrador',
           role: 'administrador',
           department: null
