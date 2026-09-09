@@ -476,7 +476,42 @@ if (!isServerless) {
 }
 
 
-// Routes
+// Endpoint de salud y diagnóstico (útil para verificar conexión a Supabase y entorno en Vercel)
+app.get('/api/health', async (req, res) => {
+  try {
+    const hasDbUrl = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL);
+    const hostInfo = dbUrl ? (dbUrl.split('@')[1] || '').split('/')[0] : (process.env.DB_HOST || 'none');
+    
+    const dbTest = await pool.query('SELECT NOW() AS now, current_database() AS db_name');
+    const userCount = await pool.query('SELECT COUNT(*) FROM users');
+    const ticketCount = await pool.query('SELECT COUNT(*) FROM tickets');
+    
+    res.json({
+      status: 'ok',
+      isServerless,
+      hasDbUrl,
+      dbHost: hostInfo,
+      dbName: dbTest.rows[0].db_name,
+      time: dbTest.rows[0].now,
+      users: parseInt(userCount.rows[0].count, 10),
+      tickets: parseInt(ticketCount.rows[0].count, 10),
+      env: {
+        hasJwtSecret: !!process.env.JWT_SECRET,
+        hasVapid: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
+        hasSmtp: !!process.env.SMTP_HOST
+      }
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      isServerless,
+      hasDbUrl: !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL),
+      error: err.message,
+      code: err.code,
+      stack: err.stack
+    });
+  }
+});
 
 // Verificar sesión actual
 app.get('/api/auth/verify', authenticateToken, async (req, res) => {
@@ -1032,7 +1067,7 @@ app.post('/api/tickets', (req, res, next) => {
     });
   } catch (error) {
     console.error('Error al crear ticket:', error.message);
-    res.status(500).json({ error: 'Error al crear ticket' });
+    res.status(500).json({ error: error.message || 'Error al crear ticket' });
   }
 });
 
@@ -1695,7 +1730,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error.message);
-    return res.status(500).json({ error: 'Error interno del servidor' });
+    return res.status(500).json({ error: error.message || 'Error interno del servidor' });
   }
 });
 
