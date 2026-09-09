@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Gerencia - Imagen Diagnóstica</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/notifications.css">
+    <link rel="stylesheet" href="/css/support.css">
+    <link rel="stylesheet" href="/css/gerencia.css">
+    <link rel="stylesheet" href="/css/design-system.css">
+</head>
+
+<body style="visibility: hidden; opacity: 0;">
+    <div class="navbar">
+        <div class="navbar-brand">
+            <a href="/" style="display: flex; align-items: center; text-decoration: none;">
+                <img src="/logo.png" alt="Imagen Diagnóstica" class="navbar-logo">
+            </a>
+            <h1>Panel de Gerencia</h1>
+        </div>
+        <div class="user-info">
+            <a href="/reportes" class="nav-btn-reports">
+                📊 Reportes
+            </a>
+            <span id="currentUserName">Cargando...</span>
+            <button class="logout-btn" id="logoutBtn">Salir</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <!-- Tabs Navigation -->
+        <div class="tabs-container">
+            <button class="tab-btn active" id="tabTickets">
+                🎫 Tickets
+            </button>
+            <button class="tab-btn" id="tabUsers">
+                👥 Usuarios
+            </button>
+        </div>
+
+        <!-- Tickets View -->
+        <div id="ticketsView" class="tickets-section">
+            <div class="section-header">
+                <h2>Todos los Tickets</h2>
+                <div class="header-actions">
+                    <div class="filters">
+                        <select id="priorityFilter" class="filter-select">
+                            <option value="">⚠️ Todas las prioridades</option>
+                            <option value="high">🔴 Alta</option>
+                            <option value="medium">🟡 Media</option>
+                            <option value="low">🟢 Baja</option>
+                        </select>
+                        <!-- NUEVO: Filtros de rango de fecha -->
+                        <div class="date-filter-group">
+                            <input type="date" id="startDateFilter" class="date-input" 
+                               onchange="updateDateMin(); applyFilters();" 
+                               placeholder="Desde">
+                            <span class="date-separator">→</span>
+                            <input type="date" id="endDateFilter" class="date-input" 
+                                   onchange="applyFilters()" 
+                                   placeholder="Hasta">
+                            <button id="clearDatesBtn" class="btn-clear-dates" onclick="clearDateFilters()" 
+                                    title="Limpiar fechas">
+                                🗑️
+                            </button>
+                        </div>
+                        <select id="sortFilter" class="filter-select">
+                            <option value="date-desc">📅 Más recientes</option>
+                            <option value="date-asc">📅 Más antiguos</option>
+                            <option value="priority-desc">⚠️ Alta prioridad</option>
+                            <option value="priority-asc">⚠️ Baja prioridad</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="search-container" style="padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
+                <input type="text" id="searchInput" class="search-input"
+                    placeholder="🔍 Buscar por título, descripción, email...">
+            </div>
+
+            <div class="tickets-list" id="ticketsList">
+                <!-- Tickets will be populated here -->
+            </div>
+
+            <!-- Paginación -->
+            <div class="pagination-container" id="paginationContainer" style="display:none;">
+                <div class="pagination-info">
+                    Mostrando <span id="showingCount">0</span> de <span id="totalCount">0</span> tickets
+                </div>
+                <div class="pagination-controls">
+                    <button class="btn-page" id="btnFirst">⏮️ Primera</button>
+                    <button class="btn-page" id="btnPrev">◀️ Anterior</button>
+                    <span class="page-numbers" id="pageNumbers"></span>
+                    <button class="btn-page" id="btnNext">Siguiente ▶️</button>
+                    <button class="btn-page" id="btnLast">Última ⏭️</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users View -->
+        <div id="usersView" class="users-section" style="display:none;">
+            <div class="section-header">
+                <h2>Gestión de Usuarios</h2>
+                <!-- Button hidden for Gerencia -->
+                <button class="btn-primary" style="display:none;" disabled>
+                    ➕ Crear Usuario
+                </button>
+            </div>
+
+            <div class="users-table-container">
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Departamento</th>
+                            <th>Creado</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Users will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear/Editar Usuario -->
+    <div id="userModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="userModalTitle">✨ Crear Nuevo Usuario</h2>
+                <button class="close-modal" id="closeUserModalBtn">×</button>
+            </div>
+            <div class="modal-body">
+                <form id="userForm">
+                    <input type="hidden" id="userId">
+
+                    <div class="form-group">
+                        <label for="userName">Nombre Completo *</label>
+                        <input type="text" id="userName" required placeholder="Ej: Dr. Carlos Méndez">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEmail">Email *</label>
+                        <input type="email" id="userEmail" required placeholder="email@imagendiagnostica.com">
+                    </div>
+
+                    <div class="form-group" id="passwordGroup">
+                        <label for="userPassword">Contraseña *</label>
+                        <input type="password" id="userPassword" placeholder="Mínimo 6 caracteres">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userRole">Rol *</label>
+                        <select id="userRole" required>
+                            <option value="">Seleccionar rol...</option>
+                            <option value="support">👥 Soporte</option>
+                            <option value="facturacion">💼 Facturación</option>
+                            <option value="rrhh">🏢 Recursos Humanos</option>
+                            <option value="contact">☎️ Contact Center</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userDepartment">Departamento (opcional)</label>
+                        <input type="text" id="userDepartment" placeholder="Ej: Radiología, Tomografía, etc.">
+                    </div>
+
+                    <div class="error-message" id="userError" style="display:none;"></div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" id="cancelUserBtn">Cancelar</button>
+                        <button type="submit" class="btn-primary" id="userSubmitBtn">✅ Crear Usuario</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de detalles -->
+    <div class="ticket-modal" id="ticketModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Detalles del Ticket</h2>
+                <button class="close-modal" id="closeTicketModalBtn">&times;</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Ticket details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="login-form" id="loginForm">
+        <div class="login-modal">
+            <h2>🔐 Iniciar Sesión</h2>
+            <form id="loginFormElement">
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Contraseña:</label>
+                    <div class="password-container">
+                        <input type="password" id="loginPassword" required>
+                        <button type="button" class="password-toggle" id="togglePasswordBtn">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-login">Iniciar Sesión</button>
+                <div class="error" id="loginError"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div id="imageLightbox" class="lightbox-modal">
+        <span class="lightbox-close" id="lightboxCloseBtn">&times;</span>
+        <img class="lightbox-content" id="lightboxImg" src="">
+    </div>
+
+    <script src="/js/core-panel.js"></script>
+    <script src="/js/gerencia.js"></script>
+
+    <!-- Sistema de Notificaciones -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/js/notifications.js"></script>
+
+    <!-- Push Notifications -->
+    <link rel="stylesheet" href="/css/push-notifications.css">
+    <script src="/js/push-notifications.js"></script>
+</body>
+
+</html>

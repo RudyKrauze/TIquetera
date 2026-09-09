@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="pageTitle">Tablero de Tareas - Imagen Diagnóstica</title>
+    <meta name="description" content="Vista pública del tablero de tareas y rutinas de mantenimiento">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/mantenimiento.css">
+    <style>
+        :root {
+            --brand-primary: #008B8B;
+            --brand-primary-dark: #006B6B;
+            --brand-primary-light: #00BFBF;
+            --bg-page: #F4F7F9;
+            --bg-card: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border-color: #E5E7EB;
+        }
+
+        body {
+            font-family: 'Montserrat', -apple-system, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .public-navbar {
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 139, 139, 0.2);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar-logo {
+            height: 38px;
+            width: auto;
+            background: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+        }
+
+        .navbar-title h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .navbar-title span {
+            font-size: 0.78rem;
+            opacity: 0.9;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        .public-container {
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+            flex: 1;
+        }
+
+        .board-header-banner {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .board-title-box h2 {
+            font-size: 1.45rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 4px 0;
+        }
+
+        .board-meta-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .badge-tag {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.78rem;
+        }
+
+        .badge-dept {
+            background: #E0F2FE;
+            color: #0369A1;
+            border: 1px solid #BAE6FD;
+        }
+
+        .badge-public {
+            background: #DCFCE7;
+            color: #15803D;
+            border: 1px solid #BBF7D0;
+        }
+
+        .public-footer {
+            background: white;
+            border-top: 1px solid var(--border-color);
+            padding: 1.5rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar Pública -->
+    <header class="public-navbar">
+        <div class="navbar-brand">
+            <img src="/logo.png" alt="Imagen Diagnóstica" class="navbar-logo" onerror="this.style.display='none'">
+            <div class="navbar-title">
+                <h1 id="navBoardTitle">Tablero de Tareas</h1>
+                <span>Imagen Diagnóstica • Vista Pública</span>
+            </div>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-action" onclick="exportTasksToCSV()" title="Descargar datos en CSV">
+                📊 Descargar CSV
+            </button>
+            <button class="btn-action" onclick="window.print()" title="Imprimir tablero">
+                🖨️ Imprimir
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenedor Principal -->
+    <main class="public-container">
+        <!-- Banner Informativo -->
+        <div class="board-header-banner">
+            <div class="board-title-box">
+                <h2 id="boardHeaderTitle">Tablero de Tareas</h2>
+                <div class="board-meta-tags">
+                    <span class="badge-tag badge-dept" id="boardDeptBadge">🏢 Departamento</span>
+                    <span class="badge-tag badge-public">🌐 Enlace Público Verificado</span>
+                    <span id="boardCreatedInfo">📅 Actualizado recientemente</span>
+                </div>
+            </div>
+            <div>
+                <button onclick="loadPublicBoardData()" style="padding: 8px 16px; background: #008B8B; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    🔄 Actualizar
+                </button>
+            </div>
+        </div>
+
+        <!-- Tarjetas KPI -->
+        <div class="kpi-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+            <div class="kpi-card kpi-total" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E5E7EB; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 2rem; font-weight: 800; color: #1F2937;" id="kpiTotal">0</div>
+                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Total Tareas</div>
+            </div>
+            <div class="kpi-card kpi-pending" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #FDE68A; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 2rem; font-weight: 800; color: #D97706;" id="kpiPending">0</div>
+                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Pendientes</div>
+            </div>
+            <div class="kpi-card kpi-in-progress" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BAE6FD; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 2rem; font-weight: 800; color: #0284C7;" id="kpiInProgress">0</div>
+                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">En Progreso</div>
+            </div>
+            <div class="kpi-card kpi-completed" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BBF7D0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 2rem; font-weight: 800; color: #16A34A;" id="kpiCompleted">0</div>
+                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Completadas</div>
+            </div>
+            <div class="kpi-card kpi-recurring" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E9D5FF; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                <div style="font-size: 2rem; font-weight: 800; color: #7C3AED;" id="kpiRecurring">0</div>
+                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Rutinas Activas</div>
+            </div>
+        </div>
+
+        <!-- Contenedor del Calendario -->
+        <div class="calendar-wrapper" style="background: white; border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 2rem;">
+            <!-- Barra de Navegación del Calendario -->
+            <div class="calendar-nav-bar">
+                <div class="calendar-nav-left">
+                    <button class="btn-cal-today" onclick="calendarGoToday()">Hoy</button>
+                    <div class="calendar-nav-arrows">
+                        <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior">◀</button>
+                        <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente">▶</button>
+                    </div>
+                    <span class="calendar-current-title" id="calendarCurrentTitle">Mes Año</span>
+                </div>
+
+                <div class="calendar-nav-right">
+                    <div class="calendar-view-switcher">
+                        <button class="btn-cal-view active" id="btnViewMonth" onclick="setCalendarView('month')">📅 Mes</button>
+                        <button class="btn-cal-view" id="btnViewWeek" onclick="setCalendarView('week')">📆 Semana</button>
+                        <button class="btn-cal-view" id="btnViewAgenda" onclick="setCalendarView('agenda')">📋 Agenda</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Barra de Filtros -->
+            <div class="tasks-toolbar">
+                <div class="tasks-search-box">
+                    <span class="tasks-search-icon">🔍</span>
+                    <input type="text" id="taskSearchInput" class="task-search-field" placeholder="Buscar tareas..." oninput="applyFilters()">
+                    <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; applyFilters();">&times;</button>
+                </div>
+
+                <div class="tasks-filters-group">
+                    <select id="taskStatusFilter" class="task-filter-select" onchange="applyFilters()">
+                        <option value="">📊 Todos los estados</option>
+                        <option value="pending">🟡 Pendientes</option>
+                        <option value="in-progress">🔵 En Progreso</option>
+                        <option value="completed">🟢 Completadas</option>
+                    </select>
+
+                    <select id="taskPriorityFilter" class="task-filter-select" onchange="applyFilters()">
+                        <option value="">⚠️ Prioridad</option>
+                        <option value="urgent">🔴 Urgente</option>
+                        <option value="high">🟠 Alta</option>
+                        <option value="medium">🟡 Media</option>
+                        <option value="low">🔵 Baja</option>
+                    </select>
+
+                    <select id="taskCategoryFilter" class="task-filter-select" onchange="applyFilters()">
+                        <option value="all">🏢 Categoría</option>
+                        <option value="General">General</option>
+                        <option value="Equipos Médicos">Equipos Médicos</option>
+                        <option value="Infraestructura">Infraestructura</option>
+                        <option value="Electricidad">Electricidad</option>
+                        <option value="Climatización">Climatización</option>
+                        <option value="Hardware & PCs">Hardware & PCs</option>
+                        <option value="Redes & Conectividad">Redes & Conectividad</option>
+                        <option value="Servidores & Backups">Servidores & Backups</option>
+                    </select>
+
+                    <select id="taskSedeFilter" class="task-filter-select" onchange="applyFilters()">
+                        <option value="all">📍 Sede</option>
+                        <option value="Ciudad">Ciudad</option>
+                        <option value="Maipú">Maipú</option>
+                        <option value="San Martín">San Martín</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- VISTA 1: MES -->
+            <div id="calendarMonthContainer" class="calendar-grid-container">
+                <div class="calendar-weekdays-row">
+                    <div>LUN</div>
+                    <div>MAR</div>
+                    <div>MIÉ</div>
+                    <div>JUE</div>
+                    <div>VIE</div>
+                    <div>SÁB</div>
+                    <div>DOM</div>
+                </div>
+                <div id="calendarDaysMatrix" class="calendar-days-matrix">
+                    <!-- Días del mes generados dinámicamente -->
+                </div>
+            </div>
+
+            <!-- VISTA 2: SEMANA -->
+            <div id="calendarWeekContainer" class="calendar-grid-container" style="display: none;">
+                <div id="calendarWeekMatrix" class="calendar-week-grid">
+                    <!-- Columnas semanales generadas dinámicamente -->
+                </div>
+            </div>
+
+            <!-- VISTA 3: AGENDA -->
+            <div id="calendarAgendaContainer" style="display: none;">
+                <div id="calendarAgendaList" class="calendar-agenda-list">
+                    <!-- Lista de tareas agrupadas por día -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Detalles de Tarea Pública (Sólo Lectura) -->
+    <div class="task-modal-overlay" id="taskDetailModalDialog" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
+        <div class="task-modal-card" style="max-width: 650px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
+                <button type="button" onclick="closeTaskDetailModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <div style="padding: 20px;" id="taskDetailBody">
+                <!-- Contenido generado por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="public-footer">
+        <p>&copy; <span id="currentYear"></span> Sistema de Gestión - Imagen Diagnóstica. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="/js/tareas-publico.js"></script>
+</body>
+
+</html>

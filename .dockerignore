@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+backups
+.git
+.gitignore
+.env
+.env.*
+Dockerfile
+docker-compose*.yml
+README.md
+Docs
+scratch
+*.sql
+*.bat

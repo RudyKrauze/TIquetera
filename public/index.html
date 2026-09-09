@@ -1,0 +1,1144 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sistema de Tickets - Imagen Diagnóstica</title>
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#008B8B" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --brand-primary: #008b8b;
+        --brand-primary-dark: #006b6b;
+        --brand-primary-light: #00bfbf;
+        --brand-secondary: #334155;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        min-height: 100%;
+        height: 100%;
+      }
+
+      body {
+        font-family:
+          "Montserrat",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          system-ui,
+          sans-serif;
+        line-height: 1.4;
+        color: #1e293b;
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        padding: 10px 16px;
+        box-sizing: border-box;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+
+      .main-container {
+        width: 100%;
+        max-width: 100%;
+        min-height: calc(100vh - 20px);
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        flex: 1;
+      }
+
+      /* Header Superior */
+      .header {
+        background: rgba(255, 255, 255, 0.98);
+        border-radius: 12px;
+        padding: 8px 24px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        flex-shrink: 0;
+      }
+
+      .logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .logo-img {
+        height: 38px;
+        width: auto;
+        background: white;
+        padding: 2px 8px;
+        border-radius: 6px;
+      }
+
+      .logo-text {
+        font-size: 1.22rem;
+        font-weight: 700;
+        color: var(--brand-secondary);
+        line-height: 1.15;
+      }
+
+      .logo-subtext {
+        font-size: 0.74rem;
+        color: var(--brand-primary);
+        font-weight: 600;
+        letter-spacing: 0.4px;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .header-tracking-group {
+        display: flex;
+        align-items: center;
+        background: #f1f5f9;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        padding: 2px 3px 2px 8px;
+        transition: all 0.2s ease;
+      }
+
+      .header-tracking-group:focus-within {
+        border-color: var(--brand-primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(0, 139, 139, 0.15);
+      }
+
+      .header-tracking-input {
+        border: none !important;
+        background: transparent !important;
+        padding: 6px 8px !important;
+        font-size: 0.84rem !important;
+        width: 210px;
+        box-shadow: none !important;
+        color: #1e293b;
+      }
+
+      .header-tracking-btn {
+        background: var(--brand-primary);
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .header-tracking-btn:hover {
+        background: var(--brand-primary-dark);
+      }
+
+      .btn-login {
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        color: white;
+        border: none;
+        padding: 8px 18px;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 3px 10px rgba(0, 139, 139, 0.25);
+        transition: all 0.2s ease;
+        white-space: nowrap;
+        margin-bottom: 0 !important;
+        width: auto !important;
+      }
+
+      .btn-login:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 15px rgba(0, 139, 139, 0.35);
+      }
+
+      /* Card Principal del Formulario */
+      .container.main-form-card {
+        background: white;
+        border-radius: 14px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.14);
+        padding: 18px 30px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 0;
+      }
+
+      .section-header {
+        text-align: center;
+        margin-bottom: 12px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #e2e8f0;
+        flex-shrink: 0;
+      }
+
+      .section-header h2 {
+        color: #1e293b;
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 2px;
+      }
+
+      .section-header p {
+        color: #64748b;
+        font-size: 0.84rem;
+        margin: 0;
+      }
+
+      #ticketForm {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 0;
+      }
+
+      /* Grid de campos: 3 columnas */
+      .form-grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px 24px;
+        margin-bottom: 12px;
+        flex-shrink: 0;
+      }
+
+      /* Fila split: Descripción (62%) + Adjuntos (38%) */
+      .form-grid-split {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr;
+        gap: 24px;
+        margin-bottom: 12px;
+        align-items: stretch;
+        flex: 1;
+        min-height: 90px;
+      }
+
+      .form-field-wrapper {
+        position: relative;
+        margin-bottom: 0;
+      }
+
+      .desc-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .upload-wrapper {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+      }
+
+      label {
+        display: block;
+        margin-bottom: 4px;
+        color: #334155;
+        font-weight: 600;
+        font-size: 0.83rem;
+      }
+
+      .label-with-counter {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 4px;
+      }
+
+      .label-with-counter label {
+        margin-bottom: 0;
+      }
+
+      .compact-counter {
+        font-size: 0.74rem;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      input,
+      select,
+      textarea {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 7px;
+        font-size: 0.88rem;
+        font-family: inherit;
+        transition: all 0.2s ease;
+        background: #fafafa;
+        color: #1e293b;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: none;
+        border-color: var(--brand-primary);
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgba(0, 139, 139, 0.12);
+      }
+
+      textarea {
+        resize: none;
+        min-height: 75px;
+        height: 100%;
+        flex: 1;
+        line-height: 1.35;
+      }
+
+      .field-error {
+        color: #dc3545;
+        font-size: 0.76rem;
+        margin-top: 3px;
+        display: none;
+      }
+
+      .field-error.show {
+        display: block;
+      }
+
+      input.invalid,
+      textarea.invalid,
+      select.invalid {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.12);
+      }
+
+      input.valid:not(:placeholder-shown),
+      textarea.valid:not(:placeholder-shown) {
+        border-color: #28a745;
+      }
+
+      .char-progress-bar {
+        width: 100%;
+        height: 3px;
+        background: #e2e8f0;
+        border-radius: 2px;
+        overflow: hidden;
+        margin-top: 3px;
+      }
+
+      .char-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        transition: all 0.2s ease;
+        border-radius: 2px;
+      }
+
+      .char-progress-fill.warning {
+        background: linear-gradient(90deg, #ffc107 0%, #ff9800 100%);
+      }
+
+      .char-progress-fill.danger {
+        background: linear-gradient(90deg, #dc3545 0%, #c82333 100%);
+      }
+
+      /* Subida de Archivos */
+      .file-upload-box {
+        background: #f8fafc;
+        border: 1.5px dashed #cbd5e1;
+        border-radius: 8px;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-height: 75px;
+        flex: 1;
+        justify-content: center;
+      }
+
+      .btn-upload-photos {
+        background: #ffffff;
+        color: var(--brand-primary);
+        border: 1.5px solid var(--brand-primary);
+        padding: 5px 10px;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s ease;
+      }
+
+      .btn-upload-photos:hover {
+        background: rgba(0, 139, 139, 0.08);
+      }
+
+      .upload-hint {
+        font-size: 0.72rem;
+        color: #64748b;
+        font-weight: 400;
+      }
+
+      .attachments-preview {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .attachment-thumb {
+        position: relative;
+        width: 44px;
+        height: 44px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #cbd5e1;
+      }
+
+      .attachment-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .remove-attachment {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        background: rgba(220, 53, 69, 0.9);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 16px;
+        height: 16px;
+        font-size: 11px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+      }
+
+      /* Botón de Envío */
+      .form-footer {
+        display: flex;
+        justify-content: center;
+        margin-top: 4px;
+      }
+
+      .btn-submit-ticket {
+        width: 100%;
+        max-width: 440px;
+        padding: 10px 20px;
+        font-size: 0.96rem;
+        font-weight: 700;
+        border-radius: 8px;
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 3px 10px rgba(0, 139, 139, 0.3);
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .btn-submit-ticket:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 5px 16px rgba(0, 139, 139, 0.4);
+      }
+
+      .success-message,
+      .error-message {
+        display: none;
+        padding: 8px 14px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        text-align: center;
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+
+      .success-message {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      /* Modal Styles */
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        padding: 24px;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(5px);
+        animation: fadeIn 0.25s ease;
+        justify-content: center;
+        align-items: center;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      .modal-content {
+        background: white;
+        margin: 0 auto;
+        padding: 0;
+        width: min(480px, calc(100% - 32px));
+        max-width: 480px;
+        max-height: 85vh;
+        border-radius: 14px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideDown 0.25s ease;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      @keyframes slideDown {
+        from {
+          transform: translateY(-30px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      .modal-header {
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        color: white;
+        padding: 18px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+
+      .close-modal {
+        background: rgba(255, 255, 255, 0.2);
+        border: none;
+        color: white;
+        font-size: 24px;
+        font-weight: bold;
+        cursor: pointer;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.2s;
+        line-height: 1;
+      }
+
+      .close-modal:hover {
+        background: rgba(255, 255, 255, 0.35);
+      }
+
+      .modal-body {
+        padding: 20px 24px;
+        overflow-y: auto;
+      }
+
+      .form-group {
+        margin-bottom: 16px;
+      }
+
+      .password-input-group {
+        position: relative;
+      }
+
+      .password-toggle {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1em;
+        padding: 4px;
+      }
+
+      .modal-body .btn {
+        width: 100%;
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        color: white;
+        border: none;
+        padding: 11px;
+        border-radius: 8px;
+        font-size: 1rem;
+        font-weight: 700;
+        cursor: pointer;
+        margin-top: 8px;
+      }
+
+      /* Tracking Modal */
+      .tracking-modal .modal-content {
+        width: min(520px, calc(100% - 32px));
+      }
+
+      .tracking-modal .modal-body {
+        text-align: center;
+        padding: 24px 28px;
+      }
+
+      .tracking-modal-eyebrow {
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 2px;
+      }
+
+      .tracking-modal-support {
+        font-size: 0.95rem;
+        color: #475569;
+        margin-bottom: 4px;
+      }
+
+      .tracking-number {
+        font-size: 1.9rem;
+        font-weight: 700;
+        color: var(--brand-primary);
+        margin: 12px auto;
+        padding: 12px;
+        background: #f1fafa;
+        border-radius: 10px;
+        border: 2px dashed var(--brand-primary);
+        letter-spacing: 2px;
+      }
+
+      .tracking-instructions {
+        background: #fffdf4;
+        border-left: 4px solid #ffc107;
+        padding: 12px 14px;
+        margin: 12px 0;
+        border-radius: 8px;
+        text-align: left;
+        font-size: 0.82rem;
+      }
+
+      .tracking-instructions ul {
+        margin-top: 6px;
+        padding-left: 18px;
+        color: #6b5d2e;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 16px;
+        flex-wrap: wrap;
+      }
+
+      .copy-btn-wrapper {
+        position: relative;
+        flex: 1;
+        display: flex;
+      }
+
+      .copy-btn,
+      .btn-track {
+        flex: 1;
+        border: none;
+        padding: 10px 14px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .copy-btn {
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary-light) 0%,
+          var(--brand-primary) 100%
+        );
+        color: white;
+      }
+
+      .btn-track {
+        background: linear-gradient(
+          135deg,
+          var(--brand-primary) 0%,
+          var(--brand-primary-dark) 100%
+        );
+        color: white;
+      }
+
+      .copy-tooltip {
+        position: absolute;
+        left: 50%;
+        bottom: 100%;
+        transform: translateX(-50%) translateY(-6px);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.85);
+        color: #ffffff;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+      }
+
+      .copy-tooltip.visible {
+        opacity: 1;
+      }
+
+      .modal-ack-btn {
+        width: 100%;
+        margin-top: 8px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        padding: 10px;
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      /* Responsive Media Queries */
+      @media (max-width: 992px), (max-height: 620px) {
+        body {
+          min-height: 100vh;
+          height: auto;
+          justify-content: flex-start;
+          padding: 10px;
+        }
+
+        .main-container {
+          min-height: auto;
+          height: auto;
+        }
+
+        .container.main-form-card {
+          flex: none;
+          min-height: auto;
+        }
+
+        #ticketForm {
+          flex: none;
+        }
+
+        .form-grid-split {
+          flex: none;
+        }
+
+        textarea {
+          min-height: 80px;
+          height: 90px;
+          resize: vertical;
+        }
+
+        .file-upload-box {
+          min-height: 80px;
+          flex: none;
+        }
+      }
+
+      @media (max-width: 992px) {
+        .header {
+          flex-direction: column;
+          align-items: stretch;
+          padding: 12px 16px;
+          gap: 12px;
+        }
+
+        .header-actions {
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .header-tracking-group {
+          width: 100%;
+        }
+
+        .header-tracking-input {
+          width: 100%;
+        }
+
+        .btn-login {
+          width: 100% !important;
+          justify-content: center;
+        }
+
+        .form-grid-3 {
+          grid-template-columns: 1fr;
+        }
+
+        .form-grid-split {
+          grid-template-columns: 1fr;
+        }
+
+        .btn-submit-ticket {
+          max-width: 100%;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/css/design-system.css" />
+  </head>
+
+  <body>
+    <div class="main-container">
+      <!-- Header Superior con Logo a la Izquierda y Botón Login / Rastreo a la Derecha -->
+      <header class="header">
+        <div class="logo">
+          <img src="/logo.png" alt="Imagen Diagnóstica" class="logo-img" />
+          <div>
+            <div class="logo-text">Sistema de Tickets</div>
+            <div class="logo-subtext">Imagen Diagnóstica</div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <div class="header-tracking-group">
+            <input
+              type="text"
+              class="header-tracking-input"
+              id="trackingSearchInput"
+              placeholder="🔍 Rastrear ticket (ej: TKT-12345)"
+            />
+            <button
+              type="button"
+              class="header-tracking-btn"
+              onclick="searchTicketPublic()"
+              title="Consultar estado de ticket"
+            >
+              Rastrear
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="btn-login"
+            id="headerLoginBtn"
+            onclick="openLoginModal()"
+          >
+            🔐 Iniciar Sesión
+          </button>
+        </div>
+      </header>
+
+      <!-- Card del Formulario Completo de Ancho Completo -->
+      <main class="container main-form-card">
+        <div class="section-header">
+          <h2>📝 Crear Nuevo Ticket</h2>
+          <p>Completa el formulario para reportar un problema o realizar una solicitud</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <form id="ticketForm">
+          <!-- Grid Superior de 3 Columnas -->
+          <div class="form-grid-3">
+            <!-- Nombre -->
+            <div class="form-field-wrapper">
+              <label for="name">Nombre y Apellido *</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                placeholder="Tu nombre completo"
+                required
+              />
+              <div class="field-error" id="nameError">
+                Por favor ingresa tu nombre
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div class="form-field-wrapper">
+              <label for="email">Email *</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="correo@ejemplo.com"
+                required
+              />
+              <div class="field-error" id="emailError">
+                Por favor ingresa un email válido
+              </div>
+            </div>
+
+            <!-- Área afectada -->
+            <div class="form-field-wrapper">
+              <label for="affected_area">Área Afectada / Servicio *</label>
+              <input
+                type="text"
+                id="affected_area"
+                name="affected_area"
+                placeholder="Tu área o departamento"
+                required
+              />
+              <div class="field-error" id="affectedAreaError">
+                Por favor ingresa tu área
+              </div>
+            </div>
+
+            <!-- Sede -->
+            <div class="form-field-wrapper">
+              <label for="sede">Sede *</label>
+              <select id="sede" name="sede" required>
+                <option value="">-- Selecciona sede --</option>
+                <option value="Ciudad">Ciudad</option>
+                <option value="Maipú">Maipú</option>
+                <option value="San Martín">San Martín</option>
+              </select>
+              <div class="field-error" id="sedeError">
+                Por favor selecciona una sede
+              </div>
+            </div>
+
+            <!-- Área de asignación -->
+            <div class="form-field-wrapper">
+              <label for="department">Dirigido al Área *</label>
+              <select id="department" name="department" required>
+                <option value="">-- Selecciona área destino --</option>
+                <option value="Sistemas">Sistemas</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="Compras e Insumos">Compras e Insumos</option>
+              </select>
+              <div class="field-error" id="departmentError">
+                Por favor selecciona un área
+              </div>
+            </div>
+
+            <!-- Asunto -->
+            <div class="form-field-wrapper">
+              <div class="label-with-counter">
+                <label for="title">Asunto del Problema *</label>
+                <span class="compact-counter"><span id="titleCharCount">0</span>/200</span>
+              </div>
+              <input
+                type="text"
+                id="title"
+                name="title"
+                placeholder="Describe brevemente el problema"
+                required
+                maxlength="200"
+              />
+              <div class="char-progress-bar">
+                <div class="char-progress-fill" id="titleProgress"></div>
+              </div>
+              <div class="field-error" id="titleError">
+                El asunto es requerido
+              </div>
+            </div>
+          </div>
+
+          <!-- Fila Inferior Split: Descripción (62%) + Adjuntos (38%) -->
+          <div class="form-grid-split">
+            <!-- Descripción -->
+            <div class="form-field-wrapper desc-wrapper">
+              <div class="label-with-counter">
+                <label for="description">Descripción Detallada *</label>
+                <span class="compact-counter"><span id="charCount">0</span>/2000</span>
+              </div>
+              <textarea
+                id="description"
+                name="description"
+                placeholder="Describe el problema con el mayor detalle posible..."
+                required
+                maxlength="2000"
+              ></textarea>
+              <div class="char-progress-bar">
+                <div class="char-progress-fill" id="descProgress"></div>
+              </div>
+              <div class="field-error" id="descriptionError">
+                La descripción es requerida
+              </div>
+            </div>
+
+            <!-- Adjuntar imágenes -->
+            <div class="form-field-wrapper upload-wrapper">
+              <label>Adjuntar Imágenes (Opcional)</label>
+              <div class="file-upload-box">
+                <input
+                  type="file"
+                  id="ticketAttachments"
+                  accept="image/*,.heic,.heif"
+                  multiple
+                  style="display: none"
+                />
+                <button
+                  type="button"
+                  class="btn-upload-photos"
+                  onclick="document.getElementById('ticketAttachments').click()"
+                >
+                  📷 Subir Fotos <span class="upload-hint">(Máx 3, 20MB)</span>
+                </button>
+                <div id="attachmentsPreview" class="attachments-preview"></div>
+                <div class="field-error" id="attachmentsError"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Botón de Envío -->
+          <div class="form-footer">
+            <button type="submit" class="btn btn-submit-ticket">
+              🚀 Crear y Enviar Ticket
+            </button>
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="loginModalTitle">🔐 Iniciar Sesión</h2>
+          <button class="close-modal" onclick="closeLoginModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <form id="loginForm">
+            <div class="form-group">
+              <label for="loginEmail">Email</label>
+              <input
+                type="email"
+                id="loginEmail"
+                required
+                placeholder="usuario@ejemplo.com"
+              />
+            </div>
+            <div class="form-group">
+              <label for="loginPassword">Contraseña</label>
+              <div class="password-input-group">
+                <input
+                  type="password"
+                  id="loginPassword"
+                  required
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  onclick="togglePasswordVisibility()"
+                >
+                  👁️
+                </button>
+              </div>
+            </div>
+            <div class="error-message" id="loginError"></div>
+            <button type="submit" class="btn">Iniciar Sesión</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tracking Modal -->
+    <div id="trackingModal" class="modal tracking-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="tracking-modal-eyebrow">✅ Ticket creado</p>
+            <h2>¡Número generado exitosamente!</h2>
+          </div>
+          <button class="close-modal" onclick="closeTrackingModal()">×</button>
+        </div>
+        <div class="modal-body">
+          <p class="tracking-modal-support">Tu número de seguimiento es:</p>
+          <div class="tracking-number" id="trackingNumber">TKT-00000</div>
+
+          <div class="tracking-instructions">
+            <strong>⚠️ Importante:</strong> Guarda este número para dar
+            seguimiento a tu ticket.
+            <ul>
+              <li>Puedes consultar el estado en cualquier momento</li>
+              <li>No necesitas iniciar sesión para rastrear</li>
+              <li>Compártelo con tu equipo si lo necesitas</li>
+            </ul>
+          </div>
+
+          <div class="modal-actions">
+            <div class="copy-btn-wrapper">
+              <button class="copy-btn" onclick="copyTrackingNumber()">
+                📋 Copiar Número
+              </button>
+              <div class="copy-tooltip" id="copyTooltip">✅ Copiado!</div>
+            </div>
+            <button class="btn-track" onclick="trackTicketNow()">
+              🔍 Rastrear Ticket
+            </button>
+          </div>
+          <button class="modal-ack-btn" onclick="closeTrackingModal()">
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/js/index.js"></script>
+    <script src="/js/pwa-install.js"></script>
+  </body>
+</html>

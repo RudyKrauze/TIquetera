@@ -1,0 +1,22 @@
+{
+  "name": "Sistema de Tickets - Imagen Diagnóstica",
+  "short_name": "Tickets ID",
+  "description": "Sistema de gestión de tickets para soporte rápido y eficiente.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#008B8B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

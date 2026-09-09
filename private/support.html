@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Soporte - Imagen Diagnóstica</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/notifications.css?v=2.4">
+    <link rel="stylesheet" href="/css/support.css?v=2.4">
+    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.4">
+    <link rel="stylesheet" href="/css/design-system.css?v=2.4">
+</head>
+
+<body style="visibility: hidden; opacity: 0;">
+    <div class="navbar">
+        <div class="navbar-brand">
+            <a href="/" style="display: flex; align-items: center; text-decoration: none;">
+                <img src="/logo.png" alt="Imagen Diagnóstica" class="navbar-logo">
+            </a>
+            <h1>Panel de Soporte</h1>
+        </div>
+        <div class="user-info">
+            <a href="/reportes" class="nav-btn-reports" title="Ver métricas y generar reportes compartibles">
+                📊 Reportes
+            </a>
+            <span id="userName">Cargando...</span>
+
+            <!-- Sistema de Notificaciones -->
+            <div class="notification-wrapper">
+                <button id="notification-bell" class="notification-bell" aria-label="Notificaciones"
+                    aria-expanded="false" aria-haspopup="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                    </svg>
+                    <span id="notification-badge" class="notification-badge hidden">0</span>
+                </button>
+
+                <div id="notification-dropdown" class="notification-dropdown" role="menu" aria-label="Notificaciones">
+                    <div class="notification-dropdown-header">
+                        <h3>
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            </svg>
+                            Notificaciones
+                        </h3>
+                        <button id="mark-all-read-btn" class="mark-all-read-btn">Marcar todas</button>
+                    </div>
+                    <div id="notification-list" class="notification-list" role="list">
+                        <div class="notification-empty">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                            </svg>
+                            <p>No tienes notificaciones nuevas</p>
+                        </div>
+                    </div>
+                    <div class="notification-dropdown-footer">
+                        <a href="/notificaciones" class="view-all-btn">
+                            Ver todas las notificaciones
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                stroke="currentColor" stroke-width="2">
+                                <polyline points="9 18 15 12 9 6" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Pestañas de Navegación -->
+        <div class="maint-tabs-container">
+            <button class="maint-tab-btn active" id="tabTicketsBtn" onclick="switchSupportTab('tickets')">
+                🎫 Mis Tickets Asignados <span class="tab-badge" id="ticketsCountBadge">0</span>
+            </button>
+            <button class="maint-tab-btn" id="tabTasksBtn" onclick="switchSupportTab('tasks')">
+                📋 Tablero de Tareas & Calendario <span class="tab-badge" id="tasksCountBadge">0</span>
+            </button>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA 1: TICKETS ASIGNADOS                     -->
+        <!-- ============================================== -->
+        <div id="ticketsView">
+            <div class="stats-grid" id="statsGrid">
+                <!-- Stats will be populated by JavaScript -->
+            </div>
+
+            <div class="tickets-section">
+                <div class="section-header">
+                    <h2>Mis Tickets Asignados</h2>
+                    <div class="header-actions">
+                        <div class="filters">
+                            <select id="priorityFilter" class="filter-select">
+                                <option value="">Todas las prioridades</option>
+                                <option value="high">Alta</option>
+                                <option value="medium">Media</option>
+                                <option value="low">Baja</option>
+                            </select>
+                            <!-- Filtros de rango de fecha -->
+                            <div class="date-filter-group">
+                                <input type="date" id="startDateFilter" class="date-input" 
+                                   onchange="updateDateMin(); applyFilters();" 
+                                   placeholder="Desde">
+                                <span class="date-separator">→</span>
+                                <input type="date" id="endDateFilter" class="date-input" 
+                                       onchange="applyFilters()" 
+                                       placeholder="Hasta">
+                                <button id="clearDatesBtn" class="btn-clear-dates" onclick="clearDateFilters()" 
+                                        title="Limpiar fechas">
+                                    🗑️
+                                </button>
+                            </div>
+                            <select id="sortFilter" class="filter-select">
+                                <option value="date-desc">📅 Más recientes</option>
+                                <option value="date-asc">📅 Más antiguos</option>
+                                <option value="priority-desc">⚠️ Prioridad (alta→baja)</option>
+                                <option value="priority-asc">⚠️ Prioridad (baja→alta)</option>
+                                <option value="status">📊 Por estado</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input"
+                        placeholder="🔍 Buscar por título, descripción, departamento...">
+                </div>
+
+                <div class="tickets-list" id="ticketsList">
+                    <!-- Tickets will be populated by JavaScript -->
+                </div>
+
+                <!-- Contenedor de Paginación -->
+                <div class="pagination-container" id="paginationContainer" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- VISTA 2: TABLERO DE TAREAS & CALENDARIO       -->
+        <!-- ============================================== -->
+        <div id="tasksView" style="display: none;">
+            <!-- KPIs de Tareas -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="taskKpiTotal" style="color: #008B8B;">0</div>
+                    <div class="stat-label">Total Tareas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="taskKpiPending" style="color: #F59E0B;">0</div>
+                    <div class="stat-label">Pendientes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="taskKpiInProgress" style="color: #0284C7;">0</div>
+                    <div class="stat-label">En Progreso</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="taskKpiCompleted" style="color: #10B981;">0</div>
+                    <div class="stat-label">Completadas</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="taskKpiRecurring" style="color: #7E22CE;">0</div>
+                    <div class="stat-label">Recurrentes Activas</div>
+                </div>
+            </div>
+
+            <!-- Sección del Tablero Estilo Google Calendar -->
+            <div class="tasks-board-section">
+                <!-- Barra de Navegación del Calendario -->
+                <div class="calendar-nav-bar">
+                    <div class="calendar-nav-left">
+                        <button class="btn-cal-today" onclick="calendarGoToday()">Hoy</button>
+                        <div class="calendar-nav-arrows">
+                            <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior">◀</button>
+                            <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente">▶</button>
+                        </div>
+                        <span class="calendar-current-title" id="calendarCurrentTitle">Agosto 2026</span>
+                    </div>
+
+                    <div class="calendar-nav-right">
+                        <div class="calendar-view-switcher">
+                            <button class="btn-cal-view active" id="btnViewMonth" onclick="setCalendarView('month')">📅 Mes</button>
+                            <button class="btn-cal-view" id="btnViewWeek" onclick="setCalendarView('week')">📆 Semana</button>
+                            <button class="btn-cal-view" id="btnViewAgenda" onclick="setCalendarView('agenda')">📋 Agenda</button>
+                        </div>
+                        <button class="btn-cal-view" onclick="openShareTasksModal()" title="Generar enlace público compartible" style="background: white; border: 1px solid #CBD5E1; color: #008B8B; font-weight: 600;">
+                            🔗 Compartir
+                        </button>
+                        <button class="btn-cal-view" onclick="exportTasksToCSV()" title="Exportar tareas filtradas a CSV" style="background: white; border: 1px solid #CBD5E1; color: #10B981; font-weight: 600;">
+                            📊 CSV
+                        </button>
+                        <button class="btn-new-task" onclick="openTaskModal()">
+                            ➕ Nueva Tarea
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Barra Compacta de Búsqueda y Filtros -->
+                <div class="tasks-toolbar">
+                    <div class="tasks-search-box">
+                        <span class="tasks-search-icon">🔍</span>
+                        <input type="text" id="taskSearchInput" class="task-search-field"
+                            placeholder="Buscar"
+                            oninput="debounceTaskSearch()">
+                        <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; loadSupportTasks();" title="Limpiar búsqueda">&times;</button>
+                    </div>
+
+                    <div class="tasks-filters-group">
+                        <select id="taskStatusFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="">📊 Todos los estados</option>
+                            <option value="pending">🟡 Pendientes</option>
+                            <option value="in-progress">🔵 En Progreso</option>
+                            <option value="completed">🟢 Completadas</option>
+                        </select>
+
+                        <select id="taskPriorityFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="">⚠️ Prioridad</option>
+                            <option value="urgent">🔴 Urgente</option>
+                            <option value="high">🟠 Alta</option>
+                            <option value="medium">🟡 Media</option>
+                            <option value="low">🔵 Baja</option>
+                        </select>
+
+                        <select id="taskCategoryFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="all">🏢 Categoría</option>
+                            <option value="General">General</option>
+                            <option value="Hardware & PCs">Hardware & PCs</option>
+                            <option value="Redes & Conectividad">Redes & Conectividad</option>
+                            <option value="Servidores & Backups">Servidores & Backups</option>
+                            <option value="Software & Licencias">Software & Licencias</option>
+                            <option value="Impresoras & Periféricos">Impresoras & Periféricos</option>
+                            <option value="Ciberseguridad & Accesos">Ciberseguridad & Accesos</option>
+                            <option value="Telefonía & VoIP">Telefonía & VoIP</option>
+                        </select>
+
+                        <select id="taskSedeFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="all">📍 Sede</option>
+                            <option value="Ciudad">Ciudad</option>
+                            <option value="Maipú">Maipú</option>
+                            <option value="San Martín">San Martín</option>
+                        </select>
+
+                        <select id="taskRecurrenceFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="">🔁 Rutina</option>
+                            <option value="true">Solo Recurrentes</option>
+                            <option value="false">Solo Puntuales</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- VISTA 1: CALENDARIO MENSUAL                    -->
+                <!-- ============================================== -->
+                <div id="calendarMonthContainer" class="calendar-grid-container">
+                    <div class="calendar-weekdays-row">
+                        <div>LUN</div>
+                        <div>MAR</div>
+                        <div>MIÉ</div>
+                        <div>JUE</div>
+                        <div>VIE</div>
+                        <div>SÁB</div>
+                        <div>DOM</div>
+                    </div>
+                    <div id="calendarDaysMatrix" class="calendar-days-matrix">
+                        <!-- Días del mes generados por JavaScript -->
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- VISTA 2: CALENDARIO SEMANAL                    -->
+                <!-- ============================================== -->
+                <div id="calendarWeekContainer" class="calendar-grid-container" style="display: none;">
+                    <div id="calendarWeekMatrix" class="calendar-week-grid">
+                        <!-- Columnas semanales generadas por JavaScript -->
+                    </div>
+                </div>
+
+                <!-- ============================================== -->
+                <!-- VISTA 3: AGENDA / LISTA CRONOLÓGICA            -->
+                <!-- ============================================== -->
+                <div id="calendarAgendaContainer" style="display: none;">
+                    <div id="calendarAgendaList" class="calendar-agenda-container">
+                        <!-- Items de agenda generados por JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Creación / Edición de Tarea de Soporte -->
+    <div id="taskModalDialog" class="task-modal-overlay" style="display: none;">
+        <div class="task-modal-card">
+            <div style="padding: 1.25rem 1.5rem; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
+                <h3 id="taskModalTitle" style="font-size: 1.15rem; font-weight: 700; color: #111827;">➕ Nueva Tarea de Soporte Técnico</h3>
+                <button onclick="closeTaskModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer;">&times;</button>
+            </div>
+            
+            <form id="taskFormElement" onsubmit="handleSaveTask(event)" style="padding: 1.5rem;">
+                <input type="hidden" id="taskIdInput">
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Título de la Tarea *</label>
+                    <input type="text" id="taskTitleInput" required class="share-input" placeholder="Ej: Backup mensual de servidor NAS y bases de datos">
+                </div>
+
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Descripción / Instrucciones</label>
+                    <textarea id="taskDescInput" class="share-input" rows="2" placeholder="Detalles de la tarea, requerimientos técnicos, accesos necesarios..."></textarea>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Categoría / Especialidad</label>
+                        <select id="taskCategoryInput" class="share-input">
+                            <option value="General">General</option>
+                            <option value="Hardware & PCs">Hardware & PCs</option>
+                            <option value="Redes & Conectividad">Redes & Conectividad</option>
+                            <option value="Servidores & Backups">Servidores & Backups</option>
+                            <option value="Software & Licencias">Software & Licencias</option>
+                            <option value="Impresoras & Periféricos">Impresoras & Periféricos</option>
+                            <option value="Ciberseguridad & Accesos">Ciberseguridad & Accesos</option>
+                            <option value="Telefonía & VoIP">Telefonía & VoIP</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Prioridad</label>
+                        <select id="taskPriorityInput" class="share-input">
+                            <option value="medium" selected>🟡 Media</option>
+                            <option value="low">🔵 Baja</option>
+                            <option value="high">🟠 Alta</option>
+                            <option value="urgent">🔴 Urgente</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Sede</label>
+                        <select id="taskSedeInput" class="share-input">
+                            <option value="Todas" selected>Todas las sedes</option>
+                            <option value="Ciudad">Ciudad</option>
+                            <option value="Maipú">Maipú</option>
+                            <option value="San Martín">San Martín</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Asignado a</label>
+                        <select id="taskAssignedToInput" class="share-input">
+                            <option value="">Sin asignar</option>
+                            <option value="Rodolfo">Rodolfo</option>
+                            <option value="Matias">Matias</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 14px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Fecha Límite / Vencimiento</label>
+                    <input type="date" id="taskDueDateInput" class="share-input">
+                </div>
+
+                <!-- Recurrencia -->
+                <div style="background: #F3E8FF; border: 1px solid #E9D5FF; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label style="font-weight: 700; font-size: 0.88rem; color: #6B21A8; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                            <input type="checkbox" id="taskIsRecurringInput" onchange="toggleRecurrenceOptions(this.checked)" style="accent-color: #7E22CE; width: 16px; height: 16px;">
+                            🔁 Tarea Recurrente (Rutina Periódica)
+                        </label>
+                    </div>
+                    <div id="recurrenceOptionsDiv" style="display: none;">
+                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #6B21A8; margin-bottom: 4px;">Frecuencia de Repetición</label>
+                        <select id="taskRecurrenceIntervalInput" class="share-input" style="background: white;" onchange="handleRecurrenceIntervalChange(this.value)">
+                            <option value="daily">📅 Diaria (Cada día)</option>
+                            <option value="weekly">📅 Semanal (Cada 7 días)</option>
+                            <option value="custom_days">🗓️ Días de la semana (Personalizado)</option>
+                            <option value="biweekly">📅 Quincenal (Cada 14 días)</option>
+                            <option value="monthly">📅 Mensual (Cada mes)</option>
+                        </select>
+
+                        <!-- Campo personalizado de días de la semana -->
+                        <div id="recurrenceCustomDaysDiv" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255, 255, 255, 0.75); border: 1px dashed #C084FC; border-radius: 8px;">
+                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #6B21A8; margin-bottom: 6px;">
+                                🗓️ Selecciona los días en que debe repetirse:
+                            </label>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="customDaysButtonsContainer">
+                                <button type="button" class="day-pill-btn" data-day="1" onclick="toggleRecurrenceDay(1)">Lun</button>
+                                <button type="button" class="day-pill-btn" data-day="2" onclick="toggleRecurrenceDay(2)">Mar</button>
+                                <button type="button" class="day-pill-btn" data-day="3" onclick="toggleRecurrenceDay(3)">Mié</button>
+                                <button type="button" class="day-pill-btn" data-day="4" onclick="toggleRecurrenceDay(4)">Jue</button>
+                                <button type="button" class="day-pill-btn" data-day="5" onclick="toggleRecurrenceDay(5)">Vie</button>
+                                <button type="button" class="day-pill-btn" data-day="6" onclick="toggleRecurrenceDay(6)">Sáb</button>
+                                <button type="button" class="day-pill-btn" data-day="0" onclick="toggleRecurrenceDay(0)">Dom</button>
+                            </div>
+                            <div id="customDaysSelectionSummary" style="margin-top: 6px; font-size: 0.76rem; color: #7E22CE; font-weight: 600;">
+                                Selecciona los días (ej: Martes y Viernes)
+                            </div>
+                        </div>
+
+                        <small style="display: block; color: #7E22CE; margin-top: 6px; font-size: 0.78rem;">
+                            Al completar la tarea, el sistema generará automáticamente la siguiente para la fecha correspondiente con el checklist limpio.
+                        </small>
+                    </div>
+                </div>
+
+                <!-- Constructor de Checklist -->
+                <div style="margin-bottom: 1.25rem;">
+                    <label style="display: block; font-size: 0.88rem; font-weight: 700; color: #1F2937; margin-bottom: 6px;">
+                        📝 Lista de Verificación (Checklist de Pasos)
+                    </label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input type="text" id="newChecklistItemInput" class="share-input" placeholder="Escribe un ítem o paso a verificar y presiona Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault(); addChecklistItemBuilder();}">
+                        <button type="button" onclick="addChecklistItemBuilder()" style="padding: 8px 14px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; white-space: nowrap;">
+                            ➕ Agregar
+                        </button>
+                    </div>
+
+                    <div id="checklistBuilderContainer" class="checklist-builder-box">
+                        <div id="emptyChecklistMsg" style="text-align: center; color: #9CA3AF; font-size: 0.82rem; padding: 6px;">
+                            No hay ítems agregados aún. Agrega los pasos a verificar.
+                        </div>
+                        <div id="checklistBuilderList"></div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #E5E7EB; padding-top: 12px;">
+                    <button type="button" onclick="closeTaskModal()" style="padding: 10px 16px; background: #E5E7EB; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                        Cancelar
+                    </button>
+                    <button type="submit" style="padding: 10px 20px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                        💾 Guardar Tarea
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal de Detalles de Tarea de Soporte -->
+    <div class="task-modal-overlay" id="taskDetailModalDialog" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
+        <div class="task-modal-card" style="max-width: 650px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
+                <button type="button" onclick="closeTaskDetailModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <div style="padding: 20px;" id="taskDetailBody">
+                <!-- Se llena dinámicamente con openTaskDetailModal() -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmación Estilizado -->
+    <div class="task-modal-overlay" id="confirmActionModal" style="display: none; z-index: 10005;" onclick="if(event.target===this) closeConfirmModal();">
+        <div class="task-modal-card" style="max-width: 440px; text-align: center; padding: 26px 22px;">
+            <div style="font-size: 3.2rem; margin-bottom: 12px; line-height: 1;" id="confirmIcon">⚠️</div>
+            <h3 style="font-size: 1.22rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;" id="confirmTitle">¿Confirmar Acción?</h3>
+            <p style="font-size: 0.92rem; color: #6B7280; line-height: 1.5; margin-bottom: 22px;" id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button type="button" onclick="closeConfirmModal()" style="padding: 10px 18px; border: 1.5px solid #D1D5DB; background: #FFFFFF; color: #374151; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;">
+                    Cancelar
+                </button>
+                <button type="button" id="confirmActionButton" style="padding: 10px 20px; background: #DC2626; color: #FFFFFF; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; flex: 1; transition: opacity 0.2s;">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="login-form" id="loginForm">
+        <div class="login-modal">
+            <h2>🔐 Iniciar Sesión - Soporte</h2>
+            <form id="loginFormElement">
+                <div class="form-group">
+                    <label for="loginEmail">Email:</label>
+                    <input type="email" id="loginEmail" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Contraseña:</label>
+                    <div class="password-container">
+                        <input type="password" id="loginPassword" required>
+                        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)">
+                            👁️
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn-login">Iniciar Sesión</button>
+                <div class="error" id="loginError"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Ticket Detail Modal -->
+    <div class="ticket-detail-modal" id="ticketModal">
+        <div class="ticket-modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Detalles del Ticket</h3>
+                <button class="close-modal" onclick="closeTicketModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+                <!-- Ticket details will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Compartir Tablero de Tareas -->
+    <div class="task-modal-overlay" id="shareTasksModalDialog" style="display: none;" onclick="if(event.target===this) closeShareTasksModal();">
+        <div class="task-modal-card" style="max-width: 680px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;">🔗 Compartir Tablero de Tareas</h3>
+                <button type="button" onclick="closeShareTasksModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <div style="padding: 20px;">
+                <p style="font-size: 0.88rem; color: #6B7280; margin-bottom: 14px;">
+                    Genera un enlace público protegido para que directivos, auditores o miembros del equipo puedan consultar el estado del tablero de tareas y rutinas de soporte en tiempo real sin requerir inicio de sesión.
+                </p>
+
+                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 14px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Título personalizado (opcional)</label>
+                            <input type="text" id="shareTaskTitleInput" class="task-modal-input" placeholder="Ej: Tablero de Tareas de Soporte">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Vigencia del enlace</label>
+                            <select id="shareTaskExpirationSelect" class="task-modal-select">
+                                <option value="7" selected>Válido por 7 días</option>
+                                <option value="14">Válido por 14 días (2 semanas)</option>
+                                <option value="30">Válido por 30 días</option>
+                                <option value="90">Válido por 90 días</option>
+                                <option value="0">Permanente (Sin vencimiento)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn-create-share" onclick="generateSharedTaskBoardLink()" style="width: 100%; padding: 10px; background: #008B8B; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem;">
+                        ✨ Generar Enlace Público
+                    </button>
+                </div>
+
+                <!-- Resultado de enlace generado -->
+                <div id="newTaskShareResult" style="display: none; margin-bottom: 14px; padding: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="color: #065F46; font-size: 0.85rem;">✅ ¡Enlace público generado con éxito!</strong>
+                    </div>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="generatedTaskShareUrl" readonly class="task-modal-input" style="background: white; font-size: 0.82rem; padding: 6px 10px;" />
+                        <button type="button" onclick="copyTaskShareUrlToClipboard()" style="padding: 6px 12px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap;">📋 Copiar</button>
+                        <a id="openTaskShareUrlBtn" href="#" target="_blank" style="padding: 6px 12px; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 6px; font-weight: 600; text-decoration: none; white-space: nowrap;">↗️ Abrir</a>
+                    </div>
+                </div>
+
+                <!-- Historial de enlaces activos -->
+                <div>
+                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;">Enlaces Activos Creados</h4>
+                    <div id="sharedTaskLinksContainer" style="max-height: 180px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                            <thead>
+                                <tr style="background: #F8FAFC; text-align: left; border-bottom: 1px solid #E2E8F0;">
+                                    <th style="padding: 8px 10px;">Título</th>
+                                    <th style="padding: 8px 10px;">Vencimiento</th>
+                                    <th style="padding: 8px 10px; text-align: right;">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sharedTaskLinksTableBody">
+                                <tr>
+                                    <td colspan="3" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">Cargando enlaces...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/core-panel.js?v=2.4"></script>
+    <script src="/js/support.js?v=2.4"></script>
+
+    <!-- Sistema de Notificaciones -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="/js/notifications.js"></script>
+
+    <!-- Push Notifications -->
+    <link rel="stylesheet" href="/css/push-notifications.css">
+    <script src="/js/push-notifications.js"></script>
+    <div id="imageLightbox" class="lightbox-modal" onclick="closeLightbox(event)">
+        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
+        <img class="lightbox-content" id="lightboxImg" src="">
+    </div>
+
+</body>
+
+</html>

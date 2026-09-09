@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte Semanal - Imagen Diagnóstica</title>
+    <meta name="description" content="Informe ejecutivo público de gestión y resolución de tickets">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --brand-primary: #008B8B;
+            --brand-primary-dark: #006B6B;
+            --brand-primary-light: #00BFBF;
+            --brand-secondary: #4A4A4A;
+            --bg-page: #F4F7F9;
+            --bg-card: #FFFFFF;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border-color: #E5E7EB;
+            --success: #2F9E44;
+            --warning: #F59F00;
+            --danger: #E03131;
+            --info: #008B8B;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-main);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar */
+        .public-navbar {
+            background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-dark) 100%);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 12px rgba(0, 139, 139, 0.2);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .navbar-logo {
+            height: 42px;
+            width: auto;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+
+        .navbar-title h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .navbar-title span {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            color: white;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-action:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-1px);
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+            flex: 1;
+        }
+
+        /* Header Card */
+        .report-header-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.75rem 2rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .report-info h2 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: var(--brand-primary-dark);
+            margin-bottom: 0.35rem;
+        }
+
+        .report-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-live {
+            background: #E6FCF5;
+            color: #0CA678;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid #C3FAE8;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #0CA678;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 0 rgba(12, 166, 120, 0.4);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(12, 166, 120, 0.7); }
+            70% { box-shadow: 0 0 0 8px rgba(12, 166, 120, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(12, 166, 120, 0); }
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--brand-primary);
+        }
+
+        .stat-card.closed::before { background: var(--success); }
+        .stat-card.pending::before { background: var(--warning); }
+        .stat-card.time::before { background: #4C6FFF; }
+
+        .kpi-icon {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-top: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-badge {
+            margin-top: 0.6rem;
+            display: inline-block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 6px;
+        }
+
+        .kpi-badge.positive { background: #E6FCF5; color: var(--success); }
+        .kpi-badge.neutral { background: #F1F3F5; color: var(--text-muted); }
+        .kpi-badge.negative { background: #FFF5F5; color: var(--danger); }
+
+        /* Charts Section */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 900px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+        }
+
+        .chart-header {
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 280px;
+            width: 100%;
+        }
+
+        /* Tables Section */
+        .table-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+            overflow-x: auto;
+        }
+
+        .table-header {
+            margin-bottom: 1.25rem;
+        }
+
+        .table-header h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .report-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        .report-table th {
+            background: #F8FAFC;
+            color: var(--text-muted);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.78rem;
+            letter-spacing: 0.5px;
+            padding: 12px 16px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .report-table td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .report-table tbody tr:hover {
+            background-color: #F8FAFC;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 8px;
+            background: #EDF2F7;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: var(--brand-primary);
+            border-radius: 4px;
+        }
+
+        /* Error / State messages */
+        .state-container {
+            text-align: center;
+            padding: 5rem 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .state-icon {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .state-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 0.5rem;
+        }
+
+        .state-desc {
+            color: var(--text-muted);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Footer */
+        .public-footer {
+            background: white;
+            border-top: 1px solid var(--border-color);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* Print styles */
+        @media print {
+            .public-navbar, .nav-actions, .public-footer {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+            }
+            .container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            .stat-card, .chart-card, .table-card, .report-header-card {
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <header class="public-navbar">
+        <div class="navbar-brand">
+            <img src="/logo.png" alt="Imagen Diagnóstica" class="navbar-logo">
+            <div class="navbar-title">
+                <h1>Reporte Ejecutivo</h1>
+                <span>Imagen Diagnóstica</span>
+            </div>
+        </div>
+
+        <div class="nav-actions">
+            <button class="btn-action" onclick="copyPublicReportUrl(this)" title="Copiar enlace público de este reporte">
+                📋 Copiar Enlace
+            </button>
+            <button class="btn-action" onclick="loadReportData()" title="Refrescar datos">
+                🔄 Actualizar
+            </button>
+            <button class="btn-action" onclick="window.print()" title="Imprimir o guardar como PDF">
+                🖨️ Imprimir / PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="container" id="mainContainer">
+        <!-- Loading State -->
+        <div id="loadingState" class="state-container">
+            <div class="state-icon">⏳</div>
+            <h2 class="state-title">Cargando reporte ejecutivo...</h2>
+            <p class="state-desc">Recuperando métricas, estadísticas y gráficos actualizados del sistema de tickets.</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="errorState" class="state-container" style="display: none;">
+            <div class="state-icon" id="errorIcon">⚠️</div>
+            <h2 class="state-title" id="errorTitle">Enlace no disponible</h2>
+            <p class="state-desc" id="errorMessage">El enlace de reporte semanal no es válido, ha expirado o fue revocado por la administración.</p>
+        </div>
+
+        <!-- Content State -->
+        <div id="contentSection" style="display: none;">
+            <!-- Header Card -->
+            <div class="report-header-card">
+                <div class="report-info">
+                    <h2 id="reportTitle">Reporte Semanal de Tickets</h2>
+                    <div class="report-meta">
+                        <div class="meta-item">
+                            <span>📅 Período:</span>
+                            <strong id="reportPeriodText">Últimos 7 días</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>🏢 Departamento:</span>
+                            <strong id="reportDeptText">Todos</strong>
+                        </div>
+                        <div class="meta-item">
+                            <span>⏱️ Generado:</span>
+                            <strong id="reportGeneratedDate">-</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <span class="badge-live">
+                        <span class="pulse-dot"></span>
+                        Datos en Vivo
+                    </span>
+                </div>
+            </div>
+
+            <!-- Stats Grid (KPIs) -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="kpi-icon">📥</div>
+                    <div class="stat-number" id="kpiTotal">0</div>
+                    <div class="stat-label">Tickets Recibidos</div>
+                    <div class="kpi-badge neutral" id="kpiTotalChange">+0% vs período anterior</div>
+                </div>
+
+                <div class="stat-card closed">
+                    <div class="kpi-icon">✅</div>
+                    <div class="stat-number" id="kpiClosed">0</div>
+                    <div class="stat-label">Tickets Cerrados</div>
+                    <div class="kpi-badge positive" id="kpiClosedRate">0% Tasa de Resolución</div>
+                </div>
+
+                <div class="stat-card pending">
+                    <div class="kpi-icon">⏳</div>
+                    <div class="stat-number" id="kpiPending">0</div>
+                    <div class="stat-label">Tickets en Curso</div>
+                    <div class="kpi-badge neutral" id="kpiUnassigned">0 sin asignar</div>
+                </div>
+
+                <div class="stat-card time">
+                    <div class="kpi-icon">⏱️</div>
+                    <div class="stat-number" id="kpiTime">0h</div>
+                    <div class="stat-label">Tiempo Promedio</div>
+                    <div class="kpi-badge neutral">Resolución estándar</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-grid">
+                <!-- Tendencia diaria -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">📈 Tendencia de Solicitudes y Resoluciones</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendsChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Distribución por Área -->
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">🏢 Distribución por Área</h3>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="deptDoughnutChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <h3 class="chart-title">📋 Desglose Detallado por Departamento</h3>
+                </div>
+                <table class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Departamento</th>
+                            <th style="text-align: center;">Total</th>
+                            <th style="text-align: center;">Cerrados</th>
+                            <th style="text-align: center;">Pendientes</th>
+                            <th style="text-align: center;">Tiempo Prom.</th>
+                            <th style="width: 25%;">Tasa de Resolución</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="public-footer">
+        <p>&copy; <span id="currentYear"></span> Sistema de Tickets - Imagen Diagnóstica. Todos los derechos reservados.</p>
+    </footer>
+
+    <script src="/js/reporte-publico.js"></script>
+</body>
+
+</html>

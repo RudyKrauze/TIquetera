@@ -1,0 +1,7 @@
+tunnel: 6005f6ef-a2ad-4717-ab4e-6d7a8805b383
+credentials-file: 'C:\Users\rudyt\.cloudflared\6005f6ef-a2ad-4717-ab4e-6d7a8805b383.json'
+
+ingress:
+  - hostname: portfoliovigon.site
+    service: http://localhost:3005
+  - service: http_status:404

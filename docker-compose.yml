@@ -1,0 +1,61 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3005:3005"
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=ticket_app
+      - DB_PASSWORD=TicketApp123!
+      - DB_NAME=tiquetera_db
+    volumes:
+      - .:/app
+      - /app/node_modules
+    restart: always
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: ticket_app
+      POSTGRES_PASSWORD: TicketApp123!
+      POSTGRES_DB: tiquetera_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ticket_app -d tiquetera_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backup:
+    image: prodrigestivill/postgres-backup-local
+    restart: always
+    depends_on:
+      - db
+    links:
+      - db:db
+    volumes:
+      - ./backups:/backups
+    environment:
+      - POSTGRES_HOST=db
+      - POSTGRES_DB=tiquetera_db
+      - POSTGRES_USER=ticket_app
+      - POSTGRES_PASSWORD=TicketApp123!
+      - SCHEDULE=@every 6h00m
+      - BACKUP_KEEP_DAYS=7
+      - BACKUP_KEEP_WEEKS=4
+      - BACKUP_KEEP_MONTHS=6
+      - HEALTHCHECK_PORT=8080
+
+volumes:
+  postgres_data:
