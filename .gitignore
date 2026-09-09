@@ -64,3 +64,6 @@ desktop.ini
 scratch/
 coverage/
 .nyc_output/
+
+# 9. Documentación NO SUBIR
+README.md
