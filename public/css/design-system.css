@@ -64,6 +64,8 @@ html,
 body {
   margin: 0;
   padding: 0;
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 body {
@@ -479,55 +481,71 @@ textarea.is-invalid {
 
 /* Responsive helpers */
 @media (max-width: 768px) {
+  .container,
   .container-main {
-    padding: var(--space-3);
+    padding: 0.65rem 0.75rem;
   }
 
   .card {
-    padding: var(--space-4);
+    padding: 0.85rem;
   }
 
   .navbar {
-    padding: 0.75rem 1rem;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-  }
-
-  .navbar-brand {
-    width: 100%;
-    justify-content: flex-start;
-    gap: 0.75rem;
-  }
-
-  .navbar-logo {
-    height: 36px;
-    padding: 4px 10px;
-  }
-
-  .navbar h1 {
-    font-size: 1.15rem;
-    line-height: 1.3;
-  }
-
-  .user-info {
-    width: 100%;
+    padding: 0.6rem 0.85rem;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: space-between;
     gap: 0.5rem;
   }
 
-  .user-info span {
-    font-size: 0.85rem;
-    max-width: 55%;
+  .navbar-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .navbar-logo {
+    height: 32px;
+    padding: 3px 6px;
+  }
+
+  .navbar h1 {
+    font-size: 1.08rem;
+    line-height: 1.2;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .user-info {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    width: auto;
+    margin-left: auto;
+  }
+
+  .user-info span,
+  #userName {
+    font-size: 0.8rem;
+    max-width: 80px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .logout-btn {
-    padding: 0.45rem 0.9rem;
-    min-width: 120px;
-    font-size: 0.85rem;
+    padding: 0.4rem 0.75rem;
+    min-width: auto;
+    font-size: 0.78rem;
+    border-radius: var(--radius-sm, 6px);
   }
 }
 
@@ -1039,6 +1057,231 @@ textarea.is-invalid {
   font-size: 0.78rem;
   font-weight: 600;
   color: #64748b;
+}
+
+/* =======================================================
+   REGLAS MOBILE-FIRST UNIVERSALES (TICKETS, TABS, PAGINACIÓN)
+   ======================================================= */
+@media (max-width: 768px) {
+  /* KPIs y Tarjetas Métricas */
+  .stats-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .stat-card {
+    padding: 0.75rem 0.5rem !important;
+    border-radius: 8px !important;
+  }
+
+  .stat-card:last-child:nth-child(odd) {
+    grid-column: span 2 !important;
+  }
+
+  .stat-number {
+    font-size: 1.45rem !important;
+    margin-bottom: 0.2rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .stat-label {
+    font-size: 0.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .stat-bar {
+    height: 3px !important;
+    margin-top: 5px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Pestañas de estado de tickets */
+  .ticket-tabs-container {
+    display: flex !important;
+    width: 100% !important;
+    gap: 4px !important;
+    margin-bottom: 1rem !important;
+    border-bottom: 2px solid #e2e8f0 !important;
+    overflow-x: auto;
+  }
+
+  .ticket-tab {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 8px 4px !important;
+    font-size: 0.78rem !important;
+    gap: 4px !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .ticket-tab span:nth-child(2) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .ticket-tab .tab-badge {
+    padding: 1px 5px !important;
+    font-size: 0.7rem !important;
+    margin-left: 0 !important;
+  }
+
+  /* Tarjeta de Ticket en Grilla Móvil */
+  .tickets-grid-3x5 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+    margin-bottom: 1rem !important;
+  }
+
+  .ticket-grid-card {
+    padding: 12px !important;
+    gap: 8px !important;
+    min-height: auto !important;
+    border-radius: 8px !important;
+  }
+
+  .ticket-grid-card .ticket-title {
+    font-size: 0.94rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .ticket-grid-card .ticket-meta {
+    gap: 4px !important;
+    margin-top: 2px !important;
+  }
+
+  .ticket-grid-card .ticket-meta > span {
+    font-size: 0.72rem !important;
+    padding: 2px 6px !important;
+  }
+
+  .ticket-grid-card .ticket-description {
+    font-size: 0.82rem !important;
+    margin: 3px 0 !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Información del Ticket: fluida sin truncar solicitante/asignado */
+  .ticket-grid-card .ticket-info {
+    grid-template-columns: 1fr !important;
+    gap: 4px !important;
+    font-size: 0.78rem !important;
+    padding-top: 6px !important;
+  }
+
+  .ticket-grid-card .ticket-info > div {
+    white-space: normal !important;
+    word-break: break-word !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Botones de acción rápida en móvil */
+  .ticket-quick-actions {
+    padding-top: 8px !important;
+    gap: 6px !important;
+    width: 100% !important;
+    justify-content: stretch !important;
+    display: flex !important;
+  }
+
+  .btn-quick-action {
+    flex: 1 1 0 !important;
+    justify-content: center !important;
+    padding: 8px 6px !important;
+    font-size: 0.78rem !important;
+    min-height: 36px !important;
+  }
+
+  /* Contenedor de Paginación Universal */
+  .pagination-container {
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px !important;
+    padding: 12px 8px !important;
+  }
+
+  .pagination-info {
+    font-size: 0.8rem !important;
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  .pagination-controls {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 4px !important;
+    width: 100% !important;
+  }
+
+  .btn-page {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+    min-height: 36px !important;
+  }
+
+  .page-numbers {
+    display: flex !important;
+    gap: 3px !important;
+  }
+
+  .page-num {
+    min-width: 32px !important;
+    height: 32px !important;
+    font-size: 0.8rem !important;
+    padding: 0 4px !important;
+  }
+
+  /* Encabezado de sección y filtros */
+  .section-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 1rem 0.85rem !important;
+  }
+
+  .section-header h2 {
+    font-size: 1.1rem !important;
+    text-align: left !important;
+  }
+
+  .header-actions,
+  .filters {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  .filter-select {
+    width: 100% !important;
+    height: 38px !important;
+    font-size: 0.82rem !important;
+  }
+
+  .date-filter-group {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  .date-input {
+    max-width: calc(50% - 20px) !important;
+    font-size: 0.8rem !important;
+  }
+
+  .search-container {
+    padding: 0.6rem 0.85rem !important;
+  }
+
+  .search-input {
+    font-size: 0.85rem !important;
+    padding: 8px 12px !important;
+    height: 40px !important;
+  }
 }
 
 

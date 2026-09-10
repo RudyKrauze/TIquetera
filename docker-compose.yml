@@ -17,11 +17,11 @@ services:
     volumes:
       - .:/app
       - /app/node_modules
-    restart: always
+    restart: "no"
 
   db:
     image: postgres:16-alpine
-    restart: always
+    restart: "no"
     environment:
       POSTGRES_USER: ticket_app
       POSTGRES_PASSWORD: TicketApp123!
@@ -39,7 +39,7 @@ services:
 
   backup:
     image: prodrigestivill/postgres-backup-local
-    restart: always
+    restart: "no"
     depends_on:
       - db
     links:
