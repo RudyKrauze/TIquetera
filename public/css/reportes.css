@@ -937,40 +937,102 @@
 /* Móviles */
 @media (max-width: 768px) {
     .navbar {
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 0.85rem;
     }
 
-    .navbar h1 {
-        font-size: 1.2em;
+    .navbar-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .navbar-brand h1 {
+        font-size: 1.1rem;
+        line-height: 1.2;
+        margin: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .navbar-logo {
-        height: 35px;
+        height: 32px;
+        padding: 3px 6px;
     }
 
     .user-info {
-        flex-direction: column;
-        gap: 0.5rem;
-        align-items: flex-start;
-        width: 100%;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        width: auto;
+        margin-left: auto;
+    }
+
+    .user-info span,
+    #currentUserName {
+        font-size: 0.82rem;
+        max-width: 85px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .nav-btn-reports {
+        padding: 5px 9px;
+        font-size: 0.78rem;
+        gap: 4px;
+        border-radius: 16px;
+    }
+
+    .notification-bell {
+        width: 32px;
+        height: 32px;
+        padding: 5px;
+    }
+
+    .logout-btn {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+        border-radius: 6px;
     }
 
     .stats-grid,
     .kpi-grid {
         grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .stat-card,
+    .kpi-card {
+        padding: 0.75rem 0.5rem;
+    }
+
+    .stat-number,
+    .kpi-value {
+        font-size: 1.5rem;
     }
 
     .reports-header {
         flex-direction: column;
         align-items: flex-start;
+        gap: 10px;
     }
 
     .reports-controls {
         width: 100%;
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
 
     .control-group {
@@ -981,47 +1043,51 @@
     .period-select,
     .department-select {
         width: 100%;
+        height: 38px;
+        font-size: 0.82rem;
     }
 
+    /* Botones de acción en cuadrícula 2x2 */
     .action-buttons {
         width: 100%;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
     }
 
     .action-buttons button {
-        flex: 1;
-        min-width: 100px;
-    }
-
-    .stat-number,
-    .kpi-value {
-        font-size: 2em;
+        width: 100%;
+        min-width: 0;
+        padding: 8px 10px;
+        font-size: 0.8rem;
+        justify-content: center;
     }
 
     .reports-table {
-        font-size: 0.85em;
+        font-size: 0.82em;
     }
 
     .reports-table th,
     .reports-table td {
-        padding: 10px 12px;
+        padding: 8px 10px;
     }
 }
 
 /* Móviles pequeños */
 @media (max-width: 480px) {
-
     .stats-grid,
     .kpi-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
     }
 
-    .action-buttons button {
-        width: 100%;
+    .stat-card:last-child:nth-child(odd),
+    .kpi-card:last-child:nth-child(odd) {
+        grid-column: span 2;
     }
 
     .stat-number,
     .kpi-value {
-        font-size: 1.8em;
+        font-size: 1.4em;
     }
 }
