@@ -68,3 +68,5 @@ coverage/
 # 9. LOCAL
 README.md
 *docker
+*.js
+server.js

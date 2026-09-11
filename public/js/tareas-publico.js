@@ -40,6 +40,20 @@
             boardMetadata = data.board;
             allPublicTasks = data.tasks || [];
 
+            // Si el tablero tiene fecha de inicio especificada, posicionar el calendario en esa fecha
+            if (boardMetadata && boardMetadata.start_date) {
+                const cleanDate = String(boardMetadata.start_date).split('T')[0];
+                const parts = cleanDate.split('-');
+                if (parts.length === 3) {
+                    const y = parseInt(parts[0], 10);
+                    const m = parseInt(parts[1], 10) - 1;
+                    const d = parseInt(parts[2], 10);
+                    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+                        currentCalendarDate = new Date(y, m, d);
+                    }
+                }
+            }
+
             renderBoardHeader(data.board);
             renderKPIs(data.stats);
             applyFilters();
@@ -65,6 +79,30 @@
         if (createdInfo && board.created_at) {
             const d = new Date(board.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
             createdInfo.textContent = `📅 Generado el: ${d}${board.created_by_name ? ` por ${board.created_by_name}` : ''}`;
+        }
+
+        const periodBadge = document.getElementById('boardPeriodBadge');
+        if (periodBadge) {
+            const periodLabels = {
+                '1d': 'Últimas 24 horas (hasta hoy)',
+                '7d': 'Últimos 7 días (hasta hoy)',
+                '30d': 'Últimos 30 días (hasta hoy)',
+                'month': 'Mes actual (hasta hoy)',
+                'until_today': 'Historial acumulado hasta hoy',
+                'all': 'Completo (incluye futuras)'
+            };
+            let label = periodLabels[board.period] || 'Últimos 7 días (hasta hoy)';
+            if (board.period === 'custom' && board.start_date && board.end_date) {
+                const formatD = (str) => {
+                    const clean = String(str).split('T')[0];
+                    const parts = clean.split('-');
+                    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    return str;
+                };
+                label = `${formatD(board.start_date)} al ${formatD(board.end_date)}`;
+            }
+            periodBadge.textContent = `📅 Período: ${label}`;
+            periodBadge.style.display = 'inline-block';
         }
     }
 

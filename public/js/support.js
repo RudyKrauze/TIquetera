@@ -2592,13 +2592,124 @@ function exportTasksToCSV() {
 }
 
 // ==============================================
+// ==============================================
 // ENLACES PÚBLICOS DEL TABLERO DE SOPORTE
 // ==============================================
+function setTaskShareDatePreset(preset) {
+    const startInput = document.getElementById('shareTaskStartDateInput');
+    const endInput = document.getElementById('shareTaskEndDateInput');
+    if (!startInput || !endInput) return;
+
+    const today = new Date();
+    let startDate = new Date();
+    let endDate = new Date();
+
+    if (preset === '7d') {
+        startDate.setDate(today.getDate() - 7);
+        endDate = today;
+    } else if (preset === '14d') {
+        startDate.setDate(today.getDate() - 14);
+        endDate = today;
+    } else if (preset === 'this_month') {
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = today;
+    } else if (preset === 'last_month') {
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    }
+
+    const toYMD = (d) => {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    startInput.value = toYMD(startDate);
+    endInput.value = toYMD(endDate);
+    updateTaskShareCustomDateSummary();
+}
+
+function updateTaskShareCustomDateSummary() {
+    const startInput = document.getElementById('shareTaskStartDateInput');
+    const endInput = document.getElementById('shareTaskEndDateInput');
+    const summaryText = document.getElementById('taskShareCustomDateSummaryText');
+    const daysBadge = document.getElementById('taskShareCustomDateDaysBadge');
+    if (!startInput || !endInput || !summaryText || !daysBadge) return;
+
+    const sVal = startInput.value;
+    const eVal = endInput.value;
+    if (!sVal || !eVal) {
+        summaryText.textContent = '📅 Selecciona las fechas de inicio y fin';
+        daysBadge.textContent = '';
+        return;
+    }
+
+    if (eVal < sVal) {
+        summaryText.innerHTML = '<span style="color: #DC2626;">⚠️ La fecha de fin no puede ser anterior a la de inicio</span>';
+        daysBadge.textContent = 'Inválido';
+        daysBadge.style.background = '#FEE2E2';
+        daysBadge.style.color = '#DC2626';
+        return;
+    }
+
+    const sParts = sVal.split('-');
+    const eParts = eVal.split('-');
+    const sDate = new Date(sParts[0], sParts[1] - 1, sParts[2]);
+    const eDate = new Date(eParts[0], eParts[1] - 1, eParts[2]);
+    const diffTime = Math.abs(eDate - sDate);
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    const sFormatted = `${sParts[2]}/${sParts[1]}/${sParts[0]}`;
+    const eFormatted = `${eParts[2]}/${eParts[1]}/${eParts[0]}`;
+
+    summaryText.innerHTML = `<span>📅 Rango activo: <strong>${sFormatted}</strong> al <strong>${eFormatted}</strong></span>`;
+    daysBadge.textContent = `${diffDays} día${diffDays > 1 ? 's' : ''}`;
+    daysBadge.style.background = '#E6FCF5';
+    daysBadge.style.color = '#008B8B';
+}
+
+function toggleTaskShareCustomDates() {
+    const periodSelect = document.getElementById('shareTaskPeriodSelect');
+    const customBox = document.getElementById('taskShareCustomDatesContainer');
+    const helpText = document.getElementById('shareTaskPeriodHelpText');
+    if (!periodSelect || !customBox) return;
+
+    if (periodSelect.value === 'custom') {
+        customBox.style.display = 'block';
+        if (helpText) {
+            helpText.textContent = '📅 Rango personalizado: Solo se incluirán tareas dentro del rango exacto seleccionado.';
+        }
+        const startInput = document.getElementById('shareTaskStartDateInput');
+        const endInput = document.getElementById('shareTaskEndDateInput');
+        const toYMD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (startInput && !startInput.value) {
+            const d = new Date();
+            d.setDate(d.getDate() - 7);
+            startInput.value = toYMD(d);
+        }
+        if (endInput && !endInput.value) {
+            endInput.value = toYMD(new Date());
+        }
+        updateTaskShareCustomDateSummary();
+    } else {
+        customBox.style.display = 'none';
+        if (helpText) {
+            if (periodSelect.value === 'all') {
+                helpText.textContent = '⚠️ Incluye todas las tareas históricas y futuras planificadas.';
+            } else {
+                helpText.textContent = '🔒 Corte de fecha: Solo incluye tareas hasta hoy, evitando computar rutinas futuras como pendientes.';
+            }
+        }
+    }
+}
+
 function openShareTasksModal() {
     const modal = document.getElementById('shareTasksModalDialog');
     if (!modal) return;
     const resBox = document.getElementById('newTaskShareResult');
     if (resBox) resBox.style.display = 'none';
+    toggleTaskShareCustomDates();
     modal.style.display = 'flex';
     loadSharedTaskLinks();
 }
@@ -2610,16 +2721,43 @@ function closeShareTasksModal() {
 
 async function generateSharedTaskBoardLink() {
     const titleInput = document.getElementById('shareTaskTitleInput');
+    const periodSelect = document.getElementById('shareTaskPeriodSelect');
     const expirationSelect = document.getElementById('shareTaskExpirationSelect');
     const title = titleInput ? titleInput.value.trim() : '';
+    const period = periodSelect ? periodSelect.value : '7d';
     const expireInDays = expirationSelect ? parseInt(expirationSelect.value, 10) : 7;
+    let startDate = null;
+    let endDate = null;
+
+    if (period === 'custom') {
+        const startInput = document.getElementById('shareTaskStartDateInput');
+        const endInput = document.getElementById('shareTaskEndDateInput');
+        startDate = startInput ? startInput.value : '';
+        endDate = endInput ? endInput.value : '';
+
+        if (!startDate || !endDate) {
+            showNotification('⚠️ Debes seleccionar la fecha de inicio y de fin', 'warning');
+            return;
+        }
+        if (endDate < startDate) {
+            showNotification('⚠️ La fecha de fin no puede ser anterior a la de inicio', 'warning');
+            return;
+        }
+    }
 
     try {
         const response = await fetch('/api/maintenance/tasks/share', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-            body: JSON.stringify({ title, expireInDays, department: 'Sistemas' })
+            body: JSON.stringify({ 
+                title, 
+                expireInDays, 
+                period, 
+                startDate, 
+                endDate, 
+                department: 'Sistemas' 
+            })
         });
 
         if (!response.ok) {
@@ -2660,7 +2798,7 @@ async function loadSharedTaskLinks() {
         if (!Array.isArray(links) || links.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="3" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">
+                    <td colspan="4" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">
                         No hay enlaces públicos activos creados.
                     </td>
                 </tr>
@@ -2668,16 +2806,36 @@ async function loadSharedTaskLinks() {
             return;
         }
 
+        const periodLabels = {
+            '1d': 'Últimas 24hs',
+            '7d': 'Últimos 7 días',
+            '30d': 'Últimos 30 días',
+            'month': 'Mes Actual',
+            'until_today': 'Todo hasta hoy',
+            'all': 'Completo (futuras)'
+        };
+
         tbody.innerHTML = links.map(link => {
             const expStr = link.expires_at 
                 ? new Date(link.expires_at).toLocaleDateString('es-AR')
                 : 'Permanente';
             const isExpired = link.isExpired;
+            let periodLabel = periodLabels[link.period] || 'Últimos 7 días';
+            if (link.period === 'custom' && link.start_date && link.end_date) {
+                const s = new Date(link.start_date).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+                const e = new Date(link.end_date).toLocaleDateString('es-AR', { timeZone: 'UTC' });
+                periodLabel = `${s} al ${e}`;
+            }
 
             return `
                 <tr style="border-bottom: 1px solid #F1F5F9;">
                     <td style="padding: 8px 10px; font-weight: 600; color: #1E293B;">
                         ${escapeHtml(link.title)}
+                    </td>
+                    <td style="padding: 8px 10px;">
+                        <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: #E6FCF5; color: #008B8B; font-weight: 600; border: 1px solid #C3FAE8;">
+                            📅 ${escapeHtml(periodLabel)}
+                        </span>
                     </td>
                     <td style="padding: 8px 10px;">
                         <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: ${isExpired ? '#FEE2E2' : '#E0F2FE'}; color: ${isExpired ? '#DC2626' : '#0369A1'}; font-weight: 600;">
@@ -2693,7 +2851,7 @@ async function loadSharedTaskLinks() {
             `;
         }).join('');
     } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="3" style="color: #EF4444; padding: 1rem; text-align: center;">Error al cargar enlaces</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" style="color: #EF4444; padding: 1rem; text-align: center;">Error al cargar enlaces</td></tr>`;
     }
 }
 
@@ -2757,6 +2915,9 @@ function fallbackCopy(text) {
 // Exponer funciones globales
 window.openShareTasksModal = openShareTasksModal;
 window.closeShareTasksModal = closeShareTasksModal;
+window.toggleTaskShareCustomDates = toggleTaskShareCustomDates;
+window.setTaskShareDatePreset = setTaskShareDatePreset;
+window.updateTaskShareCustomDateSummary = updateTaskShareCustomDateSummary;
 window.generateSharedTaskBoardLink = generateSharedTaskBoardLink;
 window.loadSharedTaskLinks = loadSharedTaskLinks;
 window.deleteSharedTaskLink = deleteSharedTaskLink;

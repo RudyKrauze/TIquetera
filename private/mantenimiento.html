@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/notifications.css?v=2.6">
-    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.7">
+    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.8">
     <link rel="stylesheet" href="/css/design-system.css?v=2.6">
 </head>
 
@@ -554,11 +554,61 @@
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
                             <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Título personalizado (opcional)</label>
-                            <input type="text" id="shareTaskTitleInput" class="task-modal-input" placeholder="Ej: Tablero de Tareas de Mantenimiento">
+                            <input type="text" id="shareTaskTitleInput" class="share-input" placeholder="Ej: Tablero de Tareas de Mantenimiento">
                         </div>
                         <div>
+                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Período de tareas a incluir</label>
+                            <select id="shareTaskPeriodSelect" class="share-input" onchange="toggleTaskShareCustomDates()">
+                                <option value="7d" selected>Últimos 7 días (hasta hoy)</option>
+                                <option value="30d">Últimos 30 días (hasta hoy)</option>
+                                <option value="month">Mes actual (hasta hoy)</option>
+                                <option value="1d">Últimas 24 horas (hasta hoy)</option>
+                                <option value="until_today">Todo el historial hasta hoy (sin futuras)</option>
+                                <option value="custom">📅 Personalizado (elegir inicio y fin)</option>
+                                <option value="all">Completo (incluyendo futuras programadas)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <!-- Selector de rango personalizado de fechas estilizado -->
+                    <div id="taskShareCustomDatesContainer" class="custom-date-range-box" style="display: none;">
+                        <div class="custom-date-range-header">
+                            <span class="custom-date-range-title">
+                                📅 Rango de Fechas Personalizado
+                            </span>
+                            <div class="custom-date-presets">
+                                <button type="button" class="date-preset-pill" onclick="setTaskShareDatePreset('7d')">Últimos 7d</button>
+                                <button type="button" class="date-preset-pill" onclick="setTaskShareDatePreset('14d')">Últimos 14d</button>
+                                <button type="button" class="date-preset-pill" onclick="setTaskShareDatePreset('this_month')">Este Mes</button>
+                                <button type="button" class="date-preset-pill" onclick="setTaskShareDatePreset('last_month')">Mes Anterior</button>
+                            </div>
+                        </div>
+                        <div class="custom-date-fields-grid">
+                            <div class="custom-date-field-group">
+                                <label for="shareTaskStartDateInput">
+                                    <span style="color: #008B8B; font-size: 0.9rem;">📅</span> Fecha Desde:
+                                </label>
+                                <div class="custom-date-input-wrapper">
+                                    <input type="date" id="shareTaskStartDateInput" class="share-input" onchange="updateTaskShareCustomDateSummary()">
+                                </div>
+                            </div>
+                            <div class="custom-date-field-group">
+                                <label for="shareTaskEndDateInput">
+                                    <span style="color: #008B8B; font-size: 0.9rem;">📅</span> Fecha Hasta:
+                                </label>
+                                <div class="custom-date-input-wrapper">
+                                    <input type="date" id="shareTaskEndDateInput" class="share-input" onchange="updateTaskShareCustomDateSummary()">
+                                </div>
+                            </div>
+                        </div>
+                        <div id="taskShareCustomDateSummary" class="custom-date-range-summary">
+                            <span id="taskShareCustomDateSummaryText">📅 Selecciona las fechas de inicio y fin</span>
+                            <span id="taskShareCustomDateDaysBadge" style="background: #E6FCF5; color: #008B8B; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;"></span>
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                        <div>
                             <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Vigencia del enlace</label>
-                            <select id="shareTaskExpirationSelect" class="task-modal-select">
+                            <select id="shareTaskExpirationSelect" class="share-input">
                                 <option value="7" selected>Válido por 7 días</option>
                                 <option value="14">Válido por 14 días (2 semanas)</option>
                                 <option value="30">Válido por 30 días</option>
@@ -566,9 +616,14 @@
                                 <option value="0">Permanente (Sin vencimiento)</option>
                             </select>
                         </div>
+                        <div style="display: flex; flex-direction: column; justify-content: flex-end;">
+                            <small id="shareTaskPeriodHelpText" style="color: #008B8B; font-weight: 600; font-size: 0.78rem; line-height: 1.3;">
+                                🔒 Corte de fecha: Solo incluye tareas hasta hoy, evitando computar rutinas futuras como pendientes.
+                            </small>
+                        </div>
                     </div>
 
-                    <button type="button" class="btn-create-share" onclick="generateSharedTaskBoardLink()" style="width: 100%; padding: 10px; background: #008B8B; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem;">
+                    <button type="button" class="btn-create-share" onclick="generateSharedTaskBoardLink()" style="width: 100%; padding: 10px; background: #008B8B; color: white; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.9rem; transition: background 0.2s, transform 0.1s;">
                         ✨ Generar Enlace Público
                     </button>
                 </div>
@@ -579,9 +634,9 @@
                         <strong style="color: #065F46; font-size: 0.85rem;">✅ ¡Enlace público generado con éxito!</strong>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="generatedTaskShareUrl" readonly class="task-modal-input" style="background: white; font-size: 0.82rem; padding: 6px 10px;" />
-                        <button type="button" onclick="copyTaskShareUrlToClipboard()" style="padding: 6px 12px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap;">📋 Copiar</button>
-                        <a id="openTaskShareUrlBtn" href="#" target="_blank" style="padding: 6px 12px; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 6px; font-weight: 600; text-decoration: none; white-space: nowrap;">↗️ Abrir</a>
+                        <input type="text" id="generatedTaskShareUrl" readonly class="share-input" style="background: white; font-size: 0.82rem; padding: 6px 10px; height: 38px; min-height: 38px;" />
+                        <button type="button" onclick="copyTaskShareUrlToClipboard()" style="padding: 6px 12px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap; height: 38px;">📋 Copiar</button>
+                        <a id="openTaskShareUrlBtn" href="#" target="_blank" style="padding: 6px 12px; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 6px; font-weight: 600; text-decoration: none; white-space: nowrap; height: 38px; display: inline-flex; align-items: center;">↗️ Abrir</a>
                     </div>
                 </div>
 
@@ -593,13 +648,14 @@
                             <thead>
                                 <tr style="background: #F8FAFC; text-align: left; border-bottom: 1px solid #E2E8F0;">
                                     <th style="padding: 8px 10px;">Título</th>
+                                    <th style="padding: 8px 10px;">Período</th>
                                     <th style="padding: 8px 10px;">Vencimiento</th>
                                     <th style="padding: 8px 10px; text-align: right;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="sharedTaskLinksTableBody">
                                 <tr>
-                                    <td colspan="3" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">Cargando enlaces...</td>
+                                    <td colspan="4" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">Cargando enlaces...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -610,7 +666,7 @@
     </div>
 
     <script src="/js/core-panel.js?v=2.3"></script>
-    <script src="/js/mantenimiento.js?v=2.3"></script>
+    <script src="/js/mantenimiento.js?v=2.9"></script>
 
     <!-- Sistema de Notificaciones -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
