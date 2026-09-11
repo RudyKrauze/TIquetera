@@ -10,7 +10,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.5">
+    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.7">
     <style>
         :root {
             --brand-primary: #008B8B;
@@ -245,6 +245,7 @@
                 <div class="calendar-nav-right">
                     <div class="calendar-view-switcher">
                         <button class="btn-cal-view active" id="btnViewMonth" onclick="setCalendarView('month')">📅 Mes</button>
+                        <button class="btn-cal-view" id="btnViewWorkWeek" onclick="setCalendarView('workweek')">💼 Sem. Laboral</button>
                         <button class="btn-cal-view" id="btnViewWeek" onclick="setCalendarView('week')">📆 Semana</button>
                         <button class="btn-cal-view" id="btnViewAgenda" onclick="setCalendarView('agenda')">📋 Agenda</button>
                     </div>
@@ -337,6 +338,25 @@
             </div>
             <div style="padding: 20px;" id="taskDetailBody">
                 <!-- Contenido generado por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Tareas del Día (Público - Sólo Lectura) -->
+    <div class="task-modal-overlay" id="dayTasksModalDialog" role="dialog" aria-modal="true" aria-labelledby="dayTasksModalTitle" style="display: none;" onclick="if(event.target===this) closeDayTasksModal();">
+        <div class="task-modal-card" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="dayTasksModalTitle">📅 Tareas del Día</h3>
+                    <span id="dayTasksModalBadge" class="day-tasks-count-badge">0 tareas</span>
+                </div>
+                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+            </div>
+            <div style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;" id="dayTasksListBody">
+                <!-- Se llena dinámicamente con openDayTasksModal() -->
+            </div>
+            <div style="display: flex; justify-content: flex-end; align-items: center; padding: 14px 20px; border-top: 1px solid #E5E7EB; background: #F9FAFB; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+                <button type="button" class="btn btn-secondary btn-sm" onclick="closeDayTasksModal()" style="padding: 8px 16px; background: #E2E8F0; color: #334155; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cerrar</button>
             </div>
         </div>
     </div>

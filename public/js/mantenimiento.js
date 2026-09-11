@@ -1424,8 +1424,9 @@ function applyFilters() {
             renderCalendar();
         }
 
+
         function calendarPrev() {
-            if (currentCalendarView === 'week') {
+            if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
                 currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
             } else {
                 currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
@@ -1434,7 +1435,7 @@ function applyFilters() {
         }
 
         function calendarNext() {
-            if (currentCalendarView === 'week') {
+            if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
                 currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
             } else {
                 currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
@@ -1445,6 +1446,7 @@ function applyFilters() {
         function setCalendarView(view) {
             currentCalendarView = view;
             document.getElementById('btnViewMonth')?.classList.toggle('active', view === 'month');
+            document.getElementById('btnViewWorkWeek')?.classList.toggle('active', view === 'workweek');
             document.getElementById('btnViewWeek')?.classList.toggle('active', view === 'week');
             document.getElementById('btnViewAgenda')?.classList.toggle('active', view === 'agenda');
 
@@ -1453,7 +1455,7 @@ function applyFilters() {
             const agendaCont = document.getElementById('calendarAgendaContainer');
 
             if (monthCont) monthCont.style.display = view === 'month' ? 'block' : 'none';
-            if (weekCont) weekCont.style.display = view === 'week' ? 'block' : 'none';
+            if (weekCont) weekCont.style.display = (view === 'week' || view === 'workweek') ? 'block' : 'none';
             if (agendaCont) agendaCont.style.display = view === 'agenda' ? 'block' : 'none';
 
             renderCalendar();
@@ -1464,7 +1466,7 @@ function applyFilters() {
 
             if (currentCalendarView === 'month') {
                 renderCalendarMonth();
-            } else if (currentCalendarView === 'week') {
+            } else if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
                 renderCalendarWeek();
             } else if (currentCalendarView === 'agenda') {
                 renderCalendarAgenda();
@@ -1483,11 +1485,12 @@ function applyFilters() {
             const year = currentCalendarDate.getFullYear();
             const month = currentCalendarDate.getMonth();
 
-            if (currentCalendarView === 'week') {
+            if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
                 const monday = getMonday(currentCalendarDate);
-                const sunday = new Date(monday);
-                sunday.setDate(sunday.getDate() + 6);
-                titleEl.textContent = `${monday.getDate()} ${months[monday.getMonth()].substring(0, 3)} - ${sunday.getDate()} ${months[sunday.getMonth()]} ${year}`;
+                const daysSpan = currentCalendarView === 'workweek' ? 4 : 6;
+                const endDay = new Date(monday);
+                endDay.setDate(endDay.getDate() + daysSpan);
+                titleEl.textContent = `${monday.getDate()} ${months[monday.getMonth()].substring(0, 3)} - ${endDay.getDate()} ${months[endDay.getMonth()]} ${year}`;
             } else {
                 titleEl.textContent = `${months[month]} de ${year}`;
             }
@@ -1541,10 +1544,12 @@ function applyFilters() {
                 const dayTasks = getTasksForDay(dateKey);
 
                 cellsHtml += `
-                    <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+                    <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                         <div class="day-cell-top">
                             <span class="day-number">${dayNum}</span>
-                            <span class="day-add-btn">➕</span>
+                            <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
                         </div>
                         <div class="day-events-list">
                             ${renderEventPills(dayTasks)}
@@ -1561,10 +1566,12 @@ function applyFilters() {
                 const dayTasks = getTasksForDay(dateKey);
 
                 cellsHtml += `
-                    <div class="calendar-day-cell ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+                    <div class="calendar-day-cell ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                         <div class="day-cell-top">
                             <span class="day-number">${dayNum}</span>
-                            <span class="day-add-btn">➕</span>
+                            <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
                         </div>
                         <div class="day-events-list">
                             ${renderEventPills(dayTasks)}
@@ -1583,10 +1590,12 @@ function applyFilters() {
                 const dayTasks = getTasksForDay(dateKey);
 
                 cellsHtml += `
-                    <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+                    <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                         <div class="day-cell-top">
                             <span class="day-number">${dayNum}</span>
-                            <span class="day-add-btn">➕</span>
+                            <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                            </button>
                         </div>
                         <div class="day-events-list">
                             ${renderEventPills(dayTasks)}
@@ -1628,12 +1637,16 @@ function applyFilters() {
             const weekContainer = document.getElementById('calendarWeekMatrix');
             if (!weekContainer) return;
 
+            const isWorkWeek = currentCalendarView === 'workweek';
+            weekContainer.classList.toggle('workweek-grid', isWorkWeek);
+
             const monday = getMonday(currentCalendarDate);
             const todayStr = formatDateKey(new Date());
-            const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+            const dayNames = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+            const daysCount = isWorkWeek ? 5 : 7;
             let colsHtml = '';
 
-            for (let i = 0; i < 7; i++) {
+            for (let i = 0; i < daysCount; i++) {
                 const d = new Date(monday);
                 d.setDate(d.getDate() + i);
                 const dateKey = formatDateKey(d);
@@ -1641,13 +1654,13 @@ function applyFilters() {
                 const dayTasks = getTasksForDay(dateKey);
 
                 colsHtml += `
-                    <div class="calendar-week-col ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
-                        <div class="week-col-header">
-                            <div class="week-col-dayname">${dayNames[i]}</div>
-                            <div class="week-col-daynum">${d.getDate()}</div>
+                    <div class="calendar-week-col ${isToday ? 'today' : ''}">
+                        <div class="week-col-header" onclick="openDayTasksModal('${dateKey}')" title="Ver tareas del día ${d.getDate()}">
+                            <span class="week-col-name">${dayNames[i]}</span>
+                            <span class="week-col-num">${d.getDate()}</span>
                         </div>
-                        <div class="day-events-list" style="max-height: none; gap: 6px;">
-                            ${renderEventPills(dayTasks)}
+                        <div class="week-col-events" onclick="openDayTasksModal('${dateKey}')">
+                            ${renderEventCards(dayTasks)}
                         </div>
                     </div>
                 `;
@@ -1656,16 +1669,49 @@ function applyFilters() {
             weekContainer.innerHTML = colsHtml;
         }
 
+        function renderEventCards(tasks) {
+            if (!Array.isArray(tasks) || tasks.length === 0) {
+                return `<div class="empty-day-msg">Sin tareas</div>`;
+            }
+
+            return tasks.map(task => {
+                const isCompleted = task.status === 'completed';
+                const priorityClass = `priority-${task.priority || 'medium'}`;
+                const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+                const metrics = task.checklistMetrics || { total: checklist.length, completed: 0 };
+                const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
+
+                return `
+                    <div class="calendar-week-card ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                         onclick="event.stopPropagation(); openTaskDetailModal(${task.id});"
+                         title="${isCompleted ? '[COMPLETADA] ' : ''}${escapeHtml(task.title)} (${escapeHtml(task.category || 'General')}) - Sede: ${escapeHtml(task.sede || 'Todas')}">
+                        <div class="card-top-line">
+                            <span class="card-category">${escapeHtml(task.category || 'General')}</span>
+                            ${task.is_recurring ? '<span class="card-recurring-icon" title="Rutina Recurrente">🔁</span>' : ''}
+                        </div>
+                        <div class="card-title">${escapeHtml(task.title)}</div>
+                        <div class="card-footer-info">
+                            <span class="card-sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                            ${checkInfo ? `<span class="card-check-info">${checkInfo}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
         function renderCalendarAgenda() {
             const agendaContainer = document.getElementById('calendarAgendaList');
             if (!agendaContainer) return;
 
             if (allMaintenanceTasks.length === 0) {
                 agendaContainer.innerHTML = `
-                    <div style="text-align: center; padding: 3rem; color: #9CA3AF; background: white; border-radius: 10px; border: 1px solid #E5E7EB;">
-                        <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">📅</div>
-                        <h3>No hay tareas programadas</h3>
-                        <p style="font-size: 0.88rem;">Haz clic en "➕ Nueva Tarea" para programar una rutina de mantenimiento.</p>
+                    <div class="calendar-agenda-empty">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">📋</div>
+                        <h3>No hay tareas programadas con los filtros actuales</h3>
+                        <p>Haz clic en "➕ Nueva Tarea" para programar una rutina de mantenimiento.</p>
+                        <button onclick="openTaskModal()" style="margin-top: 15px; padding: 8px 18px; background: #008B8B; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            ➕ Programar Tarea
+                        </button>
                     </div>
                 `;
                 return;
@@ -1686,48 +1732,58 @@ function applyFilters() {
             let agendaHtml = '';
             sortedDates.forEach(dateKey => {
                 const tasks = grouped[dateKey];
-                const dateLabel = dateKey === todayStr ? '⭐ Hoy' : (dateKey === 'Sin Fecha' ? '📅 Tareas sin fecha límite' : `📅 ${dateKey.split('-').reverse().join('/')}`);
+                let dateLabel = dateKey;
+                if (dateKey !== 'Sin Fecha') {
+                    const parts = dateKey.split('-');
+                    const d = new Date(parts[0], parseInt(parts[1], 10) - 1, parts[2]);
+                    dateLabel = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                    dateLabel = dateLabel.charAt(0).toUpperCase() + dateLabel.slice(1);
+                    if (dateKey === todayStr) {
+                        dateLabel = `⭐ Hoy - ${dateLabel}`;
+                    }
+                } else {
+                    dateLabel = '📅 Tareas sin fecha límite';
+                }
 
                 agendaHtml += `
-                    <div class="agenda-day-group">
-                        <div class="agenda-day-header">
-                            <span>${dateLabel}</span>
-                            <span style="font-size: 0.78rem; background: #E2E8F0; padding: 2px 8px; border-radius: 10px; font-weight: 700;">${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'}</span>
+                    <div class="agenda-group">
+                        <div class="agenda-group-header">
+                            <span>📅 ${dateLabel}</span>
+                            <span class="agenda-count-badge">${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'}</span>
                         </div>
-                        <div class="agenda-items-list">
+                        <div class="agenda-group-cards">
                             ${tasks.map(task => {
                                 const isCompleted = task.status === 'completed';
+                                const priorityClass = `priority-${task.priority || 'medium'}`;
                                 const checklist = Array.isArray(task.checklist) ? task.checklist : [];
                                 const metrics = task.checklistMetrics || { total: checklist.length, completed: 0, percent: 0 };
                                 const percent = metrics.percent || 0;
 
                                 return `
-                                    <div class="agenda-item-row" onclick="openTaskDetailModal(${task.id})">
-                                        <div style="flex: 1;">
-                                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                                <strong style="font-size: 0.95rem; color: #1E293B; ${isCompleted ? 'text-decoration: line-through;' : ''}">${task.is_recurring ? '🔁 ' : ''}${escapeHtml(task.title)}</strong>
-                                                <span class="task-badge badge-category" style="font-size: 0.72rem;">🏢 ${escapeHtml(task.category || 'General')}</span>
-                                                <span class="task-badge badge-sede" style="font-size: 0.72rem;">📍 ${escapeHtml(task.sede || 'Todas')}</span>
-                                                ${task.assigned_technician ? `<span class="task-badge" style="background:#EFF6FF; color:#1E40AF; border:1px solid #DBEAFE; font-size: 0.72rem;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                    <div class="agenda-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}" onclick="openTaskDetailModal(${task.id})">
+                                        <div class="agenda-item-left">
+                                            <div class="agenda-item-title">
+                                                ${task.is_recurring ? '🔁 ' : ''}${escapeHtml(task.title)}
                                             </div>
-                                            ${task.description ? `<p style="margin: 0 0 6px 0; font-size: 0.82rem; color: #64748B;">${escapeHtml(task.description)}</p>` : ''}
-                                            ${checklist.length > 0 ? `
-                                                <div style="display: flex; align-items: center; gap: 8px; font-size: 0.76rem; color: #475569;">
-                                                    <span>Progreso: ${metrics.completed}/${metrics.total} (${percent}%)</span>
-                                                    <div style="width: 100px; height: 5px; background: #E2E8F0; border-radius: 3px; overflow: hidden;">
-                                                        <div style="width: ${percent}%; height: 100%; background: ${percent === 100 ? '#10B981' : '#008B8B'};"></div>
-                                                    </div>
-                                                </div>
-                                            ` : ''}
+                                            ${task.description ? `<div class="agenda-item-desc">${escapeHtml(task.description)}</div>` : ''}
+                                            <div class="agenda-item-meta">
+                                                <span class="agenda-badge-cat">🏢 ${escapeHtml(task.category || 'General')}</span>
+                                                <span class="agenda-badge-sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                                                ${task.assigned_technician ? `<span class="agenda-badge-tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                                ${checklist.length > 0 ? `<span class="agenda-badge-chk">✓ ${metrics.completed}/${metrics.total} pasos (${percent}%)</span>` : ''}
+                                                <span class="agenda-badge-status status-${task.status}">${task.status === 'completed' ? '🟢 Completada' : (task.status === 'in-progress' ? '🔵 En Progreso' : '🟡 Pendiente')}</span>
+                                            </div>
                                         </div>
-                                        <div style="display: flex; align-items: center; gap: 8px;" onclick="event.stopPropagation();">
-                                            <select class="task-status-select" onchange="changeTaskStatus(${task.id}, this.value)">
+                                        <div class="agenda-item-right" onclick="event.stopPropagation();">
+                                            <select class="task-status-select" onchange="changeTaskStatus(${task.id}, this.value)" title="Cambiar estado">
                                                 <option value="pending" ${task.status === 'pending' ? 'selected' : ''}>🟡 Pendiente</option>
                                                 <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>🔵 En Progreso</option>
                                                 <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>🟢 Completada</option>
                                             </select>
-                                            <button class="btn-task-icon" onclick='openTaskDetailModal(${task.id})' title="Ver detalles y editar">🔍</button>
-                                            <button class="btn-task-icon delete" onclick="confirmDeleteTask(${task.id})" title="Eliminar">🗑️</button>
+                                            <button class="btn-agenda-view" onclick='openTaskDetailModal(${task.id})' title="Ver detalles y checklist">
+                                                Ver Detalle ➔
+                                            </button>
+                                            <button class="btn-task-icon delete" onclick="confirmDeleteTask(${task.id})" title="Eliminar tarea">🗑️</button>
                                         </div>
                                     </div>
                                 `;
@@ -1817,6 +1873,107 @@ function applyFilters() {
             } finally {
                 pendingTaskStatusUpdates.delete(taskId);
             }
+        }
+
+        // =======================================================
+        // MODAL DE TAREAS DEL DÍA (MANTENIMIENTO)
+        // =======================================================
+
+        let currentSelectedDayKey = null;
+
+        function formatDayTitleSpanish(dateKey) {
+            if (!dateKey) return '';
+            const [y, m, d] = dateKey.split('-').map(Number);
+            const dateObj = new Date(y, m - 1, d);
+            const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const dayName = dayNames[dateObj.getDay()];
+            const monthName = monthNames[m - 1];
+            return `${dayName}, ${d} de ${monthName} de ${y}`;
+        }
+
+        function openDayTasksModal(dateKey) {
+            currentSelectedDayKey = dateKey;
+            const modal = document.getElementById('dayTasksModalDialog');
+            const titleEl = document.getElementById('dayTasksModalTitle');
+            const badgeEl = document.getElementById('dayTasksModalBadge');
+            const bodyEl = document.getElementById('dayTasksListBody');
+            if (!modal || !bodyEl) return;
+
+            const formattedTitle = formatDayTitleSpanish(dateKey);
+            if (titleEl) {
+                titleEl.textContent = `📅 ${formattedTitle}`;
+            }
+
+            const dayTasks = getTasksForDay(dateKey);
+            const count = dayTasks.length;
+
+            if (badgeEl) {
+                badgeEl.textContent = `${count} ${count === 1 ? 'tarea' : 'tareas'}`;
+                badgeEl.style.background = count > 0 ? '#E0F2FE' : '#F1F5F9';
+                badgeEl.style.color = count > 0 ? '#0369A1' : '#64748B';
+            }
+
+            if (count === 0) {
+                bodyEl.innerHTML = `
+                    <div class="day-tasks-empty-state">
+                        <div class="day-tasks-empty-icon">☕</div>
+                        <div class="day-tasks-empty-title">Sin tareas para este día</div>
+                        <div class="day-tasks-empty-subtitle">No hay tareas o rutinas programadas para el ${formattedTitle}.</div>
+                    </div>
+                `;
+            } else {
+                bodyEl.innerHTML = `
+                    <div class="day-tasks-list">
+                        ${dayTasks.map(task => {
+                            const isCompleted = task.status === 'completed';
+                            const priorityClass = `priority-${task.priority || 'medium'}`;
+                            const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+                            const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
+                            const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
+                            const prefix = isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '');
+                            const statusLabel = isCompleted ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente');
+                            const statusClass = isCompleted ? 'completed' : (task.status === 'in-progress' ? 'in-progress' : 'pending');
+
+                            return `
+                                <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                                     onclick="openTaskFromDayModal(${task.id})"
+                                     title="Clic para ver detalle de la tarea">
+                                    <div class="day-task-item-header">
+                                        <span class="day-task-item-title">${prefix}${escapeHtml(task.title || 'Sin título')}</span>
+                                        <span class="day-task-status-pill ${statusClass}">${statusLabel}</span>
+                                    </div>
+                                    <div class="day-task-item-details">
+                                        <span class="day-task-badge category">🏷️ ${escapeHtml(task.category || 'General')}</span>
+                                        <span class="day-task-badge sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                                        ${checkInfo ? `<span class="day-task-badge checklist">${checkInfo}</span>` : ''}
+                                        ${task.is_recurring ? `<span class="day-task-badge recurring">🔁 Rutina</span>` : ''}
+                                        ${task.assigned_technician ? `<span class="day-task-badge tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        function closeDayTasksModal() {
+            const modal = document.getElementById('dayTasksModalDialog');
+            if (modal) modal.style.display = 'none';
+        }
+
+        function handleDayTasksAddClick() {
+            const targetDate = currentSelectedDayKey;
+            closeDayTasksModal();
+            openTaskModal(null, targetDate);
+        }
+
+        function openTaskFromDayModal(taskId) {
+            closeDayTasksModal();
+            openTaskDetailModal(taskId);
         }
 
         function openTaskModal(task = null, defaultDateStr = null) {
@@ -2729,3 +2886,7 @@ function applyFilters() {
         window.toggleRecurrenceDay = toggleRecurrenceDay;
         window.setRecurrenceDaysPreset = setRecurrenceDaysPreset;
         window.formatRecurrenceLabel = formatRecurrenceLabel;
+        window.openDayTasksModal = openDayTasksModal;
+        window.closeDayTasksModal = closeDayTasksModal;
+        window.handleDayTasksAddClick = handleDayTasksAddClick;
+        window.openTaskFromDayModal = openTaskFromDayModal;

@@ -1389,7 +1389,7 @@ function calendarGoToday() {
 }
 
 function calendarPrev() {
-    if (currentCalendarView === 'week') {
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
         currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
     } else {
         currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
@@ -1398,7 +1398,7 @@ function calendarPrev() {
 }
 
 function calendarNext() {
-    if (currentCalendarView === 'week') {
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
         currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
     } else {
         currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
@@ -1409,6 +1409,7 @@ function calendarNext() {
 function setCalendarView(view) {
     currentCalendarView = view;
     document.getElementById('btnViewMonth')?.classList.toggle('active', view === 'month');
+    document.getElementById('btnViewWorkWeek')?.classList.toggle('active', view === 'workweek');
     document.getElementById('btnViewWeek')?.classList.toggle('active', view === 'week');
     document.getElementById('btnViewAgenda')?.classList.toggle('active', view === 'agenda');
 
@@ -1417,7 +1418,7 @@ function setCalendarView(view) {
     const agendaCont = document.getElementById('calendarAgendaContainer');
 
     if (monthCont) monthCont.style.display = view === 'month' ? 'block' : 'none';
-    if (weekCont) weekCont.style.display = view === 'week' ? 'block' : 'none';
+    if (weekCont) weekCont.style.display = (view === 'week' || view === 'workweek') ? 'block' : 'none';
     if (agendaCont) agendaCont.style.display = view === 'agenda' ? 'block' : 'none';
 
     renderCalendar();
@@ -1428,7 +1429,7 @@ function renderCalendar() {
 
     if (currentCalendarView === 'month') {
         renderCalendarMonth();
-    } else if (currentCalendarView === 'week') {
+    } else if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
         renderCalendarWeek();
     } else if (currentCalendarView === 'agenda') {
         renderCalendarAgenda();
@@ -1447,11 +1448,12 @@ function updateCalendarHeaderTitle() {
     const year = currentCalendarDate.getFullYear();
     const month = currentCalendarDate.getMonth();
 
-    if (currentCalendarView === 'week') {
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
         const monday = getMonday(currentCalendarDate);
-        const sunday = new Date(monday);
-        sunday.setDate(sunday.getDate() + 6);
-        titleEl.textContent = `${monday.getDate()} ${months[monday.getMonth()].substring(0, 3)} - ${sunday.getDate()} ${months[sunday.getMonth()]} ${year}`;
+        const daysSpan = currentCalendarView === 'workweek' ? 4 : 6;
+        const endDay = new Date(monday);
+        endDay.setDate(endDay.getDate() + daysSpan);
+        titleEl.textContent = `${monday.getDate()} ${months[monday.getMonth()].substring(0, 3)} - ${endDay.getDate()} ${months[endDay.getMonth()]} ${year}`;
     } else {
         titleEl.textContent = `${months[month]} de ${year}`;
     }
@@ -1505,10 +1507,12 @@ function renderCalendarMonth() {
         const dayTasks = getTasksForDay(dateKey);
 
         cellsHtml += `
-            <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+            <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                 <div class="day-cell-top">
                     <span class="day-number">${dayNum}</span>
-                    <span class="day-add-btn">➕</span>
+                    <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                 </div>
                 <div class="day-events-list">
                     ${renderEventPills(dayTasks)}
@@ -1525,10 +1529,12 @@ function renderCalendarMonth() {
         const dayTasks = getTasksForDay(dateKey);
 
         cellsHtml += `
-            <div class="calendar-day-cell ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+            <div class="calendar-day-cell ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                 <div class="day-cell-top">
                     <span class="day-number">${dayNum}</span>
-                    <span class="day-add-btn">➕</span>
+                    <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                 </div>
                 <div class="day-events-list">
                     ${renderEventPills(dayTasks)}
@@ -1547,10 +1553,12 @@ function renderCalendarMonth() {
         const dayTasks = getTasksForDay(dateKey);
 
         cellsHtml += `
-            <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openTaskModal(null, '${dateKey}')">
+            <div class="calendar-day-cell other-month ${isToday ? 'today' : ''}" onclick="openDayTasksModal('${dateKey}')">
                 <div class="day-cell-top">
                     <span class="day-number">${dayNum}</span>
-                    <span class="day-add-btn">➕</span>
+                    <button type="button" class="day-add-btn" onclick="event.stopPropagation(); openTaskModal(null, '${dateKey}');" title="Nueva tarea para este día" aria-label="Nueva tarea para el día ${dayNum}">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    </button>
                 </div>
                 <div class="day-events-list">
                     ${renderEventPills(dayTasks)}
@@ -1592,12 +1600,16 @@ function renderCalendarWeek() {
     const weekContainer = document.getElementById('calendarWeekMatrix');
     if (!weekContainer) return;
 
+    const isWorkWeek = currentCalendarView === 'workweek';
+    weekContainer.classList.toggle('workweek-grid', isWorkWeek);
+
     const monday = getMonday(currentCalendarDate);
     const todayStr = formatDateKey(new Date());
     const daysNames = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
+    const daysCount = isWorkWeek ? 5 : 7;
 
     let colsHtml = '';
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < daysCount; i++) {
         const dayDate = new Date(monday);
         dayDate.setDate(dayDate.getDate() + i);
         const dateKey = formatDateKey(dayDate);
@@ -1606,11 +1618,11 @@ function renderCalendarWeek() {
 
         colsHtml += `
             <div class="calendar-week-col ${isToday ? 'today' : ''}">
-                <div class="week-col-header" onclick="openTaskModal(null, '${dateKey}')">
+                <div class="week-col-header" onclick="openDayTasksModal('${dateKey}')" title="Ver tareas del ${dayDate.getDate()}">
                     <span class="week-col-name">${daysNames[i]}</span>
                     <span class="week-col-num">${dayDate.getDate()}</span>
                 </div>
-                <div class="week-col-events" onclick="openTaskModal(null, '${dateKey}')">
+                <div class="week-col-events" onclick="openDayTasksModal('${dateKey}')">
                     ${renderEventCards(dayTasks)}
                 </div>
             </div>
@@ -1634,7 +1646,8 @@ function renderEventCards(tasks) {
 
         return `
             <div class="calendar-week-card ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
-                 onclick="event.stopPropagation(); openTaskDetailModal(${task.id});">
+                 onclick="event.stopPropagation(); openTaskDetailModal(${task.id});"
+                 title="${isCompleted ? '[COMPLETADA] ' : ''}${escapeHtml(task.title)} (${escapeHtml(task.category || 'General')}) - Sede: ${escapeHtml(task.sede || 'Todas')}">
                 <div class="card-top-line">
                     <span class="card-category">${escapeHtml(task.category || 'General')}</span>
                     ${task.is_recurring ? '<span class="card-recurring-icon" title="Rutina Recurrente">🔁</span>' : ''}
@@ -1708,10 +1721,11 @@ function renderCalendarAgenda() {
                                     <div class="agenda-item-title">
                                         ${task.is_recurring ? '🔁 ' : ''}${escapeHtml(task.title)}
                                     </div>
+                                    ${task.description ? `<div class="agenda-item-desc">${escapeHtml(task.description)}</div>` : ''}
                                     <div class="agenda-item-meta">
                                         <span class="agenda-badge-cat">🏢 ${escapeHtml(task.category || 'General')}</span>
                                         <span class="agenda-badge-sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
-                                        ${task.assigned_technician ? `<span style="background:#EFF6FF; color:#1E40AF; border:1px solid #DBEAFE; font-size: 0.72rem; padding: 2px 6px; border-radius: 4px; font-weight: 600;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                        ${task.assigned_technician ? `<span class="agenda-badge-tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
                                         ${checkInfo ? `<span class="agenda-badge-chk">${checkInfo}</span>` : ''}
                                         <span class="agenda-badge-status status-${task.status}">${task.status === 'completed' ? '🟢 Completada' : (task.status === 'in-progress' ? '🔵 En Progreso' : '🟡 Pendiente')}</span>
                                     </div>
@@ -1730,6 +1744,107 @@ function renderCalendarAgenda() {
     });
 
     agendaContainer.innerHTML = agendaHtml;
+}
+
+// =======================================================
+// MODAL DE TAREAS DEL DÍA (SOPORTE)
+// =======================================================
+
+let currentSelectedDayKey = null;
+
+function formatDayTitleSpanish(dateKey) {
+    if (!dateKey) return '';
+    const [y, m, d] = dateKey.split('-').map(Number);
+    const dateObj = new Date(y, m - 1, d);
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+    const dayName = dayNames[dateObj.getDay()];
+    const monthName = monthNames[m - 1];
+    return `${dayName}, ${d} de ${monthName} de ${y}`;
+}
+
+function openDayTasksModal(dateKey) {
+    currentSelectedDayKey = dateKey;
+    const modal = document.getElementById('dayTasksModalDialog');
+    const titleEl = document.getElementById('dayTasksModalTitle');
+    const badgeEl = document.getElementById('dayTasksModalBadge');
+    const bodyEl = document.getElementById('dayTasksListBody');
+    if (!modal || !bodyEl) return;
+
+    const formattedTitle = formatDayTitleSpanish(dateKey);
+    if (titleEl) {
+        titleEl.textContent = `📅 ${formattedTitle}`;
+    }
+
+    const dayTasks = getTasksForDay(dateKey);
+    const count = dayTasks.length;
+
+    if (badgeEl) {
+        badgeEl.textContent = `${count} ${count === 1 ? 'tarea' : 'tareas'}`;
+        badgeEl.style.background = count > 0 ? '#E0F2FE' : '#F1F5F9';
+        badgeEl.style.color = count > 0 ? '#0369A1' : '#64748B';
+    }
+
+    if (count === 0) {
+        bodyEl.innerHTML = `
+            <div class="day-tasks-empty-state">
+                <div class="day-tasks-empty-icon">☕</div>
+                <div class="day-tasks-empty-title">Sin tareas para este día</div>
+                <div class="day-tasks-empty-subtitle">No hay tareas o rutinas programadas para el ${formattedTitle}.</div>
+            </div>
+        `;
+    } else {
+        bodyEl.innerHTML = `
+            <div class="day-tasks-list">
+                ${dayTasks.map(task => {
+                    const isCompleted = task.status === 'completed';
+                    const priorityClass = `priority-${task.priority || 'medium'}`;
+                    const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+                    const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
+                    const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
+                    const prefix = isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '');
+                    const statusLabel = isCompleted ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente');
+                    const statusClass = isCompleted ? 'completed' : (task.status === 'in-progress' ? 'in-progress' : 'pending');
+
+                    return `
+                        <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                             onclick="openTaskFromDayModal(${task.id})"
+                             title="Clic para ver detalle de la tarea">
+                            <div class="day-task-item-header">
+                                <span class="day-task-item-title">${prefix}${escapeHtml(task.title || 'Sin título')}</span>
+                                <span class="day-task-status-pill ${statusClass}">${statusLabel}</span>
+                            </div>
+                            <div class="day-task-item-details">
+                                <span class="day-task-badge category">🏷️ ${escapeHtml(task.category || 'General')}</span>
+                                <span class="day-task-badge sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                                ${checkInfo ? `<span class="day-task-badge checklist">${checkInfo}</span>` : ''}
+                                ${task.is_recurring ? `<span class="day-task-badge recurring">🔁 Rutina</span>` : ''}
+                                ${task.assigned_technician ? `<span class="day-task-badge tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeDayTasksModal() {
+    const modal = document.getElementById('dayTasksModalDialog');
+    if (modal) modal.style.display = 'none';
+}
+
+function handleDayTasksAddClick() {
+    const targetDate = currentSelectedDayKey;
+    closeDayTasksModal();
+    openTaskModal(null, targetDate);
+}
+
+function openTaskFromDayModal(taskId) {
+    closeDayTasksModal();
+    openTaskDetailModal(taskId);
 }
 
 // =======================================================
