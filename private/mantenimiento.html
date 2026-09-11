@@ -376,6 +376,7 @@
                         <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #6B21A8; margin-bottom: 4px;">Frecuencia de Repetición</label>
                         <select id="taskRecurrenceIntervalInput" class="share-input" style="background: white;" onchange="handleRecurrenceIntervalChange(this.value)">
                             <option value="daily">📅 Diaria (Cada día)</option>
+                            <option value="workweek">💼 Semana laboral (Lunes a Viernes)</option>
                             <option value="weekly" selected>📅 Semanal (Cada 7 días)</option>
                             <option value="custom_days">🗓️ Días de la semana (Personalizado)</option>
                             <option value="biweekly">📅 Quincenal (Cada 14 días)</option>
@@ -384,9 +385,16 @@
 
                         <!-- Campo personalizado de días de la semana -->
                         <div id="recurrenceCustomDaysDiv" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255, 255, 255, 0.75); border: 1px dashed #C084FC; border-radius: 8px;">
-                            <label style="display: block; font-size: 0.8rem; font-weight: 700; color: #6B21A8; margin-bottom: 6px;">
-                                🗓️ Selecciona los días en que debe repetirse:
-                            </label>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
+                                <label style="font-size: 0.8rem; font-weight: 700; color: #6B21A8; margin: 0;">
+                                    🗓️ Selecciona los días en que debe repetirse:
+                                </label>
+                                <div style="display: flex; gap: 4px;">
+                                    <button type="button" class="preset-pill-btn" onclick="setRecurrenceDaysPreset('workweek')" title="Lunes a Viernes (5 días a la semana)">💼 Lun a Vie</button>
+                                    <button type="button" class="preset-pill-btn" onclick="setRecurrenceDaysPreset('all')" title="Todos los días de la semana">Todos</button>
+                                    <button type="button" class="preset-pill-btn" onclick="setRecurrenceDaysPreset('clear')" title="Desmarcar todos">Limpiar</button>
+                                </div>
+                            </div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;" id="customDaysButtonsContainer">
                                 <button type="button" class="day-pill-btn" data-day="1" onclick="toggleRecurrenceDay(1)">Lun</button>
                                 <button type="button" class="day-pill-btn" data-day="2" onclick="toggleRecurrenceDay(2)">Mar</button>

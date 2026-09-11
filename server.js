@@ -3559,6 +3559,12 @@ app.patch('/api/maintenance/tasks/:id/status', authenticateToken, isMaintenanceR
               d.setDate(d.getDate() + 1);
               if (d.getDay() === 0) d.setDate(d.getDate() + 1);
               break;
+            case 'workweek':
+              d.setDate(d.getDate() + 1);
+              while (d.getDay() === 0 || d.getDay() === 6) {
+                d.setDate(d.getDate() + 1);
+              }
+              break;
             case 'weekly':
               d.setDate(d.getDate() + 7);
               break;

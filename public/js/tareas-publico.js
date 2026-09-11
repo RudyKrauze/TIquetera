@@ -480,6 +480,7 @@
         function formatRecurrenceLabel(interval) {
             if (!interval || interval === 'none') return '📌 Única';
             if (interval === 'daily') return 'Diaria (Cada día)';
+            if (interval === 'workweek') return 'Semana laboral (Lun a Vie)';
             if (interval === 'weekly') return 'Semanal (Cada 7 días)';
             if (interval === 'biweekly') return 'Quincenal (Cada 14 días)';
             if (interval === 'monthly') return 'Mensual (Cada mes)';
@@ -488,6 +489,9 @@
             if (typeof interval === 'string' && interval.startsWith('custom:')) {
                 const dayNames = { '0': 'Dom', '1': 'Lun', '2': 'Mar', '3': 'Mié', '4': 'Jue', '5': 'Vie', '6': 'Sáb' };
                 const raw = interval.replace('custom:', '').split(',').map(s => s.trim()).filter(Boolean);
+                if (raw.length === 5 && ['1', '2', '3', '4', '5'].every(d => raw.includes(d))) {
+                    return 'Semana laboral (Lun a Vie)';
+                }
                 const sorted = raw.sort((a, b) => (a === '0' ? 7 : parseInt(a, 10)) - (b === '0' ? 7 : parseInt(b, 10)));
                 return `Días: ${sorted.map(d => dayNames[d] || d).join(', ')}`;
             }

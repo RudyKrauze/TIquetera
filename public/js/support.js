@@ -1771,12 +1771,24 @@ function openTaskModal(task = null, prefillDate = null) {
             document.getElementById('taskIsRecurringInput').checked = true;
             document.getElementById('recurrenceOptionsDiv').style.display = 'block';
             const interval = task.recurrence_interval || 'weekly';
-            if (typeof interval === 'string' && interval.startsWith('custom:')) {
-                document.getElementById('taskRecurrenceIntervalInput').value = 'custom_days';
-                const rawDays = interval.replace('custom:', '').split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
-                selectedRecurrenceDays = rawDays.length > 0 ? rawDays : [2, 5];
-                document.getElementById('recurrenceCustomDaysDiv').style.display = 'block';
+            if (interval === 'workweek') {
+                document.getElementById('taskRecurrenceIntervalInput').value = 'workweek';
+                selectedRecurrenceDays = [1, 2, 3, 4, 5];
+                document.getElementById('recurrenceCustomDaysDiv').style.display = 'none';
                 renderRecurrenceDayPills();
+            } else if (typeof interval === 'string' && interval.startsWith('custom:')) {
+                const rawDays = interval.replace('custom:', '').split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+                if (rawDays.length === 5 && [1, 2, 3, 4, 5].every(d => rawDays.includes(d))) {
+                    document.getElementById('taskRecurrenceIntervalInput').value = 'workweek';
+                    selectedRecurrenceDays = [1, 2, 3, 4, 5];
+                    document.getElementById('recurrenceCustomDaysDiv').style.display = 'none';
+                    renderRecurrenceDayPills();
+                } else {
+                    document.getElementById('taskRecurrenceIntervalInput').value = 'custom_days';
+                    selectedRecurrenceDays = rawDays.length > 0 ? rawDays : [2, 5];
+                    document.getElementById('recurrenceCustomDaysDiv').style.display = 'block';
+                    renderRecurrenceDayPills();
+                }
             } else {
                 document.getElementById('taskRecurrenceIntervalInput').value = interval;
                 selectedRecurrenceDays = [];
@@ -1826,6 +1838,7 @@ let selectedRecurrenceDays = [];
 function formatRecurrenceLabel(interval) {
     if (!interval || interval === 'none') return '📌 Única';
     if (interval === 'daily') return '🔁 Diaria (Cada día)';
+    if (interval === 'workweek') return '💼 Semana laboral (Lun a Vie)';
     if (interval === 'weekly') return '🔁 Semanal (Cada 7 días)';
     if (interval === 'biweekly') return '🔁 Quincenal (Cada 14 días)';
     if (interval === 'monthly') return '🔁 Mensual (Cada mes)';
@@ -1842,6 +1855,9 @@ function formatRecurrenceLabel(interval) {
             '6': 'Sáb'
         };
         const raw = interval.replace('custom:', '').split(',').map(s => s.trim()).filter(Boolean);
+        if (raw.length === 5 && ['1', '2', '3', '4', '5'].every(d => raw.includes(d))) {
+            return '💼 Semana laboral (Lun a Vie)';
+        }
         const sorted = raw.sort((a, b) => {
             const orderA = a === '0' ? 7 : parseInt(a, 10);
             const orderB = b === '0' ? 7 : parseInt(b, 10);
@@ -1855,9 +1871,8 @@ function formatRecurrenceLabel(interval) {
 
 function handleRecurrenceIntervalChange(val) {
     const customDiv = document.getElementById('recurrenceCustomDaysDiv');
-    if (!customDiv) return;
     if (val === 'custom_days') {
-        customDiv.style.display = 'block';
+        if (customDiv) customDiv.style.display = 'block';
         if (!selectedRecurrenceDays || selectedRecurrenceDays.length === 0) {
             const dueDateVal = document.getElementById('taskDueDateInput')?.value;
             let initialDay = 2; // Martes por defecto
@@ -1869,11 +1884,41 @@ function handleRecurrenceIntervalChange(val) {
                 }
             }
             selectedRecurrenceDays = [initialDay];
-            renderRecurrenceDayPills();
+        }
+        renderRecurrenceDayPills();
+    } else if (val === 'workweek') {
+        if (customDiv) customDiv.style.display = 'none';
+        selectedRecurrenceDays = [1, 2, 3, 4, 5];
+        renderRecurrenceDayPills();
+        const isNewTask = !document.getElementById('taskIdInput')?.value;
+        const dueInput = document.getElementById('taskDueDateInput');
+        if (isNewTask && dueInput && dueInput.value) {
+            const parts = dueInput.value.split('-');
+            if (parts.length === 3) {
+                const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10), 12, 0, 0);
+                if (d.getDay() === 6) {
+                    d.setDate(d.getDate() + 2);
+                    dueInput.value = formatDateKey(d);
+                } else if (d.getDay() === 0) {
+                    d.setDate(d.getDate() + 1);
+                    dueInput.value = formatDateKey(d);
+                }
+            }
         }
     } else {
-        customDiv.style.display = 'none';
+        if (customDiv) customDiv.style.display = 'none';
     }
+}
+
+function setRecurrenceDaysPreset(preset) {
+    if (preset === 'workweek') {
+        selectedRecurrenceDays = [1, 2, 3, 4, 5];
+    } else if (preset === 'all') {
+        selectedRecurrenceDays = [1, 2, 3, 4, 5, 6, 0];
+    } else if (preset === 'clear') {
+        selectedRecurrenceDays = [];
+    }
+    renderRecurrenceDayPills();
 }
 
 function toggleRecurrenceDay(dayNumber) {
@@ -2624,6 +2669,7 @@ window.loadSupportTaskStats = loadSupportTaskStats;
 window.debounceTaskSearch = debounceTaskSearch;
 window.handleRecurrenceIntervalChange = handleRecurrenceIntervalChange;
 window.toggleRecurrenceDay = toggleRecurrenceDay;
+window.setRecurrenceDaysPreset = setRecurrenceDaysPreset;
 window.formatRecurrenceLabel = formatRecurrenceLabel;
 
 

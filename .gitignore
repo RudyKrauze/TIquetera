@@ -65,5 +65,6 @@ scratch/
 coverage/
 .nyc_output/
 
-# 9. Documentación NO SUBIR
+# 9. LOCAL
 README.md
+*docker
