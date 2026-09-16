@@ -1,9 +1,45 @@
-// Check authentication on load
-window.addEventListener('load', function () {
+let currentUser = window.currentUser || null;
+let ticketScope = localStorage.getItem('gerencia_ticket_scope') || 'assigned'; // 'assigned' | 'all'
+
+function initGerencia() {
     window.verifySession(['gerencia'], function (user) {
+        currentUser = user;
+        window.currentUser = user;
+
+        // Sincronizar scopeFilter con localStorage o el valor actual
+        const scopeEl = document.getElementById('scopeFilter');
+        const savedScope = localStorage.getItem('gerencia_ticket_scope');
+        if (savedScope && scopeEl) {
+            scopeEl.value = savedScope;
+            ticketScope = savedScope;
+        } else if (scopeEl) {
+            ticketScope = scopeEl.value || ticketScope || 'assigned';
+        }
+
+        const titleEl = document.getElementById('ticketsViewTitle');
+        if (titleEl) {
+            titleEl.textContent = ticketScope === 'assigned' 
+                ? 'Tickets Asignados a Gerencia' 
+                : 'Todos los Tickets del Sistema';
+        }
+
         loadTickets();
         startAutoRefresh();
     });
+}
+
+// Ejecutar initGerencia de manera resiliente (DOMContentLoaded, state check, pageshow para bfcache)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initGerencia);
+} else {
+    initGerencia();
+}
+
+// Soporte para bfcache (Back/Forward Cache) al volver desde /reportes u otra vista
+window.addEventListener('pageshow', function (event) {
+    if (event.persisted) {
+        initGerencia();
+    }
 });
 
 // Login form handler
@@ -32,6 +68,7 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
                     return;
                 }
                 currentUser = data.user;
+                window.currentUser = data.user;
                 document.getElementById('currentUserName').textContent = currentUser.name;
                 hideLogin();
                 loadTickets();
@@ -51,18 +88,20 @@ function startAutoRefresh() {
         clearInterval(refreshInterval);
     }
     refreshInterval = setInterval(() => {
-        if (currentUser && !isLoading) {
+        const effectiveUser = window.currentUser || currentUser;
+        if (effectiveUser && !isLoading) {
             loadTickets(true); // true = refresh silencioso
         }
     }, 30000);
 }
 
-let ticketScope = 'assigned'; // 'assigned' | 'all'
+let loadTicketsRequestId = 0;
 
 function changeTicketScope() {
     const scopeEl = document.getElementById('scopeFilter');
     if (scopeEl) {
         ticketScope = scopeEl.value || 'assigned';
+        localStorage.setItem('gerencia_ticket_scope', ticketScope);
     }
     const titleEl = document.getElementById('ticketsViewTitle');
     if (titleEl) {
@@ -71,11 +110,25 @@ function changeTicketScope() {
             : 'Todos los Tickets del Sistema';
     }
     if (typeof currentPage !== 'undefined') currentPage = 1;
+    isLoading = false; // Permitir ejecución inmediata sin quedar bloqueado
     loadTickets();
 }
 
 function loadTickets(silentRefresh = false) {
     if (isLoading && !silentRefresh) return;
+
+    // Asegurar sincronización con el selector en pantalla
+    const scopeEl = document.getElementById('scopeFilter');
+    if (scopeEl && scopeEl.value) {
+        ticketScope = scopeEl.value;
+    }
+
+    const titleEl = document.getElementById('ticketsViewTitle');
+    if (titleEl) {
+        titleEl.textContent = ticketScope === 'assigned' 
+            ? 'Tickets Asignados a Gerencia' 
+            : 'Todos los Tickets del Sistema';
+    }
 
     isLoading = true;
 
@@ -86,9 +139,16 @@ function loadTickets(silentRefresh = false) {
         }
     }
 
-    const url = (ticketScope === 'assigned' && currentUser && currentUser.id)
-        ? `/api/tickets/assigned/${currentUser.id}`
-        : '/api/tickets';
+    const effectiveUser = window.currentUser || currentUser;
+    const userId = effectiveUser?.id;
+
+    // URL a consultar según el ámbito (assigned = propios de Gerencia, all = todos los del sistema)
+    let url = '/api/tickets';
+    if (ticketScope === 'assigned') {
+        url = userId ? `/api/tickets/assigned/${userId}` : '/api/tickets?department=Gerencia';
+    }
+
+    const currentRequestId = ++loadTicketsRequestId;
 
     fetch(url, {
         credentials: 'include'
@@ -100,6 +160,7 @@ function loadTickets(silentRefresh = false) {
             return response.json();
         })
         .then(data => {
+            if (currentRequestId !== loadTicketsRequestId) return; // Descartar respuestas obsoletas
             allTickets = Array.isArray(data) ? data : (data.tickets || []);
             applyFilters();
             updateStats();
@@ -111,11 +172,22 @@ function loadTickets(silentRefresh = false) {
                 countBadge.textContent = activeCount;
             }
 
+            const tabTicketsBtn = document.getElementById('tabTicketsBtn');
+            if (tabTicketsBtn) {
+                const activeCount = allTickets.filter(t => t.status !== 'closed').length;
+                const badgeHtml = `<span class="tab-badge" id="ticketsCountBadge">${activeCount}</span>`;
+                if (ticketScope === 'assigned') {
+                    tabTicketsBtn.innerHTML = `🎫 Mis Tickets Asignados ${badgeHtml}`;
+                } else {
+                    tabTicketsBtn.innerHTML = `🌐 Todos los Tickets ${badgeHtml}`;
+                }
+            }
+
             // Verificar si hay un ticket para abrir desde URL
             checkOpenTicketFromUrl();
         })
         .catch(error => {
-
+            if (currentRequestId !== loadTicketsRequestId) return;
             isLoading = false;
             if (error.message.includes('401') || error.message.includes('403')) {
                 logout();
@@ -1420,18 +1492,6 @@ function closeUserModal() {
 
 // Additional event listeners for gerencia HTML elements
 document.addEventListener('DOMContentLoaded', function() {
-    // Tab buttons
-    const tabTicketsBtn = document.getElementById('tabTicketsBtn');
-    const tabTasksBtn = document.getElementById('tabTasksBtn');
-    const tabUsersBtn = document.getElementById('tabUsersBtn');
-    if (tabTicketsBtn) tabTicketsBtn.addEventListener('click', () => switchGerenciaTab('tickets'));
-    if (tabTasksBtn) tabTasksBtn.addEventListener('click', () => switchGerenciaTab('tasks'));
-    if (tabUsersBtn) tabUsersBtn.addEventListener('click', () => switchGerenciaTab('users'));
-    const tabTickets = document.getElementById('tabTickets');
-    const tabUsers = document.getElementById('tabUsers');
-    if (tabTickets) tabTickets.addEventListener('click', () => switchGerenciaTab('tickets'));
-    if (tabUsers) tabUsers.addEventListener('click', () => switchGerenciaTab('users'));
-
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);

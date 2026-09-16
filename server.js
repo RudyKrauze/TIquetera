@@ -1841,6 +1841,7 @@ app.get('/admin', requireAuthPage, (req, res) => {
 
 // Panel de Gerencia (Nueva ruta)
 app.get('/gerencia', requireAuthPage, requireGerenciaPage, (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.sendFile(resolveView('private', 'gerencia.html'));
 });
 
@@ -4015,7 +4016,10 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
 // ==============================================
 // RUTA PROTEGIDA PARA REPORTES
 // ==============================================
+app.get('/reports', (req, res) => res.redirect('/reportes'));
+
 app.get('/reportes', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   const token = req.cookies.token;
 
   if (!token) {
