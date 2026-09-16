@@ -61,6 +61,13 @@ async function initializeDatabase(pool) {
           name: 'Compras e Insumos',
           role: 'compras',
           department: 'Compras e Insumos'
+        },
+        {
+          email: process.env.DEFAULT_GERENCIA_EMAIL || 'gerencia@tiquetera.com',
+          password: process.env.DEFAULT_GERENCIA_PASSWORD || 'gerencia123',
+          name: 'Gerencia',
+          role: 'gerencia',
+          department: 'Gerencia'
         }
       ];
 
@@ -81,9 +88,26 @@ async function initializeDatabase(pool) {
     const migrationCheck = await pool.query("SELECT value FROM system_config WHERE key = 'areas_migrated_v2'");
     if (migrationCheck.rows.length === 0) {
       console.log('⚙️  Ejecutando migración de áreas...');
-      await pool.query("UPDATE users SET active = FALSE WHERE role IN ('facturacion', 'contact', 'gerencia')");
+      await pool.query("UPDATE users SET active = FALSE WHERE role IN ('facturacion', 'contact')");
       await pool.query(`INSERT INTO system_config (key, value) VALUES ($1, $2) ON CONFLICT DO NOTHING`, ['areas_migrated_v2', 'true']);
       console.log('✅ Migración de áreas completada.');
+    }
+
+    // 3b. Habilitar área y usuario de Gerencia
+    try {
+      await pool.query("UPDATE users SET active = TRUE, department = 'Gerencia' WHERE role = 'gerencia' AND (active = FALSE OR department IS NULL OR department != 'Gerencia')");
+      const gerenciaCheck = await pool.query("SELECT id FROM users WHERE role = 'gerencia'");
+      if (gerenciaCheck.rows.length === 0) {
+        const hashedPassword = bcrypt.hashSync(process.env.DEFAULT_GERENCIA_PASSWORD || 'gerencia123', 8);
+        await pool.query(
+          `INSERT INTO users (email, password, name, role, department, active) 
+           VALUES ($1, $2, 'Gerencia', 'gerencia', 'Gerencia', TRUE) ON CONFLICT (email) DO UPDATE SET active = TRUE, department = 'Gerencia'`,
+          [process.env.DEFAULT_GERENCIA_EMAIL || 'gerencia@tiquetera.com', hashedPassword]
+        );
+      }
+      console.log('✅ Usuario y área Gerencia verificados y activados.');
+    } catch (gErr) {
+      console.warn('⚠️ Error no crítico al activar gerencia:', gErr.message);
     }
 
     // 4. Migración: Agregar columna affected_area si no existe
@@ -164,6 +188,7 @@ async function initializeDatabase(pool) {
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         ALTER TABLE maintenance_tasks ADD COLUMN IF NOT EXISTS department VARCHAR(100) DEFAULT 'Mantenimiento';
+        ALTER TABLE maintenance_tasks ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(100);
         CREATE INDEX IF NOT EXISTS idx_maintenance_tasks_status ON maintenance_tasks(status);
         CREATE INDEX IF NOT EXISTS idx_maintenance_tasks_assigned ON maintenance_tasks(assigned_to);
         CREATE INDEX IF NOT EXISTS idx_maintenance_tasks_recurring ON maintenance_tasks(is_recurring, recurrence_interval);
@@ -174,6 +199,17 @@ async function initializeDatabase(pool) {
       console.log('ℹ️ Nota: Error no crítico al verificar tabla maintenance_tasks:', maintError.message);
     }
 
+    // 6b. Migración: Agregar columna assigned_technician a tickets si no existe
+    try {
+      await pool.query(`
+        ALTER TABLE tickets ADD COLUMN IF NOT EXISTS assigned_technician VARCHAR(100);
+        CREATE INDEX IF NOT EXISTS idx_tickets_assigned_technician ON tickets(assigned_technician);
+      `);
+      console.log('✅ Verificación de columna assigned_technician en tickets completada.');
+    } catch (techError) {
+      console.log('ℹ️ Nota: Error no crítico al verificar assigned_technician en tickets:', techError.message);
+    }
+
     // 7. Migración: Crear tabla shared_tasks_boards si no existe
     try {
       await pool.query(`
@@ -181,12 +217,18 @@ async function initializeDatabase(pool) {
             id SERIAL PRIMARY KEY,
             token VARCHAR(64) UNIQUE NOT NULL,
             title VARCHAR(255) NOT NULL,
+            period VARCHAR(50) DEFAULT '7d',
+            start_date DATE,
+            end_date DATE,
             department VARCHAR(255) DEFAULT 'Mantenimiento',
             created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
             expires_at TIMESTAMP,
             is_active BOOLEAN DEFAULT TRUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE shared_tasks_boards ADD COLUMN IF NOT EXISTS period VARCHAR(50) DEFAULT '7d';
+        ALTER TABLE shared_tasks_boards ADD COLUMN IF NOT EXISTS start_date DATE;
+        ALTER TABLE shared_tasks_boards ADD COLUMN IF NOT EXISTS end_date DATE;
         CREATE INDEX IF NOT EXISTS idx_shared_tasks_boards_token ON shared_tasks_boards(token);
         CREATE INDEX IF NOT EXISTS idx_shared_tasks_boards_active ON shared_tasks_boards(is_active);
       `);

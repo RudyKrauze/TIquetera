@@ -1720,48 +1720,15 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // Lightbox Functions
+        // Lightbox Functions (Delegated to core-panel.js)
         function openLightbox(url) {
-            let lightbox = document.getElementById('lightboxModal');
-            if (!lightbox) {
-                // Create lightbox if it doesn't exist
-                lightbox = document.createElement('div');
-                lightbox.id = 'lightboxModal';
-                lightbox.style.cssText = `
-                    display: none;
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.9);
-                    z-index: 11000;
-                    justify-content: center;
-                    align-items: center;
-                    cursor: pointer;
-                `;
-                lightbox.innerHTML = `
-                    <span style="position: absolute; top: 20px; right: 30px; font-size: 40px; font-weight: bold; color: #f1f1f1; cursor: pointer;">&times;</span>
-                    <img class="lightbox-content" id="lightboxImg" style="margin: auto; display: block; max-width: 90%; max-height: 90%; border-radius: 5px; box-shadow: 0 0 20px rgba(255,255,255,0.2);">
-                `;
-                
-                // Close on click
-                lightbox.addEventListener('click', function(e) {
-                    if (e.target !== document.getElementById('lightboxImg')) {
-                        closeLightbox();
-                    }
-                });
-                
-                document.body.appendChild(lightbox);
+            if (typeof window.openLightbox === 'function') {
+                window.openLightbox(url);
             }
-            
-            document.getElementById('lightboxImg').src = url;
-            lightbox.style.display = 'flex';
         }
 
-        function closeLightbox() {
-            const lightbox = document.getElementById('lightboxModal');
-            if (lightbox) {
-                lightbox.style.display = 'none';
+        function closeLightbox(event) {
+            if (typeof window.closeLightbox === 'function') {
+                window.closeLightbox(event);
             }
         }

@@ -250,6 +250,13 @@
                             <option value="San Martín">San Martín</option>
                         </select>
 
+                        <select id="taskTechnicianFilter" class="task-filter-select" onchange="loadSupportTasks()">
+                            <option value="all">👤 Responsable</option>
+                            <option value="Sin asignar">Sin asignar</option>
+                            <option value="Rodolfo">Rodolfo</option>
+                            <option value="Matias">Matias</option>
+                        </select>
+
                         <select id="taskRecurrenceFilter" class="task-filter-select" onchange="loadSupportTasks()">
                             <option value="">🔁 Rutina</option>
                             <option value="true">Solo Recurrentes</option>
@@ -678,10 +685,6 @@
     <!-- Push Notifications -->
     <link rel="stylesheet" href="/css/push-notifications.css">
     <script src="/js/push-notifications.js"></script>
-    <div id="imageLightbox" class="lightbox-modal" onclick="closeLightbox(event)">
-        <span class="lightbox-close" onclick="closeLightbox()">&times;</span>
-        <img class="lightbox-content" id="lightboxImg" src="">
-    </div>
 
 </body>
 

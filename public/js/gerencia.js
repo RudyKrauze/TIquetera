@@ -57,16 +57,40 @@ function startAutoRefresh() {
     }, 30000);
 }
 
+let ticketScope = 'assigned'; // 'assigned' | 'all'
+
+function changeTicketScope() {
+    const scopeEl = document.getElementById('scopeFilter');
+    if (scopeEl) {
+        ticketScope = scopeEl.value || 'assigned';
+    }
+    const titleEl = document.getElementById('ticketsViewTitle');
+    if (titleEl) {
+        titleEl.textContent = ticketScope === 'assigned' 
+            ? 'Tickets Asignados a Gerencia' 
+            : 'Todos los Tickets del Sistema';
+    }
+    if (typeof currentPage !== 'undefined') currentPage = 1;
+    loadTickets();
+}
+
 function loadTickets(silentRefresh = false) {
     if (isLoading && !silentRefresh) return;
 
     isLoading = true;
 
     if (!silentRefresh) {
-        document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #667eea;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+        const listEl = document.getElementById('ticketsList');
+        if (listEl) {
+            listEl.innerHTML = '<div style="padding: 2rem; text-align: center; color: #667eea;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+        }
     }
 
-    fetch('/api/tickets', {
+    const url = (ticketScope === 'assigned' && currentUser && currentUser.id)
+        ? `/api/tickets/assigned/${currentUser.id}`
+        : '/api/tickets';
+
+    fetch(url, {
         credentials: 'include'
     })
         .then(response => {
@@ -76,10 +100,16 @@ function loadTickets(silentRefresh = false) {
             return response.json();
         })
         .then(data => {
-            allTickets = data;
+            allTickets = Array.isArray(data) ? data : (data.tickets || []);
             applyFilters();
             updateStats();
             isLoading = false;
+
+            const countBadge = document.getElementById('ticketsCountBadge');
+            if (countBadge && Array.isArray(allTickets)) {
+                const activeCount = allTickets.filter(t => t.status !== 'closed').length;
+                countBadge.textContent = activeCount;
+            }
 
             // Verificar si hay un ticket para abrir desde URL
             checkOpenTicketFromUrl();
@@ -90,7 +120,10 @@ function loadTickets(silentRefresh = false) {
             if (error.message.includes('401') || error.message.includes('403')) {
                 logout();
             } else if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">❌ Error al cargar tickets. <button onclick="loadTickets()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Reintentar</button></div>';
+                const listEl = document.getElementById('ticketsList');
+                if (listEl) {
+                    listEl.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">❌ Error al cargar tickets. <button onclick="loadTickets()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Reintentar</button></div>';
+                }
             }
         });
 }
@@ -452,6 +485,84 @@ function updateTicketStatus(ticketId, status, options) {
         });
 }
 
+function getDepartmentStaffList(department) {
+    const dept = (department || '').toLowerCase();
+    if (dept.includes('mantenimiento')) {
+        return ['Franco', 'Cristian'];
+    }
+    if (dept.includes('sistema') || dept.includes('soporte')) {
+        return ['Rodolfo', 'Matias'];
+    }
+    if (dept.includes('gerencia')) {
+        return ['Claudio F.', 'Enrique O.', 'Matias B.'];
+    }
+    // Si audita todas las áreas o general, mostrar todo el personal
+    return ['Claudio F.', 'Enrique O.', 'Matias B.', 'Rodolfo', 'Matias', 'Franco', 'Cristian'];
+}
+
+function renderStaffOptions(department, currentVal) {
+    const staffList = getDepartmentStaffList(department);
+    return staffList.map(name => {
+        const selected = (currentVal && currentVal.trim().toLowerCase() === name.toLowerCase()) ? 'selected' : '';
+        return `<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(name)}</option>`;
+    }).join('');
+}
+
+async function handleModalTechnicianChange(ticketId, selectEl) {
+    const newTechnician = selectEl.value ? selectEl.value.trim() : null;
+    const helpEl = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+    
+    try {
+        selectEl.disabled = true;
+        const response = await fetch(`/api/tickets/${ticketId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ assigned_technician: newTechnician })
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Error al asignar responsable');
+        }
+        
+        const updatedTicket = await response.json();
+        
+        // Actualizar cache local
+        if (Array.isArray(allTickets)) {
+            const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+            if (idx !== -1) {
+                allTickets[idx] = { ...allTickets[idx], ...updatedTicket };
+            }
+        }
+        
+        selectEl.setAttribute('data-current-technician', newTechnician || '');
+        if (helpEl) {
+            helpEl.innerHTML = newTechnician 
+                ? `Asignado a: <strong style="color: #4F46E5;">${escapeHtml(newTechnician)}</strong>` 
+                : 'Sin responsable asignado';
+        }
+        
+        showNotification(newTechnician ? `✅ Ticket asignado a: ${newTechnician}` : 'ℹ️ Asignación de personal removida', 'success');
+        
+        // Recargar comentarios para reflejar el cambio en la línea de tiempo
+        loadTicketComments(ticketId);
+        
+        // Refrescar lista de tickets
+        renderTickets();
+    } catch (err) {
+        console.error('Error al cambiar técnico:', err);
+        showNotification(`❌ ${err.message}`, 'error');
+        selectEl.value = selectEl.getAttribute('data-current-technician') || '';
+        if (helpEl) {
+            helpEl.textContent = 'Error al actualizar asignación';
+            helpEl.style.color = '#dc3545';
+        }
+    } finally {
+        selectEl.disabled = false;
+    }
+}
+
 function showTicketDetails(ticketId) {
     currentTicketId = ticketId;
     const ticket = allTickets.find(t => t.id === ticketId);
@@ -549,13 +660,27 @@ function showTicketDetails(ticketId) {
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
             <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <div class="detail-label">🔧 Asignado a</div>
-                <div class="detail-value">${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+                <div class="detail-label">🔧 Área / Usuario Asignado</div>
+                <div class="detail-value" id="ticketAssignedTo-${ticket.id}">${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             </div>
             <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <div class="detail-label">📅 Fecha de Creación</div>
-                <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
+                <div class="detail-label" style="margin-bottom: 6px;">👤 Personal Asignado</div>
+                <select id="ticketTechnicianSelect-${ticket.id}" 
+                        data-current-technician="${escapeHtml(ticket.assigned_technician || '')}"
+                        onchange="handleModalTechnicianChange(${ticket.id}, this)"
+                        style="width: 100%; padding: 7px 10px; border: 1px solid #ced4da; border-radius: 6px; background: white; font-weight: 600; color: #1e293b;">
+                    <option value="">-- Sin asignar --</option>
+                    ${renderStaffOptions(ticket.department, ticket.assigned_technician)}
+                </select>
+                <small id="ticketTechnicianHelp-${ticket.id}" style="display:block; margin-top:4px; font-size:0.75em; color:#6c757d;">
+                    ${ticket.assigned_technician ? `Asignado a: <strong style="color: #4F46E5;">${escapeHtml(ticket.assigned_technician)}</strong>` : 'Selecciona el responsable interno'}
+                </small>
             </div>
+        </div>
+
+        <div class="detail-row" style="margin: 0 0 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-label">📅 Fecha de Creación</div>
+            <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
         </div>
 
         <!-- Attachments -->
@@ -898,6 +1023,20 @@ function syncModalTicketState(updatedTicket) {
         }
     }
 
+    if (typeof updatedTicket.assigned_technician !== 'undefined') {
+        const techSelect = document.getElementById(`ticketTechnicianSelect-${ticketId}`);
+        const techHelp = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+        if (techSelect) {
+            techSelect.value = updatedTicket.assigned_technician || '';
+            techSelect.setAttribute('data-current-technician', updatedTicket.assigned_technician || '');
+        }
+        if (techHelp) {
+            techHelp.innerHTML = updatedTicket.assigned_technician 
+                ? `Asignado a: <strong style="color: #4F46E5;">${escapeHtml(updatedTicket.assigned_technician)}</strong>` 
+                : 'Selecciona el responsable interno';
+        }
+    }
+
     if (typeof updatedTicket.department !== 'undefined') {
         const deptEl = document.getElementById(`ticketDepartment-${ticketId}`);
         if (deptEl) {
@@ -1177,49 +1316,16 @@ document.getElementById('ticketModal').addEventListener('click', function (e) {
     }
 });
 
-// Lightbox Functions
+// Lightbox Functions (Delegated to core-panel.js)
 function openLightbox(url) {
-    let lightbox = document.getElementById('lightboxModal');
-    if (!lightbox) {
-        // Create lightbox if it doesn't exist
-        lightbox = document.createElement('div');
-        lightbox.id = 'lightboxModal';
-        lightbox.style.cssText = `
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.9);
-            z-index: 11000;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-        `;
-        lightbox.innerHTML = `
-            <span style="position: absolute; top: 20px; right: 30px; font-size: 40px; font-weight: bold; color: #f1f1f1; cursor: pointer;">&times;</span>
-            <img class="lightbox-content" id="lightboxImg" style="margin: auto; display: block; max-width: 90%; max-height: 90%; border-radius: 5px; box-shadow: 0 0 20px rgba(255,255,255,0.2);">
-        `;
-        
-        // Close on click
-        lightbox.addEventListener('click', function(e) {
-            if (e.target !== document.getElementById('lightboxImg')) {
-                closeLightbox();
-            }
-        });
-        
-        document.body.appendChild(lightbox);
+    if (typeof window.openLightbox === 'function') {
+        window.openLightbox(url);
     }
-    
-    document.getElementById('lightboxImg').src = url;
-    lightbox.style.display = 'flex';
 }
 
-function closeLightbox() {
-    const lightbox = document.getElementById('lightboxModal');
-    if (lightbox) {
-        lightbox.style.display = 'none';
+function closeLightbox(event) {
+    if (typeof window.closeLightbox === 'function') {
+        window.closeLightbox(event);
     }
 }
 
@@ -1315,10 +1421,16 @@ function closeUserModal() {
 // Additional event listeners for gerencia HTML elements
 document.addEventListener('DOMContentLoaded', function() {
     // Tab buttons
+    const tabTicketsBtn = document.getElementById('tabTicketsBtn');
+    const tabTasksBtn = document.getElementById('tabTasksBtn');
+    const tabUsersBtn = document.getElementById('tabUsersBtn');
+    if (tabTicketsBtn) tabTicketsBtn.addEventListener('click', () => switchGerenciaTab('tickets'));
+    if (tabTasksBtn) tabTasksBtn.addEventListener('click', () => switchGerenciaTab('tasks'));
+    if (tabUsersBtn) tabUsersBtn.addEventListener('click', () => switchGerenciaTab('users'));
     const tabTickets = document.getElementById('tabTickets');
     const tabUsers = document.getElementById('tabUsers');
-    if (tabTickets) tabTickets.addEventListener('click', () => showTab('tickets'));
-    if (tabUsers) tabUsers.addEventListener('click', () => showTab('users'));
+    if (tabTickets) tabTickets.addEventListener('click', () => switchGerenciaTab('tickets'));
+    if (tabUsers) tabUsers.addEventListener('click', () => switchGerenciaTab('users'));
 
     // Logout button
     const logoutBtn = document.getElementById('logoutBtn');
@@ -1397,3 +1509,1039 @@ function fallbackCopyTextToClipboard(text) {
 
     document.body.removeChild(textArea);
 }
+
+// =======================================================
+// TABLERO DE TAREAS & CALENDARIO - GERENCIA
+// =======================================================
+
+let currentGerenciaTab = 'tickets';
+let allGerenciaTasks = [];
+let taskChecklistBuilderItems = [];
+let taskSearchDebounceTimer = null;
+let currentCalendarDate = new Date();
+let currentCalendarView = 'month'; // 'month' | 'workweek' | 'week' | 'agenda'
+let currentSelectedDayKey = null;
+let currentEditingTaskId = null;
+let activeRecurrenceDays = [];
+
+function switchGerenciaTab(tab) {
+    currentGerenciaTab = tab;
+    const tabTicketsBtn = document.getElementById('tabTicketsBtn');
+    const tabTasksBtn = document.getElementById('tabTasksBtn');
+    const tabUsersBtn = document.getElementById('tabUsersBtn');
+    const ticketsView = document.getElementById('ticketsView');
+    const tasksView = document.getElementById('tasksView');
+    const usersView = document.getElementById('usersView');
+
+    if (tabTicketsBtn) tabTicketsBtn.classList.remove('active');
+    if (tabTasksBtn) tabTasksBtn.classList.remove('active');
+    if (tabUsersBtn) tabUsersBtn.classList.remove('active');
+    if (ticketsView) ticketsView.style.display = 'none';
+    if (tasksView) tasksView.style.display = 'none';
+    if (usersView) usersView.style.display = 'none';
+
+    if (tab === 'tickets') {
+        if (tabTicketsBtn) tabTicketsBtn.classList.add('active');
+        if (ticketsView) ticketsView.style.display = 'block';
+        loadTickets();
+    } else if (tab === 'tasks') {
+        if (tabTasksBtn) tabTasksBtn.classList.add('active');
+        if (tasksView) tasksView.style.display = 'block';
+        loadGerenciaTasks();
+        loadGerenciaTaskStats();
+    } else if (tab === 'users') {
+        if (tabUsersBtn) tabUsersBtn.classList.add('active');
+        if (usersView) usersView.style.display = 'block';
+        loadUsers();
+    }
+}
+
+async function loadGerenciaTasks() {
+    const status = document.getElementById('taskStatusFilter')?.value || '';
+    const priority = document.getElementById('taskPriorityFilter')?.value || '';
+    const category = document.getElementById('taskCategoryFilter')?.value || '';
+    const sede = document.getElementById('taskSedeFilter')?.value || '';
+    const technician = document.getElementById('taskTechnicianFilter')?.value || '';
+    const isRecurring = document.getElementById('taskRecurrenceFilter')?.value || '';
+    const search = document.getElementById('taskSearchInput')?.value || '';
+
+    const params = new URLSearchParams();
+    params.append('department', 'Gerencia');
+    if (status) params.append('status', status);
+    if (priority) params.append('priority', priority);
+    if (category && category !== 'all') params.append('category', category);
+    if (sede && sede !== 'all' && sede !== 'Todas') params.append('sede', sede);
+    if (technician && technician !== 'all') {
+        params.append('assigned_technician', technician === 'Sin asignar' ? 'unassigned' : technician);
+    }
+    if (isRecurring) params.append('is_recurring', isRecurring);
+    if (search) params.append('search', search);
+
+    try {
+        const response = await fetch(`/api/maintenance/tasks?${params.toString()}`, {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error('Error al cargar tareas de gerencia');
+        const tasks = await response.json();
+        allGerenciaTasks = tasks;
+
+        const countBadge = document.getElementById('tasksCountBadge');
+        if (countBadge) {
+            const activeCount = tasks.filter(t => t.status !== 'completed').length;
+            countBadge.textContent = activeCount;
+        }
+
+        renderCalendar();
+    } catch (err) {
+        console.error('Error al cargar tareas de gerencia:', err);
+        const container = document.getElementById('calendarDaysMatrix');
+        if (container) {
+            container.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 2rem; color: #EF4444; background: white;">
+                    ❌ Error al cargar tareas: ${escapeHtml(err.message)}
+                    <br><button onclick="loadGerenciaTasks()" style="margin-top: 10px; padding: 6px 14px; background: #4F46E5; color: white; border: none; border-radius: 6px; cursor: pointer;">Reintentar</button>
+                </div>
+            `;
+        }
+    }
+}
+
+async function loadGerenciaTaskStats() {
+    try {
+        const response = await fetch('/api/maintenance/tasks-stats?department=Gerencia', {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+        });
+        if (!response.ok) return;
+        const stats = await response.json();
+
+        if (document.getElementById('taskKpiTotal')) document.getElementById('taskKpiTotal').textContent = stats.total || 0;
+        if (document.getElementById('taskKpiPending')) document.getElementById('taskKpiPending').textContent = stats.pending || 0;
+        if (document.getElementById('taskKpiInProgress')) document.getElementById('taskKpiInProgress').textContent = stats.in_progress || 0;
+        if (document.getElementById('taskKpiCompleted')) document.getElementById('taskKpiCompleted').textContent = stats.completed || 0;
+        if (document.getElementById('taskKpiRecurring')) document.getElementById('taskKpiRecurring').textContent = stats.recurring_count || 0;
+    } catch (_) {}
+}
+
+function debounceTaskSearch() {
+    clearTimeout(taskSearchDebounceTimer);
+    taskSearchDebounceTimer = setTimeout(() => {
+        loadGerenciaTasks();
+    }, 300);
+}
+
+// =======================================================
+// MOTOR CALENDARIO ESTILO GOOGLE CALENDAR (GERENCIA)
+// =======================================================
+
+function calendarGoToday() {
+    currentCalendarDate = new Date();
+    renderCalendar();
+}
+
+function calendarPrev() {
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() - 7);
+    } else {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() - 1);
+    }
+    renderCalendar();
+}
+
+function calendarNext() {
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
+        currentCalendarDate.setDate(currentCalendarDate.getDate() + 7);
+    } else {
+        currentCalendarDate.setMonth(currentCalendarDate.getMonth() + 1);
+    }
+    renderCalendar();
+}
+
+function setCalendarView(view) {
+    currentCalendarView = view;
+    document.getElementById('btnViewMonth')?.classList.toggle('active', view === 'month');
+    document.getElementById('btnViewWorkWeek')?.classList.toggle('active', view === 'workweek');
+    document.getElementById('btnViewWeek')?.classList.toggle('active', view === 'week');
+    document.getElementById('btnViewAgenda')?.classList.toggle('active', view === 'agenda');
+
+    const monthCont = document.getElementById('calendarMonthContainer');
+    const weekCont = document.getElementById('calendarWeekContainer');
+    const agendaCont = document.getElementById('calendarAgendaContainer');
+
+    if (monthCont) monthCont.style.display = view === 'month' ? 'block' : 'none';
+    if (weekCont) weekCont.style.display = (view === 'week' || view === 'workweek') ? 'block' : 'none';
+    if (agendaCont) agendaCont.style.display = view === 'agenda' ? 'block' : 'none';
+
+    renderCalendar();
+}
+
+function renderCalendar() {
+    updateCalendarHeaderTitle();
+
+    if (currentCalendarView === 'month') {
+        renderCalendarMonth();
+    } else if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
+        renderCalendarWeek();
+    } else if (currentCalendarView === 'agenda') {
+        renderCalendarAgenda();
+    }
+}
+
+function updateCalendarHeaderTitle() {
+    const titleEl = document.getElementById('calendarCurrentTitle');
+    if (!titleEl) return;
+
+    const months = [
+        'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+
+    if (currentCalendarView === 'week' || currentCalendarView === 'workweek') {
+        const monday = getMonday(currentCalendarDate);
+        const daysSpan = currentCalendarView === 'workweek' ? 4 : 6;
+        const endDay = new Date(monday);
+        endDay.setDate(endDay.getDate() + daysSpan);
+        titleEl.textContent = `${monday.getDate()} ${months[monday.getMonth()].substring(0, 3)} - ${endDay.getDate()} ${months[endDay.getMonth()]} ${year}`;
+    } else {
+        titleEl.textContent = `${months[month]} de ${year}`;
+    }
+}
+
+function getMonday(d) {
+    const date = new Date(d);
+    const day = (date.getDay() + 6) % 7;
+    date.setDate(date.getDate() - day);
+    date.setHours(0, 0, 0, 0);
+    return date;
+}
+
+function formatDateKey(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+function getTasksForDay(dateKey) {
+    return allGerenciaTasks.filter(task => {
+        const targetDate = task.due_date ? task.due_date.substring(0, 10) : (task.created_at ? task.created_at.substring(0, 10) : '');
+        return targetDate === dateKey;
+    });
+}
+
+function renderCalendarMonth() {
+    const matrixContainer = document.getElementById('calendarDaysMatrix');
+    if (!matrixContainer) return;
+
+    const year = currentCalendarDate.getFullYear();
+    const month = currentCalendarDate.getMonth();
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+
+    let startDay = (firstDay.getDay() + 6) % 7;
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const daysInMonth = lastDay.getDate();
+
+    const todayStr = formatDateKey(new Date());
+    let cellsHtml = '';
+
+    for (let i = startDay - 1; i >= 0; i--) {
+        const dayNum = daysInPrevMonth - i;
+        const dObj = new Date(year, month - 1, dayNum);
+        const dKey = formatDateKey(dObj);
+        cellsHtml += renderCalendarCell(dKey, dayNum, true, todayStr);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dObj = new Date(year, month, d);
+        const dKey = formatDateKey(dObj);
+        cellsHtml += renderCalendarCell(dKey, d, false, todayStr);
+    }
+
+    const totalCellsSoFar = startDay + daysInMonth;
+    const remaining = (7 - (totalCellsSoFar % 7)) % 7;
+    for (let nextDay = 1; nextDay <= remaining; nextDay++) {
+        const dObj = new Date(year, month + 1, nextDay);
+        const dKey = formatDateKey(dObj);
+        cellsHtml += renderCalendarCell(dKey, nextDay, true, todayStr);
+    }
+
+    matrixContainer.innerHTML = cellsHtml;
+}
+
+function renderCalendarCell(dateKey, dayNum, isOtherMonth, todayStr) {
+    const isToday = dateKey === todayStr;
+    const tasks = getTasksForDay(dateKey);
+    const MAX_VISIBLE = 3;
+    const visibleTasks = tasks.slice(0, MAX_VISIBLE);
+    const extraCount = tasks.length - MAX_VISIBLE;
+
+    let tasksHtml = visibleTasks.map(task => {
+        const isCompleted = task.status === 'completed';
+        const priorityClass = `priority-${task.priority || 'medium'}`;
+        const prefix = isCompleted ? '✓ ' : (task.is_recurring ? '🔁 ' : '');
+        return `
+            <div class="calendar-task-pill ${priorityClass} ${isCompleted ? 'completed' : ''}"
+                 onclick="event.stopPropagation(); openTaskDetailModal(${task.id})"
+                 title="${escapeHtml(task.title)}">
+                <span class="pill-text">${prefix}${escapeHtml(task.title)}</span>
+            </div>
+        `;
+    }).join('');
+
+    if (extraCount > 0) {
+        tasksHtml += `
+            <div class="calendar-task-pill-more" onclick="event.stopPropagation(); openDayTasksModal('${dateKey}')">
+                +${extraCount} más...
+            </div>
+        `;
+    }
+
+    return `
+        <div class="calendar-day-cell ${isOtherMonth ? 'other-month' : ''} ${isToday ? 'today' : ''}"
+             onclick="openDayTasksModal('${dateKey}')">
+            <div class="calendar-day-cell-header">
+                <span class="calendar-day-number ${isToday ? 'today-badge' : ''}">${dayNum}</span>
+                ${tasks.length > 0 ? `<span class="calendar-day-count-badge">${tasks.length}</span>` : ''}
+            </div>
+            <div class="calendar-day-events">
+                ${tasksHtml}
+            </div>
+        </div>
+    `;
+}
+
+function renderCalendarWeek() {
+    const matrix = document.getElementById('calendarWeekMatrix');
+    if (!matrix) return;
+
+    const monday = getMonday(currentCalendarDate);
+    const isWorkWeek = currentCalendarView === 'workweek';
+    const daysCount = isWorkWeek ? 5 : 7;
+    const todayStr = formatDateKey(new Date());
+
+    const dayNames = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+    let colsHtml = '';
+
+    for (let i = 0; i < daysCount; i++) {
+        const dObj = new Date(monday);
+        dObj.setDate(monday.getDate() + i);
+        const dateKey = formatDateKey(dObj);
+        const isToday = dateKey === todayStr;
+        const tasks = getTasksForDay(dateKey);
+
+        const tasksHtml = tasks.map(task => {
+            const isCompleted = task.status === 'completed';
+            const priorityClass = `priority-${task.priority || 'medium'}`;
+            const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+            const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
+            const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total}` : '';
+
+            return `
+                <div class="week-task-card ${priorityClass} ${isCompleted ? 'completed' : ''}"
+                     onclick="openTaskDetailModal(${task.id})">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #1E293B; margin-bottom: 4px;">
+                        ${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}
+                    </div>
+                    <div style="display: flex; gap: 4px; flex-wrap: wrap; font-size: 0.72rem;">
+                        <span style="background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">${escapeHtml(task.category || 'General')}</span>
+                        ${task.assigned_technician ? `<span style="background: #EEF2FF; color: #4338CA; font-weight: 600; padding: 1px 6px; border-radius: 4px;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                        ${checkInfo ? `<span style="background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px;">${checkInfo}</span>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        colsHtml += `
+            <div class="calendar-week-column ${isToday ? 'today-col' : ''}">
+                <div class="calendar-week-col-header ${isToday ? 'today-header' : ''}">
+                    <span class="week-day-name">${dayNames[i]}</span>
+                    <span class="week-day-num ${isToday ? 'today-badge' : ''}">${dObj.getDate()}</span>
+                </div>
+                <div class="calendar-week-col-body" onclick="openDayTasksModal('${dateKey}')">
+                    ${tasksHtml.length ? tasksHtml : '<div style="color: #94A3B8; font-size: 0.75rem; text-align: center; padding: 1rem;">Sin tareas</div>'}
+                </div>
+            </div>
+        `;
+    }
+
+    matrix.innerHTML = colsHtml;
+}
+
+function renderCalendarAgenda() {
+    const container = document.getElementById('calendarAgendaList');
+    if (!container) return;
+
+    if (!allGerenciaTasks || allGerenciaTasks.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 3rem; color: #64748B;">
+                📋 No hay tareas registradas para Gerencia con los filtros aplicados.
+                <br><button onclick="openTaskModal()" style="margin-top: 12px; padding: 8px 16px; background: #4F46E5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">➕ Crear primera tarea</button>
+            </div>
+        `;
+        return;
+    }
+
+    const grouped = {};
+    allGerenciaTasks.forEach(task => {
+        const dateKey = task.due_date ? task.due_date.substring(0, 10) : 'Sin fecha límite';
+        if (!grouped[dateKey]) grouped[dateKey] = [];
+        grouped[dateKey].push(task);
+    });
+
+    const sortedDates = Object.keys(grouped).sort();
+    let agendaHtml = '';
+
+    sortedDates.forEach(dateKey => {
+        const tasks = grouped[dateKey];
+        agendaHtml += `
+            <div class="agenda-date-group">
+                <div class="agenda-date-header">
+                    📅 ${dateKey} (${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'})
+                </div>
+                <div class="agenda-tasks-list">
+                    ${tasks.map(task => {
+                        const isCompleted = task.status === 'completed';
+                        const priorityClass = `priority-${task.priority || 'medium'}`;
+                        const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+                        const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
+                        const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
+
+                        return `
+                            <div class="agenda-task-item ${priorityClass} ${isCompleted ? 'completed' : ''}"
+                                 onclick="openTaskDetailModal(${task.id})">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-weight: 700; font-size: 0.95rem; color: #1E293B;">
+                                        ${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}
+                                    </span>
+                                    <span class="task-status-badge ${task.status}">${task.status === 'completed' ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente')}</span>
+                                </div>
+                                ${task.description ? `<p style="font-size: 0.82rem; color: #64748B; margin: 4px 0;">${escapeHtml(task.description)}</p>` : ''}
+                                <div style="display: flex; gap: 8px; font-size: 0.75rem; margin-top: 6px; flex-wrap: wrap;">
+                                    <span class="badge">🏢 ${escapeHtml(task.category || 'General')}</span>
+                                    <span class="badge">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                                    ${task.assigned_technician ? `<span class="badge" style="background: #EEF2FF; color: #4338CA; font-weight: 600;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                    ${checkInfo ? `<span class="badge checklist">${checkInfo}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = agendaHtml;
+}
+
+// Day Tasks Modal
+function openDayTasksModal(dateKey) {
+    currentSelectedDayKey = dateKey;
+    const modal = document.getElementById('dayTasksModalDialog');
+    const title = document.getElementById('dayTasksModalTitle');
+    const badge = document.getElementById('dayTasksModalBadge');
+    const body = document.getElementById('dayTasksListBody');
+
+    if (!modal) return;
+
+    const tasks = getTasksForDay(dateKey);
+    if (title) title.textContent = `📅 Tareas del ${dateKey}`;
+    if (badge) badge.textContent = `${tasks.length} ${tasks.length === 1 ? 'tarea' : 'tareas'}`;
+
+    if (body) {
+        if (tasks.length === 0) {
+            body.innerHTML = '<div style="text-align: center; color: #94A3B8; padding: 2rem;">No hay tareas para este día.</div>';
+        } else {
+            body.innerHTML = tasks.map(task => {
+                const isCompleted = task.status === 'completed';
+                const priorityClass = `priority-${task.priority || 'medium'}`;
+                const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+                const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
+                const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
+
+                return `
+                    <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                         onclick="openTaskFromDayModal(${task.id})"
+                         style="padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px; cursor: pointer; background: white;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span style="font-weight: 700; color: #1E293B;">${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}</span>
+                            <span class="day-task-status-pill ${task.status}">${task.status === 'completed' ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente')}</span>
+                        </div>
+                        <div style="display: flex; gap: 6px; font-size: 0.75rem; flex-wrap: wrap;">
+                            <span style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">🏷️ ${escapeHtml(task.category || 'General')}</span>
+                            <span style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                            ${checkInfo ? `<span style="background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px;">${checkInfo}</span>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeDayTasksModal() {
+    const modal = document.getElementById('dayTasksModalDialog');
+    if (modal) modal.style.display = 'none';
+}
+
+function handleDayTasksAddClick() {
+    const targetDate = currentSelectedDayKey;
+    closeDayTasksModal();
+    openTaskModal(null, targetDate);
+}
+
+function openTaskFromDayModal(taskId) {
+    closeDayTasksModal();
+    openTaskDetailModal(taskId);
+}
+
+// =======================================================
+// CREACIÓN / EDICIÓN DE TAREAS Y CHECKLIST
+// =======================================================
+
+function openTaskModal(taskToEdit = null, defaultDate = null) {
+    currentEditingTaskId = taskToEdit ? taskToEdit.id : null;
+    const modal = document.getElementById('taskModalDialog');
+    const titleEl = document.getElementById('taskModalTitle');
+    const form = document.getElementById('taskFormElement');
+
+    if (!modal) return;
+
+    if (taskToEdit) {
+        if (titleEl) titleEl.textContent = '✏️ Editar Tarea de Gerencia';
+        document.getElementById('taskIdInput').value = taskToEdit.id;
+        document.getElementById('taskTitleInput').value = taskToEdit.title || '';
+        document.getElementById('taskDescInput').value = taskToEdit.description || '';
+        document.getElementById('taskCategoryInput').value = taskToEdit.category || 'General';
+        document.getElementById('taskPriorityInput').value = taskToEdit.priority || 'medium';
+        document.getElementById('taskSedeInput').value = taskToEdit.sede || 'Todas';
+        const assignedInput = document.getElementById('taskAssignedToInput') || document.getElementById('taskAssignedTechnicianInput');
+        if (assignedInput) assignedInput.value = taskToEdit.assigned_technician || '';
+        document.getElementById('taskDueDateInput').value = taskToEdit.due_date ? taskToEdit.due_date.substring(0, 10) : '';
+
+        const isRec = Boolean(taskToEdit.is_recurring);
+        const recCheckbox = document.getElementById('taskIsRecurringInput');
+        if (recCheckbox) {
+            recCheckbox.checked = isRec;
+            toggleRecurrenceOptions(isRec);
+        }
+        if (taskToEdit.recurrence_interval) {
+            document.getElementById('taskRecurrenceIntervalInput').value = taskToEdit.recurrence_interval;
+        }
+
+        taskChecklistBuilderItems = Array.isArray(taskToEdit.checklist) ? [...taskToEdit.checklist] : [];
+    } else {
+        if (titleEl) titleEl.textContent = '➕ Nueva Tarea de Gerencia';
+        if (form) form.reset();
+        document.getElementById('taskIdInput').value = '';
+        if (defaultDate) {
+            document.getElementById('taskDueDateInput').value = defaultDate;
+        }
+        toggleRecurrenceOptions(false);
+        taskChecklistBuilderItems = [];
+    }
+
+    renderChecklistBuilderList();
+    modal.style.display = 'flex';
+}
+
+function closeTaskModal() {
+    const modal = document.getElementById('taskModalDialog');
+    if (modal) modal.style.display = 'none';
+}
+
+function toggleRecurrenceOptions(show) {
+    const div = document.getElementById('recurrenceOptionsDiv');
+    if (div) div.style.display = show ? 'block' : 'none';
+}
+
+function handleRecurrenceIntervalChange(val) {
+    const customDaysDiv = document.getElementById('recurrenceCustomDaysDiv');
+    if (customDaysDiv) customDaysDiv.style.display = val === 'custom_days' ? 'block' : 'none';
+}
+
+function setRecurrenceDaysPreset(preset) {
+    if (preset === 'workweek') {
+        activeRecurrenceDays = [1, 2, 3, 4, 5];
+    } else if (preset === 'all') {
+        activeRecurrenceDays = [0, 1, 2, 3, 4, 5, 6];
+    } else {
+        activeRecurrenceDays = [];
+    }
+    updateRecurrenceDaysPills();
+}
+
+function toggleRecurrenceDay(dayNum) {
+    const idx = activeRecurrenceDays.indexOf(dayNum);
+    if (idx === -1) activeRecurrenceDays.push(dayNum);
+    else activeRecurrenceDays.splice(idx, 1);
+    updateRecurrenceDaysPills();
+}
+
+function updateRecurrenceDaysPills() {
+    document.querySelectorAll('#customDaysButtonsContainer .day-pill-btn').forEach(btn => {
+        const d = parseInt(btn.getAttribute('data-day'), 10);
+        btn.classList.toggle('active', activeRecurrenceDays.includes(d));
+    });
+}
+
+function addChecklistItemBuilder() {
+    const input = document.getElementById('newChecklistItemInput');
+    if (!input) return;
+    const text = input.value.trim();
+    if (!text) return;
+
+    taskChecklistBuilderItems.push({
+        id: `chk_${Date.now()}_${taskChecklistBuilderItems.length}`,
+        text: text,
+        done: false
+    });
+
+    input.value = '';
+    renderChecklistBuilderList();
+}
+
+function removeChecklistItemBuilder(index) {
+    taskChecklistBuilderItems.splice(index, 1);
+    renderChecklistBuilderList();
+}
+
+function renderChecklistBuilderList() {
+    const listEl = document.getElementById('checklistBuilderList');
+    const emptyMsg = document.getElementById('emptyChecklistMsg');
+    if (!listEl) return;
+
+    if (taskChecklistBuilderItems.length === 0) {
+        if (emptyMsg) emptyMsg.style.display = 'block';
+        listEl.innerHTML = '';
+        return;
+    }
+
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    listEl.innerHTML = taskChecklistBuilderItems.map((item, idx) => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; margin-bottom: 6px;">
+            <span style="font-size: 0.88rem; color: #1E293B;">${escapeHtml(item.text)}</span>
+            <button type="button" onclick="removeChecklistItemBuilder(${idx})" style="background: none; border: none; color: #EF4444; font-weight: 700; cursor: pointer;">&times;</button>
+        </div>
+    `).join('');
+}
+
+async function handleSaveTask(event) {
+    event.preventDefault();
+
+    const taskId = document.getElementById('taskIdInput')?.value;
+    const title = document.getElementById('taskTitleInput')?.value;
+    const description = document.getElementById('taskDescInput')?.value;
+    const category = document.getElementById('taskCategoryInput')?.value;
+    const priority = document.getElementById('taskPriorityInput')?.value;
+    const sede = document.getElementById('taskSedeInput')?.value;
+    const assignedTechnician = document.getElementById('taskAssignedToInput')?.value || document.getElementById('taskAssignedTechnicianInput')?.value || null;
+    const dueDate = document.getElementById('taskDueDateInput')?.value;
+    const isRecurring = document.getElementById('taskIsRecurringInput')?.checked;
+    const recurrenceInterval = document.getElementById('taskRecurrenceIntervalInput')?.value;
+
+    const payload = {
+        title,
+        description,
+        category,
+        priority,
+        department: 'Gerencia',
+        sede,
+        assigned_technician: assignedTechnician,
+        due_date: dueDate || null,
+        is_recurring: isRecurring,
+        recurrence_interval: recurrenceInterval,
+        checklist: taskChecklistBuilderItems
+    };
+
+    const isEdit = Boolean(taskId);
+    const url = isEdit ? `/api/maintenance/tasks/${taskId}` : '/api/maintenance/tasks';
+    const method = isEdit ? 'PUT' : 'POST';
+
+    try {
+        const response = await fetch(url, {
+            method,
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Error al guardar tarea');
+        }
+
+        closeTaskModal();
+        showNotification(`✅ Tarea de Gerencia ${isEdit ? 'actualizada' : 'creada'} exitosamente`, 'success');
+        loadGerenciaTasks();
+        loadGerenciaTaskStats();
+    } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+    }
+}
+
+// =======================================================
+// DETALLE DE TAREA Y ACCIONES (CHECKLIST, ESTADO, BORRADO)
+// =======================================================
+
+function openTaskDetailModal(taskId) {
+    const task = allGerenciaTasks.find(t => String(t.id) === String(taskId));
+    if (!task) return;
+
+    const modal = document.getElementById('taskDetailModalDialog');
+    const headerTitle = document.getElementById('taskDetailModalHeaderTitle');
+    const body = document.getElementById('taskDetailBody');
+
+    if (!modal || !body) return;
+
+    if (headerTitle) headerTitle.textContent = `📋 ${task.title}`;
+
+    const checklist = Array.isArray(task.checklist) ? task.checklist : [];
+    const completedItems = checklist.filter(c => c.done).length;
+    const totalItems = checklist.length;
+    const percent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (task.status === 'completed' ? 100 : 0);
+
+    body.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
+                <span class="badge priority-${task.priority || 'medium'}">Prioridad: ${task.priority || 'Media'}</span>
+                <span class="badge">Categoría: ${escapeHtml(task.category || 'General')}</span>
+                <span class="badge">Sede: ${escapeHtml(task.sede || 'Todas')}</span>
+                <span class="badge" style="background: #EEF2FF; color: #4338CA; font-weight: 700;">👤 Asignado: ${escapeHtml(task.assigned_technician || 'Sin asignar')}</span>
+                ${task.due_date ? `<span class="badge">📅 Vence: ${task.due_date.substring(0, 10)}</span>` : ''}
+                ${task.is_recurring ? '<span class="badge">🔁 Rutina Recurrente</span>' : ''}
+            </div>
+
+            ${task.description ? `<p style="font-size: 0.95rem; color: #334155; line-height: 1.6; background: #F8FAFC; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">${escapeHtml(task.description)}</p>` : ''}
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px;">Estado de la Tarea:</label>
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="changeTaskStatus(${task.id}, 'pending')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'pending' ? '#FEF3C7' : 'white'}; font-weight: ${task.status === 'pending' ? '700' : '400'};">🟡 Pendiente</button>
+                <button type="button" onclick="changeTaskStatus(${task.id}, 'in-progress')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'in-progress' ? '#E0F2FE' : 'white'}; font-weight: ${task.status === 'in-progress' ? '700' : '400'};">🔵 En Progreso</button>
+                <button type="button" onclick="changeTaskStatus(${task.id}, 'completed')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'completed' ? '#DCFCE7' : 'white'}; font-weight: ${task.status === 'completed' ? '700' : '400'};">🟢 Completada</button>
+            </div>
+        </div>
+
+        ${checklist.length > 0 ? `
+            <div style="margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 0.85rem; font-weight: 700; color: #334155;">Checklist (${completedItems}/${totalItems} completados - ${percent}%):</label>
+                </div>
+                <div style="background: #E2E8F0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                    <div style="background: #10B981; width: ${percent}%; height: 100%; transition: width 0.3s ease;"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    ${checklist.map(item => `
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #1E293B; cursor: pointer;">
+                            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${task.id}, '${item.id}', this.checked)" style="width: 18px; height: 18px; accent-color: #10B981;">
+                            <span style="${item.done ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${escapeHtml(item.text)}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E2E8F0; padding-top: 16px; margin-top: 16px;">
+            <button type="button" onclick="deleteTask(${task.id})" style="padding: 8px 14px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                🗑️ Eliminar Tarea
+            </button>
+            <div style="display: flex; gap: 8px;">
+                <button type="button" onclick="closeTaskDetailModal(); openTaskModal(allGerenciaTasks.find(t => t.id === ${task.id}))" style="padding: 8px 14px; background: #E2E8F0; color: #1E293B; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    ✏️ Editar
+                </button>
+                <button type="button" onclick="closeTaskDetailModal()" style="padding: 8px 14px; background: #4F46E5; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                    Listo
+                </button>
+            </div>
+        </div>
+    `;
+
+    modal.style.display = 'flex';
+}
+
+function closeTaskDetailModal() {
+    const modal = document.getElementById('taskDetailModalDialog');
+    if (modal) modal.style.display = 'none';
+}
+
+async function toggleChecklistItem(taskId, itemId, newDone) {
+    try {
+        const response = await fetch(`/api/maintenance/tasks/${taskId}/checklist/${itemId}`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ done: newDone })
+        });
+
+        if (!response.ok) throw new Error('Error al actualizar ítem de checklist');
+        const updatedTask = await response.json();
+
+        const idx = allGerenciaTasks.findIndex(t => t.id === taskId);
+        if (idx !== -1) allGerenciaTasks[idx] = updatedTask;
+
+        renderCalendar();
+        openTaskDetailModal(taskId);
+    } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+    }
+}
+
+async function changeTaskStatus(taskId, newStatus) {
+    try {
+        const response = await fetch(`/api/maintenance/tasks/${taskId}/status`, {
+            method: 'PATCH',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus })
+        });
+
+        if (!response.ok) throw new Error('Error al cambiar estado');
+        const updatedTask = await response.json();
+
+        const idx = allGerenciaTasks.findIndex(t => t.id === taskId);
+        if (idx !== -1) allGerenciaTasks[idx] = updatedTask;
+
+        showNotification(`✅ Estado actualizado a ${newStatus === 'completed' ? 'Completada' : (newStatus === 'in-progress' ? 'En Progreso' : 'Pendiente')}`, 'success');
+        loadGerenciaTasks();
+        loadGerenciaTaskStats();
+        closeTaskDetailModal();
+    } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+    }
+}
+
+function deleteTask(taskId) {
+    showConfirmDialog({
+        icon: '🗑️',
+        title: '¿Eliminar Tarea?',
+        message: '¿Estás seguro de que deseas eliminar permanentemente esta tarea de Gerencia?',
+        confirmText: 'Sí, Eliminar',
+        isDanger: true,
+        onConfirm: async () => {
+            try {
+                const response = await fetch(`/api/maintenance/tasks/${taskId}`, {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Error al eliminar tarea');
+                showNotification('✅ Tarea eliminada exitosamente', 'success');
+                closeTaskDetailModal();
+                loadGerenciaTasks();
+                loadGerenciaTaskStats();
+            } catch (err) {
+                showNotification(`❌ Error: ${err.message}`, 'error');
+            }
+        }
+    });
+}
+
+// Confirmation Dialog helper
+let currentConfirmCallback = null;
+
+function showConfirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '¿Estás seguro?', confirmText = 'Confirmar', isDanger = true, onConfirm = null }) {
+    const modal = document.getElementById('confirmActionModal');
+    const iconEl = document.getElementById('confirmIcon');
+    const titleEl = document.getElementById('confirmTitle');
+    const msgEl = document.getElementById('confirmMessage');
+    const btnEl = document.getElementById('confirmActionButton');
+
+    if (!modal) return;
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.textContent = message;
+    if (btnEl) {
+        btnEl.textContent = confirmText;
+        btnEl.style.background = isDanger ? '#DC2626' : '#4F46E5';
+        currentConfirmCallback = onConfirm;
+        btnEl.onclick = () => {
+            closeConfirmModal();
+            if (typeof currentConfirmCallback === 'function') currentConfirmCallback();
+        };
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('confirmActionModal');
+    if (modal) modal.style.display = 'none';
+}
+
+// =======================================================
+// EXPORTACIÓN A CSV Y COMPARTIR TABLERO
+// =======================================================
+
+function exportTasksToCSV() {
+    if (!allGerenciaTasks || allGerenciaTasks.length === 0) {
+        showNotification('⚠️ No hay tareas para exportar', 'warning');
+        return;
+    }
+
+    const headers = ['ID', 'Título', 'Descripción', 'Estado', 'Prioridad', 'Categoría', 'Sede', 'Responsable', 'Vencimiento', 'Recurrente', 'Checklist Progreso', 'Fecha Creación'];
+    const rows = allGerenciaTasks.map(t => {
+        const checklist = Array.isArray(t.checklist) ? t.checklist : [];
+        const completed = checklist.filter(c => c.done).length;
+        const progress = checklist.length > 0 ? `${completed}/${checklist.length}` : (t.status === 'completed' ? '100%' : '0%');
+
+        return [
+            t.id,
+            `"${(t.title || '').replace(/"/g, '""')}"`,
+            `"${(t.description || '').replace(/"/g, '""')}"`,
+            t.status,
+            t.priority,
+            t.category,
+            t.sede,
+            `"${(t.assigned_technician || '').replace(/"/g, '""')}"`,
+            t.due_date ? t.due_date.substring(0, 10) : '',
+            t.is_recurring ? 'Sí' : 'No',
+            progress,
+            t.created_at ? t.created_at.substring(0, 10) : ''
+        ];
+    });
+
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Tareas_Gerencia_${formatDateKey(new Date())}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function openShareTasksModal() {
+    const modal = document.getElementById('shareTasksModalDialog');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    loadActiveTaskShareLinks();
+}
+
+function closeShareTasksModal() {
+    const modal = document.getElementById('shareTasksModalDialog');
+    if (modal) modal.style.display = 'none';
+}
+
+function toggleTaskShareCustomDates() {
+    const select = document.getElementById('shareTaskPeriodSelect');
+    const container = document.getElementById('taskShareCustomDatesContainer');
+    if (select && container) {
+        container.style.display = select.value === 'custom' ? 'block' : 'none';
+    }
+}
+
+async function generateTaskShareLink() {
+    const title = document.getElementById('shareTaskTitleInput')?.value;
+    const period = document.getElementById('shareTaskPeriodSelect')?.value || '7d';
+    const expireInDays = document.getElementById('shareTaskExpireSelect')?.value || 7;
+    const startDate = document.getElementById('shareTaskCustomStart')?.value;
+    const endDate = document.getElementById('shareTaskCustomEnd')?.value;
+
+    try {
+        const response = await fetch('/api/maintenance/tasks/share', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                period,
+                expireInDays,
+                startDate,
+                endDate,
+                department: 'Gerencia'
+            })
+        });
+
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Error al generar enlace');
+        }
+
+        const data = await response.json();
+        const resultBox = document.getElementById('taskShareResultBox');
+        const urlInput = document.getElementById('generatedTaskShareUrl');
+
+        if (resultBox && urlInput) {
+            urlInput.value = data.url;
+            resultBox.style.display = 'block';
+        }
+
+        showNotification('🔗 Enlace público generado con éxito', 'success');
+        loadActiveTaskShareLinks();
+    } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+    }
+}
+
+function copyGeneratedTaskShareUrl() {
+    const urlInput = document.getElementById('generatedTaskShareUrl');
+    if (urlInput && urlInput.value) {
+        copyToClipboard(urlInput.value);
+    }
+}
+
+async function loadActiveTaskShareLinks() {
+    const container = document.getElementById('activeTaskShareLinksList');
+    if (!container) return;
+
+    try {
+        const response = await fetch('/api/maintenance/tasks/share?department=Gerencia', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Error al cargar enlaces');
+        const links = await response.json();
+
+        if (links.length === 0) {
+            container.innerHTML = '<div style="color: #9CA3AF; font-size: 0.82rem; text-align: center; padding: 10px;">No hay enlaces compartidos activos.</div>';
+            return;
+        }
+
+        const baseUrl = window.location.origin;
+        container.innerHTML = links.map(l => {
+            const shareUrl = `${baseUrl}/tareas/publico/${l.token}`;
+            return `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border: 1px solid #E2E8F0; border-radius: 6px; margin-bottom: 6px;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: #1E293B;">${escapeHtml(l.title || 'Tablero Compartido')}</div>
+                        <div style="font-size: 0.75rem; color: #64748B;">Período: ${l.period} | Creado: ${l.created_at ? l.created_at.substring(0, 10) : ''}</div>
+                    </div>
+                    <div style="display: flex; gap: 6px;">
+                        <button type="button" onclick="copyToClipboard('${shareUrl}')" style="padding: 4px 8px; background: #E2E8F0; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">📋 Copiar</button>
+                        <button type="button" onclick="deleteTaskShareLink('${l.token}')" style="padding: 4px 8px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">🗑️</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (err) {
+        container.innerHTML = `<div style="color: #EF4444; font-size: 0.82rem; text-align: center;">Error al cargar enlaces: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+async function deleteTaskShareLink(token) {
+    try {
+        const response = await fetch(`/api/maintenance/tasks/share/${token}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Error al eliminar enlace');
+        showNotification('✅ Enlace revocado exitosamente', 'success');
+        loadActiveTaskShareLinks();
+    } catch (err) {
+        showNotification(`❌ Error: ${err.message}`, 'error');
+    }
+}
+

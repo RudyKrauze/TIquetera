@@ -446,6 +446,57 @@ function applyFilters() {
                 });
         }
 
+        async function handleModalTechnicianChange(ticketId, selectEl) {
+            const newTechnician = selectEl.value ? selectEl.value.trim() : null;
+            const helpEl = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+            
+            try {
+                selectEl.disabled = true;
+                const response = await fetch(`/api/tickets/${ticketId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ assigned_technician: newTechnician })
+                });
+                
+                if (!response.ok) {
+                    const errData = await response.json();
+                    throw new Error(errData.error || 'Error al asignar responsable');
+                }
+                
+                const updatedTicket = await response.json();
+                
+                if (Array.isArray(allTickets)) {
+                    const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+                    if (idx !== -1) {
+                        allTickets[idx] = { ...allTickets[idx], ...updatedTicket };
+                    }
+                }
+                
+                selectEl.setAttribute('data-current-technician', newTechnician || '');
+                if (helpEl) {
+                    helpEl.innerHTML = newTechnician 
+                        ? `Asignado a: <strong style="color: #7E22CE;">${escapeHtml(newTechnician)}</strong>` 
+                        : 'Sin responsable asignado';
+                }
+                
+                showNotification(newTechnician ? `✅ Ticket asignado a: ${newTechnician}` : 'ℹ️ Asignación de personal removida', 'success');
+                
+                loadTicketComments(ticketId);
+                renderTickets();
+            } catch (err) {
+                console.error('Error al cambiar técnico:', err);
+                showNotification(`❌ ${err.message}`, 'error');
+                selectEl.value = selectEl.getAttribute('data-current-technician') || '';
+                if (helpEl) {
+                    helpEl.textContent = 'Error al actualizar asignación';
+                    helpEl.style.color = '#dc3545';
+                }
+            } finally {
+                selectEl.disabled = false;
+            }
+        }
+
         async function showTicketDetails(ticketId) {
             const ticket = allTickets.find(t => t.id === ticketId);
             if (!ticket) return;
@@ -539,23 +590,31 @@ function applyFilters() {
                         </div>
                     </div>
                     <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                        <div class="detail-label">🔧 Asignado a</div>
+                        <div class="detail-label">🔧 Área Asignada</div>
                         <div class="detail-value" id="ticketAssignedTo-${ticket.id}">
-                            ${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}<br>
-                            <small style="color:#6c757d; font-size:0.8em; cursor:pointer; text-decoration:underline;" onclick="assignTicketToSelf(${ticket.id})">
-                                ${ticket.assigned_to ? 'Reasignar a mí' : 'Asignarme este ticket'}
-                            </small>
+                            ${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}
                         </div>
                     </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
                     <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                        <div class="detail-label">📅 Fecha de Creación</div>
-                        <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
+                        <div class="detail-label" style="margin-bottom: 6px;">👤 Personal Asignado</div>
+                        <select id="ticketTechnicianSelect-${ticket.id}" 
+                                data-current-technician="${escapeHtml(ticket.assigned_technician || '')}"
+                                onchange="handleModalTechnicianChange(${ticket.id}, this)"
+                                style="width: 100%; padding: 7px 10px; border: 1px solid #ced4da; border-radius: 6px; background: white; font-weight: 600; color: #1e293b;">
+                            <option value="">-- Sin asignar --</option>
+                            <option value="Franco" ${ticket.assigned_technician === 'Franco' ? 'selected' : ''}>Franco</option>
+                            <option value="Cristian" ${ticket.assigned_technician === 'Cristian' ? 'selected' : ''}>Cristian</option>
+                        </select>
+                        <small id="ticketTechnicianHelp-${ticket.id}" style="display:block; margin-top:4px; font-size:0.75em; color:#6c757d;">
+                            ${ticket.assigned_technician ? `Asignado a: <strong style="color: #7E22CE;">${escapeHtml(ticket.assigned_technician)}</strong>` : 'Selecciona el técnico responsable'}
+                        </small>
                     </div>
                     <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                        <!-- Espacio vacío para mantener grid -->
+                        <div class="detail-label">📅 Fecha de Creación</div>
+                        <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
                     </div>
                 </div>
 
@@ -934,6 +993,20 @@ function applyFilters() {
                 }
             }
 
+            if (typeof updatedTicket.assigned_technician !== 'undefined') {
+                const techSelect = document.getElementById(`ticketTechnicianSelect-${ticketId}`);
+                const techHelp = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+                if (techSelect) {
+                    techSelect.value = updatedTicket.assigned_technician || '';
+                    techSelect.setAttribute('data-current-technician', updatedTicket.assigned_technician || '');
+                }
+                if (techHelp) {
+                    techHelp.innerHTML = updatedTicket.assigned_technician 
+                        ? `Asignado a: <strong style="color: #7E22CE;">${escapeHtml(updatedTicket.assigned_technician)}</strong>` 
+                        : 'Selecciona el técnico responsable';
+                }
+            }
+
             if (typeof updatedTicket.department !== 'undefined') {
                 const deptEl = document.getElementById(`ticketDepartment-${ticketId}`);
                 if (deptEl) {
@@ -1272,49 +1345,16 @@ function applyFilters() {
 
         }
 
-        // Lightbox Functions
+        // Lightbox Functions (Delegated to core-panel.js)
         function openLightbox(url) {
-            let lightbox = document.getElementById('lightboxModal');
-            if (!lightbox) {
-                // Create lightbox if it doesn't exist
-                lightbox = document.createElement('div');
-                lightbox.id = 'lightboxModal';
-                lightbox.style.cssText = `
-                    display: none;
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background-color: rgba(0, 0, 0, 0.9);
-                    z-index: 11000;
-                    justify-content: center;
-                    align-items: center;
-                    cursor: pointer;
-                `;
-                lightbox.innerHTML = `
-                    <span style="position: absolute; top: 20px; right: 30px; font-size: 40px; font-weight: bold; color: #f1f1f1; cursor: pointer;">&times;</span>
-                    <img class="lightbox-content" id="lightboxImg" style="margin: auto; display: block; max-width: 90%; max-height: 90%; border-radius: 5px; box-shadow: 0 0 20px rgba(255,255,255,0.2);">
-                `;
-                
-                // Close on click
-                lightbox.addEventListener('click', function(e) {
-                    if (e.target !== document.getElementById('lightboxImg')) {
-                        closeLightbox();
-                    }
-                });
-                
-                document.body.appendChild(lightbox);
+            if (typeof window.openLightbox === 'function') {
+                window.openLightbox(url);
             }
-            
-            document.getElementById('lightboxImg').src = url;
-            lightbox.style.display = 'flex';
         }
 
-        function closeLightbox() {
-            const lightbox = document.getElementById('lightboxModal');
-            if (lightbox) {
-                lightbox.style.display = 'none';
+        function closeLightbox(event) {
+            if (typeof window.closeLightbox === 'function') {
+                window.closeLightbox(event);
             }
         }
 
@@ -1356,6 +1396,7 @@ function applyFilters() {
             const priority = document.getElementById('taskPriorityFilter')?.value || '';
             const category = document.getElementById('taskCategoryFilter')?.value || '';
             const sede = document.getElementById('taskSedeFilter')?.value || '';
+            const technician = document.getElementById('taskTechnicianFilter')?.value || '';
             const isRecurring = document.getElementById('taskRecurrenceFilter')?.value || '';
             const search = document.getElementById('taskSearchInput')?.value || '';
 
@@ -1364,6 +1405,9 @@ function applyFilters() {
             if (priority) params.append('priority', priority);
             if (category) params.append('category', category);
             if (sede && sede !== 'all' && sede !== 'Todas') params.append('sede', sede);
+            if (technician && technician !== 'all') {
+                params.append('assigned_technician', technician === 'Sin asignar' ? 'unassigned' : technician);
+            }
             if (isRecurring) params.append('is_recurring', isRecurring);
             if (search) params.append('search', search);
 

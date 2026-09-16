@@ -464,13 +464,15 @@ window.filterTickets = function (tickets, criteria = {}) {
             const creator = (ticket.created_by_name || '').toLowerCase();
             const email = (ticket.created_by_email || '').toLowerCase();
             const ticketSede = (ticket.sede || '').toLowerCase();
+            const tech = (ticket.assigned_technician || '').toLowerCase();
 
             const matches = tracking.includes(search) ||
                 title.includes(search) ||
                 desc.includes(search) ||
                 creator.includes(search) ||
                 email.includes(search) ||
-                ticketSede.includes(search);
+                ticketSede.includes(search) ||
+                tech.includes(search);
 
             if (!matches) return false;
         }
@@ -526,7 +528,7 @@ window.exportTicketsToCSV = function (tickets, fileName = 'tickets.csv') {
         formatField(window.getStatusText(t.status)),
         formatField(t.created_by_name),
         formatField(t.created_by_email),
-        formatField(t.assigned_to_name || 'Sin asignar'),
+        formatField(t.assigned_technician ? `${t.assigned_technician} (${t.assigned_to_name || 'Área'})` : (t.assigned_to_name || 'Sin asignar')),
         formatField(window.formatDate(t.created_at)),
         formatField(window.formatDate(t.updated_at || t.created_at))
     ]);
@@ -624,7 +626,7 @@ window.buildVerticalTicketCard = function (ticket) {
             <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
             <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
             <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-            <div><strong>🛠️ Asignado a:</strong> ${window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             <div><strong>📅 Fecha:</strong> ${formattedDate}</div>
         </div>
     </div>
@@ -741,7 +743,7 @@ window.buildKanbanCard = function (ticket, isReadOnly = false) {
             <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
             <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
             <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-            <div><strong>🛠️ Asignado:</strong> ${window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
         </div>
     </div>
     `;
@@ -891,7 +893,7 @@ window.buildGridTicketCard = function (ticket, isReadOnly = false) {
                 <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'Ciudad')}</div>
                 <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
                 <div title="${window.escapeHtml(ticket.created_by_name || 'Desconocido')}"><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-                <div title="${window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}"><strong>🛠️ Asignado:</strong> ${window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+                <div title="${window.escapeHtml(ticket.assigned_technician ? `${ticket.assigned_technician} (${ticket.assigned_to_name || ''})` : (ticket.assigned_to_name || 'Sin asignar'))}"><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             </div>
 
             ${quickButtons ? `<div class="ticket-quick-actions">${quickButtons}</div>` : ''}
@@ -1060,5 +1062,231 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
     }
 };
 
+// ==========================================
+// 14. SISTEMA UNIVERSAL DE LIGHTBOX (PANTALLA COMPLETA PARA IMÁGENES Y ADJUNTOS)
+// ==========================================
+(function () {
+    let lightboxEl = null;
+    let escHandlerAttached = false;
 
+    function createUniversalLightbox() {
+        if (lightboxEl && document.body.contains(lightboxEl)) {
+            return lightboxEl;
+        }
 
+        // Eliminar elementos residuales o conflictivos de versiones previas
+        const oldLegacyIds = ['imageLightbox', 'lightboxModal'];
+        oldLegacyIds.forEach(id => {
+            const oldEl = document.getElementById(id);
+            if (oldEl) oldEl.remove();
+        });
+
+        lightboxEl = document.createElement('div');
+        lightboxEl.id = 'coreUniversalLightbox';
+        lightboxEl.setAttribute('role', 'dialog');
+        lightboxEl.setAttribute('aria-modal', 'true');
+        lightboxEl.setAttribute('aria-label', 'Visualizador de imagen adjunta');
+        lightboxEl.style.cssText = `
+            display: none;
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 15, 29, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 999999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            opacity: 0;
+            transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+        `;
+
+        lightboxEl.innerHTML = `
+            <!-- Barra superior con controles modernos -->
+            <div id="coreLightboxHeader" style="position: absolute; top: 18px; right: 24px; display: flex; align-items: center; gap: 10px; z-index: 1000002; pointer-events: auto;">
+                <a id="coreLightboxOpenNewTab" href="#" target="_blank" rel="noopener noreferrer" 
+                   title="Abrir imagen original en nueva pestaña"
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.12); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                    <span style="font-size: 14px;">↗</span>
+                    <span>Abrir original</span>
+                </a>
+                <a id="coreLightboxDownload" href="#" download="adjunto-ticket" 
+                   title="Descargar imagen"
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.12); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                    <span style="font-size: 14px;">⬇</span>
+                    <span>Descargar</span>
+                </a>
+                <button type="button" id="coreLightboxCloseBtn" 
+                        title="Cerrar (Esc)"
+                        aria-label="Cerrar imagen"
+                        style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: rgba(255,255,255,0.15); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 50%; font-size: 26px; cursor: pointer; line-height: 1; transition: all 0.2s ease; outline: none;">
+                    &times;
+                </button>
+            </div>
+
+            <!-- Spinner de carga -->
+            <div id="coreLightboxSpinner" style="display: none; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: #ffffff;">
+                <div style="width: 46px; height: 46px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #6366f1; border-radius: 50%; animation: coreLightboxSpin 0.8s linear infinite;"></div>
+                <span style="font-size: 14px; font-weight: 500; font-family: 'Montserrat', sans-serif; letter-spacing: 0.3px; opacity: 0.9;">Cargando imagen...</span>
+            </div>
+
+            <!-- Contenedor de Error si la imagen no existe o no carga -->
+            <div id="coreLightboxError" style="display: none; flex-direction: column; align-items: center; gap: 12px; color: #fecaca; text-align: center; max-width: 420px; padding: 24px; background: rgba(220, 38, 38, 0.18); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 12px;">
+                <span style="font-size: 34px;">⚠️</span>
+                <span style="font-size: 15px; font-weight: 600; font-family: 'Montserrat', sans-serif;">No se pudo cargar la imagen adjunta</span>
+                <span style="font-size: 12px; opacity: 0.85; font-family: 'Montserrat', sans-serif;">Es posible que el archivo haya expirado o la URL no esté disponible.</span>
+                <a id="coreLightboxRetryLink" href="#" target="_blank" style="margin-top: 6px; color: #ffffff; text-decoration: underline; font-size: 13px; font-weight: 500;">Intentar abrir enlace directamente</a>
+            </div>
+
+            <!-- Contenedor centrado de la imagen -->
+            <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; max-height: calc(100vh - 80px); pointer-events: none;">
+                <img id="coreLightboxImg" 
+                     src="" 
+                     alt="Adjunto de ticket en tamaño completo" 
+                     style="max-width: 92vw; max-height: 84vh; width: auto; height: auto; object-fit: contain; border-radius: 10px; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.15); pointer-events: auto; transform: scale(0.96); transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1); display: none;">
+            </div>
+        `;
+
+        // Inyectar estilos auxiliares
+        if (!document.getElementById('coreLightboxStyles')) {
+            const style = document.createElement('style');
+            style.id = 'coreLightboxStyles';
+            style.textContent = `
+                @keyframes coreLightboxSpin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                #coreLightboxCloseBtn:hover {
+                    background: rgba(239, 68, 68, 0.95) !important;
+                    border-color: rgba(239, 68, 68, 1) !important;
+                    transform: scale(1.1);
+                }
+                #coreLightboxOpenNewTab:hover, #coreLightboxDownload:hover {
+                    background: rgba(255, 255, 255, 0.24) !important;
+                    border-color: rgba(255, 255, 255, 0.4) !important;
+                    transform: translateY(-2px);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        document.body.appendChild(lightboxEl);
+
+        // Click en botón cerrar
+        const closeBtn = document.getElementById('coreLightboxCloseBtn');
+        if (closeBtn) {
+            closeBtn.onclick = function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                window.closeLightbox();
+            };
+        }
+
+        // Click en el fondo para cerrar
+        lightboxEl.onclick = function (e) {
+            const img = document.getElementById('coreLightboxImg');
+            const header = document.getElementById('coreLightboxHeader');
+            const err = document.getElementById('coreLightboxError');
+            if (e.target !== img && (!header || !header.contains(e.target)) && (!err || !err.contains(e.target))) {
+                window.closeLightbox();
+            }
+        };
+
+        // Escuchar tecla ESC
+        if (!escHandlerAttached) {
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' || e.key === 'Esc') {
+                    if (lightboxEl && lightboxEl.style.display === 'flex') {
+                        window.closeLightbox();
+                    }
+                }
+            });
+            escHandlerAttached = true;
+        }
+
+        return lightboxEl;
+    }
+
+    /**
+     * Abre cualquier imagen en pantalla completa con diseño moderno y soporte para zoom/descarga.
+     * @param {string} url
+     */
+    window.openLightbox = function (url) {
+        if (!url) return;
+
+        createUniversalLightbox();
+
+        const img = document.getElementById('coreLightboxImg');
+        const spinner = document.getElementById('coreLightboxSpinner');
+        const errorContainer = document.getElementById('coreLightboxError');
+        const openNewTab = document.getElementById('coreLightboxOpenNewTab');
+        const downloadBtn = document.getElementById('coreLightboxDownload');
+        const retryLink = document.getElementById('coreLightboxRetryLink');
+
+        if (openNewTab) openNewTab.href = url;
+        if (downloadBtn) downloadBtn.href = url;
+        if (retryLink) retryLink.href = url;
+
+        if (img && spinner && errorContainer) {
+            img.style.display = 'none';
+            img.style.transform = 'scale(0.96)';
+            errorContainer.style.display = 'none';
+            spinner.style.display = 'flex';
+
+            img.onload = function () {
+                spinner.style.display = 'none';
+                img.style.display = 'block';
+                requestAnimationFrame(() => {
+                    img.style.transform = 'scale(1)';
+                });
+            };
+
+            img.onerror = function () {
+                spinner.style.display = 'none';
+                img.style.display = 'none';
+                errorContainer.style.display = 'flex';
+            };
+
+            img.src = url;
+        }
+
+        lightboxEl.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        requestAnimationFrame(() => {
+            lightboxEl.style.opacity = '1';
+        });
+    };
+
+    /**
+     * Cierra el visor de pantalla completa y restaura el scroll.
+     * @param {Event} [event]
+     */
+    window.closeLightbox = function (event) {
+        if (event && event.target && event.target.id === 'coreLightboxImg') {
+            return;
+        }
+
+        if (lightboxEl) {
+            lightboxEl.style.opacity = '0';
+            setTimeout(() => {
+                lightboxEl.style.display = 'none';
+                const img = document.getElementById('coreLightboxImg');
+                if (img) img.src = '';
+                document.body.style.overflow = '';
+            }, 220);
+        } else {
+            document.body.style.overflow = '';
+        }
+
+        // Limpieza de cualquier elemento legacy que pudiera estar abierto
+        const legacy1 = document.getElementById('imageLightbox');
+        if (legacy1) legacy1.style.display = 'none';
+        const legacy2 = document.getElementById('lightboxModal');
+        if (legacy2) legacy2.style.display = 'none';
+    };
+})();

@@ -452,6 +452,57 @@ function updateTicketStatus(ticketId, status, options) {
         });
 }
 
+async function handleModalTechnicianChange(ticketId, selectEl) {
+    const newTechnician = selectEl.value ? selectEl.value.trim() : null;
+    const helpEl = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+    
+    try {
+        selectEl.disabled = true;
+        const response = await fetch(`/api/tickets/${ticketId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ assigned_technician: newTechnician })
+        });
+        
+        if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.error || 'Error al asignar responsable');
+        }
+        
+        const updatedTicket = await response.json();
+        
+        if (Array.isArray(allTickets)) {
+            const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+            if (idx !== -1) {
+                allTickets[idx] = { ...allTickets[idx], ...updatedTicket };
+            }
+        }
+        
+        selectEl.setAttribute('data-current-technician', newTechnician || '');
+        if (helpEl) {
+            helpEl.innerHTML = newTechnician 
+                ? `Asignado a: <strong style="color: #008B8B;">${escapeHtml(newTechnician)}</strong>` 
+                : 'Sin responsable asignado';
+        }
+        
+        showNotification(newTechnician ? `✅ Ticket asignado a: ${newTechnician}` : 'ℹ️ Asignación de personal removida', 'success');
+        
+        loadTicketComments(ticketId);
+        renderTickets();
+    } catch (err) {
+        console.error('Error al cambiar técnico:', err);
+        showNotification(`❌ ${err.message}`, 'error');
+        selectEl.value = selectEl.getAttribute('data-current-technician') || '';
+        if (helpEl) {
+            helpEl.textContent = 'Error al actualizar asignación';
+            helpEl.style.color = '#dc3545';
+        }
+    } finally {
+        selectEl.disabled = false;
+    }
+}
+
 function showTicketDetails(ticketId) {
     currentTicketId = ticketId;
     const ticket = allTickets.find(t => t.id === ticketId);
@@ -541,18 +592,30 @@ function showTicketDetails(ticketId) {
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
             <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <div class="detail-label">🔧 Asignado a</div>
+                <div class="detail-label">🔧 Área Asignada</div>
                 <div class="detail-value" id="ticketAssignedTo-${ticket.id}">
-                    ${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}<br>
-                    <small style="color:#6c757d; font-size:0.8em; cursor:pointer; text-decoration:underline;" onclick="assignTicketToSelf(${ticket.id})">
-                        ${ticket.assigned_to ? 'Reasignar a mí' : 'Asignarme este ticket'}
-                    </small>
+                    ${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}
                 </div>
             </div>
             <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
-                <div class="detail-label">📅 Fecha de Creación</div>
-                <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
+                <div class="detail-label" style="margin-bottom: 6px;">👤 Personal Asignado</div>
+                <select id="ticketTechnicianSelect-${ticket.id}" 
+                        data-current-technician="${escapeHtml(ticket.assigned_technician || '')}"
+                        onchange="handleModalTechnicianChange(${ticket.id}, this)"
+                        style="width: 100%; padding: 7px 10px; border: 1px solid #ced4da; border-radius: 6px; background: white; font-weight: 600; color: #1e293b;">
+                    <option value="">-- Sin asignar --</option>
+                    <option value="Rodolfo" ${ticket.assigned_technician === 'Rodolfo' ? 'selected' : ''}>Rodolfo</option>
+                    <option value="Matias" ${ticket.assigned_technician === 'Matias' ? 'selected' : ''}>Matias</option>
+                </select>
+                <small id="ticketTechnicianHelp-${ticket.id}" style="display:block; margin-top:4px; font-size:0.75em; color:#6c757d;">
+                    ${ticket.assigned_technician ? `Asignado a: <strong style="color: #008B8B;">${escapeHtml(ticket.assigned_technician)}</strong>` : 'Selecciona el técnico responsable'}
+                </small>
             </div>
+        </div>
+
+        <div class="detail-row" style="margin: 0 0 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-label">📅 Fecha de Creación</div>
+            <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
         </div>
 
         <!-- Attachments -->
@@ -936,6 +999,20 @@ function syncModalTicketState(updatedTicket) {
         }
     }
 
+    if (typeof updatedTicket.assigned_technician !== 'undefined') {
+        const techSelect = document.getElementById(`ticketTechnicianSelect-${ticketId}`);
+        const techHelp = document.getElementById(`ticketTechnicianHelp-${ticketId}`);
+        if (techSelect) {
+            techSelect.value = updatedTicket.assigned_technician || '';
+            techSelect.setAttribute('data-current-technician', updatedTicket.assigned_technician || '');
+        }
+        if (techHelp) {
+            techHelp.innerHTML = updatedTicket.assigned_technician 
+                ? `Asignado a: <strong style="color: #008B8B;">${escapeHtml(updatedTicket.assigned_technician)}</strong>` 
+                : 'Selecciona el técnico responsable';
+        }
+    }
+
     if (typeof updatedTicket.department !== 'undefined') {
         const deptEl = document.getElementById(`ticketDepartment-${ticketId}`);
         if (deptEl) {
@@ -1215,27 +1292,16 @@ document.getElementById('ticketModal').addEventListener('click', function (e) {
     }
 });
 
+// Lightbox Functions (Delegated to core-panel.js)
 function openLightbox(url) {
-    const lightbox = document.getElementById('imageLightbox');
-    const img = document.getElementById('lightboxImg');
-    
-    if (lightbox && img) {
-            img.src = url;
-            lightbox.style.display = 'flex';
-            document.body.style.overflow = 'hidden'; // Evitar scroll
+    if (typeof window.openLightbox === 'function') {
+        window.openLightbox(url);
     }
 }
 
 function closeLightbox(event) {
-    // Si viene de evento click, verificar que no sea click en la imagen (para permitir cerrar clickeando fuera)
-    if (event && event.target && event.target.id === 'lightboxImg') {
-        return;
-    }
-
-    const lightbox = document.getElementById('imageLightbox');
-    if (lightbox) {
-        lightbox.style.display = 'none';
-        document.body.style.overflow = ''; // Restaurar scroll
+    if (typeof window.closeLightbox === 'function') {
+        window.closeLightbox(event);
     }
 }
 
@@ -1319,6 +1385,7 @@ async function loadSupportTasks() {
     const priority = document.getElementById('taskPriorityFilter')?.value || '';
     const category = document.getElementById('taskCategoryFilter')?.value || '';
     const sede = document.getElementById('taskSedeFilter')?.value || '';
+    const technician = document.getElementById('taskTechnicianFilter')?.value || '';
     const isRecurring = document.getElementById('taskRecurrenceFilter')?.value || '';
     const search = document.getElementById('taskSearchInput')?.value || '';
 
@@ -1328,6 +1395,9 @@ async function loadSupportTasks() {
     if (priority) params.append('priority', priority);
     if (category && category !== 'all') params.append('category', category);
     if (sede && sede !== 'all' && sede !== 'Todas') params.append('sede', sede);
+    if (technician && technician !== 'all') {
+        params.append('assigned_technician', technician === 'Sin asignar' ? 'unassigned' : technician);
+    }
     if (isRecurring) params.append('is_recurring', isRecurring);
     if (search) params.append('search', search);
 

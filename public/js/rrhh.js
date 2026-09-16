@@ -1181,3 +1181,16 @@ function applyFilters() {
             }
         `;
         document.head.appendChild(style);
+
+        // Lightbox Functions (Delegated to core-panel.js)
+        function openLightbox(url) {
+            if (typeof window.openLightbox === 'function') {
+                window.openLightbox(url);
+            }
+        }
+
+        function closeLightbox(event) {
+            if (typeof window.closeLightbox === 'function') {
+                window.closeLightbox(event);
+            }
+        }

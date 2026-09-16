@@ -1602,27 +1602,16 @@ async function toggleUserActive(userId, isActive) {
     }
 }
 
-// Lightbox functions
+// Lightbox functions (Delegated to core-panel.js)
 function openLightbox(url) {
-    const lightbox = document.getElementById('imageLightbox');
-    const img = document.getElementById('lightboxImg');
-    
-    if (lightbox && img) {
-            img.src = url;
-            lightbox.style.display = 'flex';
-            document.body.style.overflow = 'hidden';
+    if (typeof window.openLightbox === 'function') {
+        window.openLightbox(url);
     }
 }
 
 function closeLightbox(event) {
-    if (event && event.target && event.target.id === 'lightboxImg') {
-        return;
-    }
-
-    const lightbox = document.getElementById('imageLightbox');
-    if (lightbox) {
-        lightbox.style.display = 'none';
-        document.body.style.overflow = '';
+    if (typeof window.closeLightbox === 'function') {
+        window.closeLightbox(event);
     }
 }
 

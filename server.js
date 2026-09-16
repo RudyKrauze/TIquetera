@@ -593,7 +593,8 @@ const VALID_DEPARTMENTS = [
   'Sistemas',
   'Mantenimiento',
   'Compras e Insumos',
-  'Administrador'
+  'Administrador',
+  'Gerencia'
 ];
 
 // Ahora TODAS las áreas tienen asignación automática a su único usuario responsable
@@ -609,7 +610,8 @@ const DEPARTMENT_TO_ROLE = {
   'Sistemas': 'support',
   'Mantenimiento': 'mantenimiento',
   'Compras e Insumos': 'compras',
-  'Administrador': 'administrador'
+  'Administrador': 'administrador',
+  'Gerencia': 'gerencia'
 };
 
 // Función auxiliar para validar email
@@ -778,7 +780,8 @@ app.get('/api/tickets/assigned/:userId', authenticateToken, canManageTickets, as
         'support': 'Sistemas',
         'mantenimiento': 'Mantenimiento',
         'compras': 'Compras e Insumos',
-        'rrhh': 'Recursos Humanos'
+        'rrhh': 'Recursos Humanos',
+        'gerencia': 'Gerencia'
       };
       const deptName = targetUser.department || roleToDept[targetUser.role];
       if (deptName) {
@@ -940,7 +943,7 @@ app.post('/api/tickets', (req, res, next) => {
          WHERE (department = $1 OR role = $2) AND active = TRUE 
          ORDER BY 
            CASE WHEN department = $1 THEN 0 ELSE 1 END,
-           CASE WHEN email IN ('soporte@tiquetera.com', 'mantenimiento@tiquetera.com', 'compras@tiquetera.com', 'rrhh@tiquetera.com') THEN 0 ELSE 1 END,
+           CASE WHEN email IN ('soporte@tiquetera.com', 'mantenimiento@tiquetera.com', 'compras@tiquetera.com', 'rrhh@tiquetera.com', 'gerencia@tiquetera.com') THEN 0 ELSE 1 END,
            id ASC 
          LIMIT 1`,
         [department, role]
@@ -951,10 +954,10 @@ app.post('/api/tickets', (req, res, next) => {
       }
     }
 
-    // Query actualizada para incluir attachments y sede
+    // Query actualizada para incluir attachments, sede y assigned_technician
     const query = `
-      INSERT INTO tickets (tracking_id, title, description, department, created_by_name, created_by_email, priority, assigned_to, attachments, affected_area, sede)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO tickets (tracking_id, title, description, department, created_by_name, created_by_email, priority, assigned_to, attachments, affected_area, sede, assigned_technician)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
     `;
 
@@ -969,7 +972,8 @@ app.post('/api/tickets', (req, res, next) => {
       assignedTo,
       JSON.stringify(attachments),
       req.body.affected_area || null,
-      sede
+      sede,
+      req.body.assigned_technician ? String(req.body.assigned_technician).trim() : null
     ]);
 
     // Debugging Priority Issue
@@ -1096,12 +1100,12 @@ function canWriteTickets(req, res, next) {
 // El administrador NO puede modificar tickets (solo lectura)
 app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res) => {
   const { id } = req.params;
-  const { status, priority } = req.body;
+  const { status, priority, assigned_technician } = req.body;
 
   try {
     // Verificar permisos sobre el ticket específico y obtener estado previo
     const ticketCheck = await pool.query(
-        "SELECT id, department, status, priority, title FROM tickets WHERE id = $1",
+        "SELECT id, department, status, priority, title, assigned_technician FROM tickets WHERE id = $1",
         [id]
     );
 
@@ -1153,6 +1157,12 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
       params.push(priority);
     }
 
+    if (assigned_technician !== undefined) {
+      const cleanTech = assigned_technician ? String(assigned_technician).trim() : null;
+      updates.push(`assigned_technician = $${paramCount++}`);
+      params.push(cleanTech);
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No hay campos para actualizar' });
     }
@@ -1201,6 +1211,22 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
          VALUES ($1, $2, 'priority_change', $3, NOW())`,
         [id, req.user.id || null, historyText]
       );
+    }
+
+    if (assigned_technician !== undefined) {
+      const cleanTech = assigned_technician ? String(assigned_technician).trim() : null;
+      const oldTech = previousTicket.assigned_technician ? String(previousTicket.assigned_technician).trim() : null;
+      if (cleanTech !== oldTech) {
+        const historyText = cleanTech 
+          ? `👤 Ticket asignado internamente a "${cleanTech}" por ${actorName}`
+          : `👤 Asignación interna de personal removida por ${actorName}`;
+
+        await pool.query(
+          `INSERT INTO ticket_updates (ticket_id, user_id, update_type, content, created_at)
+           VALUES ($1, $2, 'technician_change', $3, NOW())`,
+          [id, req.user.id || null, historyText]
+        );
+      }
     }
 
     const ticketWithUser = await pool.query(
@@ -1380,7 +1406,7 @@ app.get('/api/tickets/:id/updates', authenticateToken, canManageTickets, async (
 app.get('/api/users', authenticateToken, isAdminOrGerencia, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT id, name, email, role, department FROM users WHERE role IN ('support', 'rrhh', 'mantenimiento', 'compras') AND active = TRUE ORDER BY name"
+      "SELECT id, name, email, role, department FROM users WHERE role IN ('support', 'rrhh', 'mantenimiento', 'compras', 'gerencia') AND active = TRUE ORDER BY name"
     );
     res.json(result.rows);
   } catch (error) {
@@ -1858,7 +1884,8 @@ const ROLE_TO_NOTIFICATION_DEPARTMENT = {
    'support': 'Sistemas',
   'mantenimiento': 'Mantenimiento',
   'compras': 'Compras e Insumos',
-  'administrador': 'Administrador'
+  'administrador': 'Administrador',
+  'gerencia': 'Gerencia'
 };
 
 // Obtener notificaciones no leídas del departamento del usuario (últimas 5)
@@ -2304,7 +2331,7 @@ app.get('/api/reports/stats', authenticateToken, isAuthorizedForReports, async (
       return res.json(cached);
     }
 
-    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days'`;
+    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW()`;
     const params = [];
 
     if (department !== 'all') {
@@ -2327,7 +2354,7 @@ app.get('/api/reports/stats', authenticateToken, isAuthorizedForReports, async (
     const statsResult = await pool.query(statsQuery, params);
 
     // Tiempo promedio de resolución (tickets cerrados)
-    let avgTimeClause = whereClause.replace('created_at', 't.created_at');
+    let avgTimeClause = whereClause.replace(/created_at/g, 't.created_at');
     if (department !== 'all') {
       avgTimeClause = avgTimeClause.replace('department', 't.department');
     }
@@ -2344,7 +2371,7 @@ app.get('/api/reports/stats', authenticateToken, isAuthorizedForReports, async (
     // Estadísticas del período anterior para comparación
     const prevWhereClause = whereClause
       .replace(`NOW() - INTERVAL '${days} days'`, `NOW() - INTERVAL '${days * 2} days'`)
-      + ` AND created_at < NOW() - INTERVAL '${days} days'`;
+      .replace(`AND created_at <= NOW()`, `AND created_at < NOW() - INTERVAL '${days} days'`);
 
     const prevStatsQuery = `
       SELECT COUNT(*) as total
@@ -2402,7 +2429,7 @@ app.get('/api/reports/trends', authenticateToken, isAuthorizedForReports, async 
       return res.json(cached);
     }
 
-    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days'`;
+    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW()`;
     const params = [];
 
     if (department !== 'all') {
@@ -2474,7 +2501,7 @@ app.get('/api/reports/by-department', authenticateToken, isAuthorizedForReports,
       return res.json(cached);
     }
 
-    let deptWhere = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND department IS NOT NULL`;
+    let deptWhere = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW() AND department IS NOT NULL`;
     const params = [];
     if (department !== 'all') {
       params.push(department);
@@ -2533,7 +2560,7 @@ app.get('/api/reports/kpis', authenticateToken, isAuthorizedForReports, async (r
       return res.json(cached);
     }
 
-    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days'`;
+    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW()`;
     const params = [];
 
     if (department !== 'all') {
@@ -2820,7 +2847,7 @@ app.get('/api/reports/public/:token', async (req, res) => {
     const days = getPeriodDays(period);
 
     // 1. Stats
-    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days'`;
+    let whereClause = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW()`;
     const params = [];
     if (department !== 'all') {
       params.push(department);
@@ -2839,7 +2866,7 @@ app.get('/api/reports/public/:token', async (req, res) => {
     `;
     const statsResult = await pool.query(statsQuery, params);
 
-    let avgTimeClause = whereClause.replace('created_at', 't.created_at');
+    let avgTimeClause = whereClause.replace(/created_at/g, 't.created_at');
     if (department !== 'all') {
       avgTimeClause = avgTimeClause.replace('department', 't.department');
     }
@@ -2853,7 +2880,7 @@ app.get('/api/reports/public/:token', async (req, res) => {
 
     const prevWhereClause = whereClause
       .replace(`NOW() - INTERVAL '${days} days'`, `NOW() - INTERVAL '${days * 2} days'`)
-      + ` AND created_at < NOW() - INTERVAL '${days} days'`;
+      .replace(`AND created_at <= NOW()`, `AND created_at < NOW() - INTERVAL '${days} days'`);
     const prevStatsResult = await pool.query(`SELECT COUNT(*) as total FROM tickets ${prevWhereClause}`, params);
 
     const stats = statsResult.rows[0];
@@ -2899,7 +2926,7 @@ app.get('/api/reports/public/:token', async (req, res) => {
     }));
 
     // 3. By Department
-    let pubDeptWhere = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND department IS NOT NULL`;
+    let pubDeptWhere = `WHERE created_at >= NOW() - INTERVAL '${days} days' AND created_at <= NOW() AND department IS NOT NULL`;
     const pubDeptParams = [];
     if (department !== 'all') {
       pubDeptParams.push(department);
@@ -3125,13 +3152,15 @@ const isMaintenanceRole = (req, res, next) => {
 // GET /api/maintenance/tasks - Listar tareas con filtros
 app.get('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (req, res) => {
   try {
-    const { status, priority, category, sede, is_recurring, search, assigned_to } = req.query;
+    const { status, priority, category, sede, is_recurring, search, assigned_to, assigned_technician } = req.query;
 
     let targetDepartment = req.query.department;
     if (req.user.role === 'support') {
       targetDepartment = 'Sistemas';
     } else if (req.user.role === 'mantenimiento') {
       targetDepartment = 'Mantenimiento';
+    } else if (req.user.role === 'gerencia') {
+      targetDepartment = 'Gerencia';
     }
 
     let query = `
@@ -3183,9 +3212,18 @@ app.get('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (r
       query += ` AND mt.assigned_to = $${params.length}`;
     }
 
+    if (assigned_technician) {
+      if (assigned_technician === 'unassigned') {
+        query += ` AND (mt.assigned_technician IS NULL OR mt.assigned_technician = '')`;
+      } else {
+        params.push(assigned_technician);
+        query += ` AND mt.assigned_technician = $${params.length}`;
+      }
+    }
+
     if (search && search.trim()) {
       params.push(`%${search.trim()}%`);
-      query += ` AND (mt.title ILIKE $${params.length} OR mt.description ILIKE $${params.length} OR mt.category ILIKE $${params.length})`;
+      query += ` AND (mt.title ILIKE $${params.length} OR mt.description ILIKE $${params.length} OR mt.category ILIKE $${params.length} OR mt.assigned_technician ILIKE $${params.length})`;
     }
 
     query += ` ORDER BY CASE WHEN mt.status = 'completed' THEN 2 ELSE 1 END, mt.due_date ASC NULLS LAST, mt.created_at DESC`;
@@ -3225,6 +3263,8 @@ app.get('/api/maintenance/tasks-stats', authenticateToken, isMaintenanceRole, as
       targetDepartment = 'Sistemas';
     } else if (req.user.role === 'mantenimiento') {
       targetDepartment = 'Mantenimiento';
+    } else if (req.user.role === 'gerencia') {
+      targetDepartment = 'Gerencia';
     }
 
     let whereStats = 'WHERE 1=1';
@@ -3290,6 +3330,8 @@ app.post('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (
       department = 'Sistemas';
     } else if (req.user.role === 'mantenimiento') {
       department = 'Mantenimiento';
+    } else if (req.user.role === 'gerencia') {
+      department = 'Gerencia';
     }
 
     if (!title || !title.trim()) {
@@ -3671,21 +3713,58 @@ app.delete('/api/maintenance/tasks/:id', authenticateToken, isMaintenanceRole, a
 // POST /api/maintenance/tasks/share - Crear nuevo enlace público de tablero de tareas
 app.post('/api/maintenance/tasks/share', authenticateToken, isMaintenanceRole, async (req, res) => {
   try {
-    const { title, expireInDays = 7 } = req.body;
+    const { title, expireInDays = 7, period: reqPeriod = '7d', startDate, endDate } = req.body;
     let department = req.body.department || 'all';
 
     if (req.user.role === 'mantenimiento') {
       department = 'Mantenimiento';
     } else if (req.user.role === 'support') {
       department = 'Sistemas';
+    } else if (req.user.role === 'gerencia') {
+      department = 'Gerencia';
+    }
+
+    const validPeriods = ['7d', '30d', 'month', '1d', 'until_today', 'custom', 'all'];
+    const period = validPeriods.includes(reqPeriod) ? reqPeriod : '7d';
+
+    let customStartDate = null;
+    let customEndDate = null;
+
+    if (period === 'custom') {
+      if (!startDate || !endDate) {
+        return res.status(400).json({ error: 'Debes especificar la fecha de inicio y de fin para el rango personalizado' });
+      }
+      const sDate = new Date(startDate);
+      const eDate = new Date(endDate);
+      if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) {
+        return res.status(400).json({ error: 'Formato de fecha inválido en el rango personalizado' });
+      }
+      if (eDate < sDate) {
+        return res.status(400).json({ error: 'La fecha de fin no puede ser anterior a la fecha de inicio' });
+      }
+      customStartDate = startDate;
+      customEndDate = endDate;
     }
 
     const token = crypto.randomBytes(24).toString('hex');
+    const periodLabels = {
+      '1d': 'Últimas 24hs',
+      '7d': 'Última Semana',
+      '30d': 'Últimos 30 días',
+      'month': 'Mes Actual',
+      'until_today': 'Historial',
+      'custom': customStartDate && customEndDate ? `${customStartDate} al ${customEndDate}` : 'Personalizado',
+      'all': 'Completo'
+    };
+    const periodSuffix = periodLabels[period] ? ` (${periodLabels[period]})` : '';
+
     const defaultTitle = req.user.role === 'mantenimiento'
-      ? `Tablero de Tareas y Mantenimiento - Imagen Diagnóstica`
+      ? `Tablero de Tareas y Mantenimiento${periodSuffix} - Imagen Diagnóstica`
       : (req.user.role === 'support'
-          ? `Tablero de Tareas de Soporte Técnico - Imagen Diagnóstica`
-          : (department !== 'all' ? `Tablero de Tareas de ${department} - Imagen Diagnóstica` : `Tablero General de Tareas - Imagen Diagnóstica`));
+          ? `Tablero de Tareas de Soporte Técnico${periodSuffix} - Imagen Diagnóstica`
+          : (req.user.role === 'gerencia'
+              ? `Tablero de Tareas de Gerencia${periodSuffix} - Imagen Diagnóstica`
+              : (department !== 'all' ? `Tablero de Tareas de ${department}${periodSuffix} - Imagen Diagnóstica` : `Tablero General de Tareas${periodSuffix} - Imagen Diagnóstica`)));
 
     const boardTitle = (title && typeof title === 'string' && title.trim())
       ? title.trim()
@@ -3698,14 +3777,17 @@ app.post('/api/maintenance/tasks/share', authenticateToken, isMaintenanceRole, a
     }
 
     const query = `
-      INSERT INTO shared_tasks_boards (token, title, department, created_by, expires_at, is_active)
-      VALUES ($1, $2, $3, $4, $5, TRUE)
+      INSERT INTO shared_tasks_boards (token, title, period, start_date, end_date, department, created_by, expires_at, is_active)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE)
       RETURNING *
     `;
 
     const result = await pool.query(query, [
       token,
       boardTitle,
+      period,
+      customStartDate,
+      customEndDate,
       department,
       req.user.id,
       expiresAt
@@ -3715,7 +3797,7 @@ app.post('/api/maintenance/tasks/share', authenticateToken, isMaintenanceRole, a
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const shareUrl = `${baseUrl}/tareas/publico/${token}`;
 
-    await logAudit(req.user.id, 'create_shared_tasks_board', '/api/maintenance/tasks/share', { token, department }, req.ip);
+    await logAudit(req.user.id, 'create_shared_tasks_board', '/api/maintenance/tasks/share', { token, period, startDate: customStartDate, endDate: customEndDate, department }, req.ip);
 
     res.status(201).json({
       success: true,
@@ -3746,6 +3828,9 @@ app.get('/api/maintenance/tasks/share', authenticateToken, isMaintenanceRole, as
       params.push(req.user.id);
     } else if (req.user.role === 'support') {
       query += ` AND (stb.department = 'Sistemas' OR stb.created_by = $1)`;
+      params.push(req.user.id);
+    } else if (req.user.role === 'gerencia') {
+      query += ` AND (stb.department = 'Gerencia' OR stb.created_by = $1)`;
       params.push(req.user.id);
     }
 
@@ -3835,6 +3920,37 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
       taskWhere += ` AND (mt.department = $${params.length} OR (mt.department IS NULL AND $${params.length} = 'Mantenimiento'))`;
     }
 
+    const period = boardConfig.period || '7d';
+    const formatDateCol = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val.toISOString().substring(0, 10);
+      return String(val).substring(0, 10);
+    };
+
+    // Aplicar corte estricto de fecha final para que no se extienda a futuro sin límite
+    if (period === 'custom' && boardConfig.start_date && boardConfig.end_date) {
+      params.push(boardConfig.start_date);
+      const sIdx = params.length;
+      params.push(boardConfig.end_date);
+      const eIdx = params.length;
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= $${sIdx}::date AND COALESCE(mt.due_date, mt.created_at) < ($${eIdx}::date + INTERVAL '1 day')`;
+    } else if (period === '1d') {
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= (CURRENT_DATE - INTERVAL '1 day') AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    } else if (period === '7d') {
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= (CURRENT_DATE - INTERVAL '7 days') AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    } else if (period === '30d') {
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= (CURRENT_DATE - INTERVAL '30 days') AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    } else if (period === 'month') {
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= DATE_TRUNC('month', CURRENT_DATE) AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    } else if (period === 'until_today') {
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    } else if (period === 'all') {
+      // Sin límite de fecha (incluye historial y planificación futura)
+    } else {
+      const days = getPeriodDays(period);
+      taskWhere += ` AND COALESCE(mt.due_date, mt.created_at) >= (CURRENT_DATE - INTERVAL '${days} days') AND COALESCE(mt.due_date, mt.created_at) < (CURRENT_DATE + INTERVAL '1 day')`;
+    }
+
     const tasksQuery = `
       SELECT 
         mt.*,
@@ -3879,6 +3995,9 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
     res.json({
       board: {
         title: boardConfig.title,
+        period: period,
+        start_date: formatDateCol(boardConfig.start_date),
+        end_date: formatDateCol(boardConfig.end_date),
         department: boardConfig.department,
         created_at: boardConfig.created_at,
         created_by_name: boardConfig.created_by_name,
