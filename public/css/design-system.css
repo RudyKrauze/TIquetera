@@ -802,6 +802,70 @@ textarea.is-invalid {
   margin-top: 4px;
 }
 
+/* ==========================================
+   ESTADOS DE TICKETS (UNIFICADOS)
+   ========================================== */
+.ticket-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.ticket-status.status-open,
+.status-open {
+  background: #FEF3C7 !important;
+  color: #92400E !important;
+  border: 1px solid #FDE68A !important;
+}
+
+.ticket-status.status-open::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #D97706;
+}
+
+.ticket-status.status-in-progress,
+.status-in-progress {
+  background: #E0F2FE !important;
+  color: #0369A1 !important;
+  border: 1px solid #BAE6FD !important;
+}
+
+.ticket-status.status-in-progress::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0284C7;
+}
+
+.ticket-status.status-closed,
+.status-closed {
+  background: #DCFCE7 !important;
+  color: #15803D !important;
+  border: 1px solid #BBF7D0 !important;
+}
+
+.ticket-status.status-closed::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #16A34A;
+}
+
 .ticket-grid-card .ticket-description {
   font-size: 0.84rem;
   color: #64748b;

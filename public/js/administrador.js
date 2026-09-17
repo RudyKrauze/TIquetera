@@ -370,6 +370,7 @@ function updateTicketStatus(ticketId, status, options) {
             }
         });
 }
+window.updateTicketStatus = updateTicketStatus;
 
 function syncModalTicketState(updatedTicket) {
     if (!updatedTicket || !updatedTicket.id) return;

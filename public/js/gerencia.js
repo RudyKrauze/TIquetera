@@ -556,6 +556,7 @@ function updateTicketStatus(ticketId, status, options) {
             }
         });
 }
+window.updateTicketStatus = updateTicketStatus;
 
 function getDepartmentStaffList(department) {
     const dept = (department || '').toLowerCase();

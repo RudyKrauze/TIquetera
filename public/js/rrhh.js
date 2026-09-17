@@ -450,6 +450,7 @@ function applyFilters() {
                     }
                 });
         }
+        window.updateTicketStatus = updateTicketStatus;
 
         function showTicketDetails(ticketId) {
             currentTicketId = ticketId;

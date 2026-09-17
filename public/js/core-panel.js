@@ -119,7 +119,7 @@ window.getStatusText = function (status) {
 window.getStatusBadge = function (status) {
     const text = window.getStatusText(status);
     const safeStatus = window.escapeHtml(status || 'open');
-    return `<span class="badge badge-${safeStatus}">${window.escapeHtml(text)}</span>`;
+    return `<span class="ticket-status status-${safeStatus}">${window.escapeHtml(text)}</span>`;
 };
 
 /**
@@ -599,7 +599,7 @@ window.buildVerticalTicketCard = function (ticket) {
     const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
     const priorityText = window.getPriorityText ? window.getPriorityText(ticket.priority) : (ticket.priority === 'high' ? '🔴 Alta' : ticket.priority === 'medium' ? '🟡 Media' : '🟢 Baja');
     const statusText = window.getStatusText ? window.getStatusText(ticket.status) : ticket.status;
-    const isNew = window.isNewTicket ? window.isNewTicket(ticket.created_at) : false;
+    const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
     const relativeTime = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : '';
     const formattedDate = window.formatDate ? window.formatDate(ticket.created_at) : '';
 
@@ -710,7 +710,7 @@ window.buildKanbanCard = function (ticket, isReadOnly = false) {
     const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
     const statusText = window.getStatusText ? window.getStatusText(ticket.status) : ticket.status;
     const priorityPill = ticket.priority === 'high' ? '🔴 Alta' : (ticket.priority === 'medium' ? '🟡 Media' : '🟢 Baja');
-    const isNew = window.isNewTicket ? window.isNewTicket(ticket.created_at) : false;
+    const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
     const timeAgo = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : (window.getRelativeTime ? window.getRelativeTime(ticket.created_at) : '');
 
     return `
@@ -833,7 +833,7 @@ window.buildGridTicketCard = function (ticket, isReadOnly = false) {
     const status = ticket.status || 'open';
     const statusText = window.getStatusText ? window.getStatusText(status) : status;
     const priorityPill = ticket.priority === 'high' ? '🔴 Alta' : (ticket.priority === 'medium' ? '🟡 Media' : '🟢 Baja');
-    const isNew = window.isNewTicket ? window.isNewTicket(ticket.created_at) : false;
+    const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
     const timeAgo = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : (window.getRelativeTime ? window.getRelativeTime(ticket.created_at) : '');
 
     let quickButtons = '';

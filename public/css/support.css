@@ -346,18 +346,21 @@ body {
 }
 
 .status-open {
-  background: #d4edda;
-  color: #155724;
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FDE68A;
 }
 
 .status-in-progress {
-  background: #fff3cd;
-  color: #856404;
+  background: #E0F2FE;
+  color: #0369A1;
+  border: 1px solid #BAE6FD;
 }
 
 .status-closed {
-  background: #f8d7da;
-  color: #721c24;
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #BBF7D0;
 }
 
 .priority-high {

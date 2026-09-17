@@ -445,6 +445,7 @@ function applyFilters() {
                     }
                 });
         }
+        window.updateTicketStatus = updateTicketStatus;
 
         async function handleModalTechnicianChange(ticketId, selectEl) {
             const newTechnician = selectEl.value ? selectEl.value.trim() : null;

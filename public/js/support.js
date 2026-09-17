@@ -451,6 +451,7 @@ function updateTicketStatus(ticketId, status, options) {
             }
         });
 }
+window.updateTicketStatus = updateTicketStatus;
 
 async function handleModalTechnicianChange(ticketId, selectEl) {
     const newTechnician = selectEl.value ? selectEl.value.trim() : null;
