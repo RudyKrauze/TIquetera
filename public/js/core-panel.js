@@ -1068,6 +1068,20 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
 (function () {
     let lightboxEl = null;
     let escHandlerAttached = false;
+    let closeTimeout = null;
+
+    function normalizeAttachmentUrl(url) {
+        if (!url) return '';
+        if (typeof url === 'object' && url !== null) {
+            url = url.url || url.src || url.path || '';
+        }
+        if (typeof url !== 'string') return '';
+        let clean = url.trim().replace(/\\/g, '/');
+        if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:') && !clean.startsWith('/')) {
+            clean = '/' + clean;
+        }
+        return clean;
+    }
 
     function createUniversalLightbox() {
         if (lightboxEl && document.body.contains(lightboxEl)) {
@@ -1075,7 +1089,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         }
 
         // Eliminar elementos residuales o conflictivos de versiones previas
-        const oldLegacyIds = ['imageLightbox', 'lightboxModal'];
+        const oldLegacyIds = ['imageLightbox', 'lightboxModal', 'coreUniversalLightbox'];
         oldLegacyIds.forEach(id => {
             const oldEl = document.getElementById(id);
             if (oldEl) oldEl.remove();
@@ -1111,20 +1125,20 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             <div id="coreLightboxHeader" style="position: absolute; top: 18px; right: 24px; display: flex; align-items: center; gap: 10px; z-index: 1000002; pointer-events: auto;">
                 <a id="coreLightboxOpenNewTab" href="#" target="_blank" rel="noopener noreferrer" 
                    title="Abrir imagen original en nueva pestaña"
-                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.12); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.14); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.25); backdrop-filter: blur(8px); transition: all 0.2s ease;">
                     <span style="font-size: 14px;">↗</span>
                     <span>Abrir original</span>
                 </a>
                 <a id="coreLightboxDownload" href="#" download="adjunto-ticket" 
                    title="Descargar imagen"
-                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.12); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.2); backdrop-filter: blur(8px); transition: all 0.2s ease;">
+                   style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: rgba(255,255,255,0.14); color: #ffffff; text-decoration: none; border-radius: 20px; font-size: 13px; font-weight: 600; font-family: 'Montserrat', sans-serif; border: 1px solid rgba(255,255,255,0.25); backdrop-filter: blur(8px); transition: all 0.2s ease;">
                     <span style="font-size: 14px;">⬇</span>
                     <span>Descargar</span>
                 </a>
                 <button type="button" id="coreLightboxCloseBtn" 
                         title="Cerrar (Esc)"
                         aria-label="Cerrar imagen"
-                        style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: rgba(255,255,255,0.15); color: #ffffff; border: 1px solid rgba(255,255,255,0.25); border-radius: 50%; font-size: 26px; cursor: pointer; line-height: 1; transition: all 0.2s ease; outline: none;">
+                        style="display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; background: rgba(255,255,255,0.18); color: #ffffff; border: 1px solid rgba(255,255,255,0.3); border-radius: 50%; font-size: 26px; cursor: pointer; line-height: 1; transition: all 0.2s ease; outline: none;">
                     &times;
                 </button>
             </div>
@@ -1148,7 +1162,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                 <img id="coreLightboxImg" 
                      src="" 
                      alt="Adjunto de ticket en tamaño completo" 
-                     style="max-width: 92vw; max-height: 84vh; width: auto; height: auto; object-fit: contain; border-radius: 10px; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.15); pointer-events: auto; transform: scale(0.96); transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1); display: none;">
+                     style="max-width: 92vw; max-height: 84vh; width: auto; height: auto; object-fit: contain; border-radius: 10px; box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.15); pointer-events: auto; transform: scale(0.96); transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1); display: none; cursor: zoom-out;">
             </div>
         `;
 
@@ -1167,9 +1181,14 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                     transform: scale(1.1);
                 }
                 #coreLightboxOpenNewTab:hover, #coreLightboxDownload:hover {
-                    background: rgba(255, 255, 255, 0.24) !important;
-                    border-color: rgba(255, 255, 255, 0.4) !important;
+                    background: rgba(255, 255, 255, 0.28) !important;
+                    border-color: rgba(255, 255, 255, 0.5) !important;
                     transform: translateY(-2px);
+                }
+                .attachment-thumb-wrapper:hover {
+                    border-color: #008B8B !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
                 }
             `;
             document.head.appendChild(style);
@@ -1187,12 +1206,11 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             };
         }
 
-        // Click en el fondo para cerrar
+        // Click en el fondo o en la imagen para cerrar
         lightboxEl.onclick = function (e) {
-            const img = document.getElementById('coreLightboxImg');
             const header = document.getElementById('coreLightboxHeader');
             const err = document.getElementById('coreLightboxError');
-            if (e.target !== img && (!header || !header.contains(e.target)) && (!err || !err.contains(e.target))) {
+            if ((!header || !header.contains(e.target)) && (!err || !err.contains(e.target))) {
                 window.closeLightbox();
             }
         };
@@ -1214,12 +1232,18 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
 
     /**
      * Abre cualquier imagen en pantalla completa con diseño moderno y soporte para zoom/descarga.
-     * @param {string} url
+     * @param {string} rawUrl
      */
-    window.openLightbox = function (url) {
+    function openUniversalLightbox(rawUrl) {
+        const url = normalizeAttachmentUrl(rawUrl);
         if (!url) return;
 
         createUniversalLightbox();
+
+        if (closeTimeout) {
+            clearTimeout(closeTimeout);
+            closeTimeout = null;
+        }
 
         const img = document.getElementById('coreLightboxImg');
         const spinner = document.getElementById('coreLightboxSpinner');
@@ -1229,8 +1253,12 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         const retryLink = document.getElementById('coreLightboxRetryLink');
 
         if (openNewTab) openNewTab.href = url;
-        if (downloadBtn) downloadBtn.href = url;
         if (retryLink) retryLink.href = url;
+        if (downloadBtn) {
+            downloadBtn.href = url;
+            const filename = url.split('/').pop().split('?')[0] || 'adjunto-ticket';
+            downloadBtn.setAttribute('download', filename);
+        }
 
         if (img && spinner && errorContainer) {
             img.style.display = 'none';
@@ -1238,7 +1266,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             errorContainer.style.display = 'none';
             spinner.style.display = 'flex';
 
-            img.onload = function () {
+            const onImageReady = () => {
                 spinner.style.display = 'none';
                 img.style.display = 'block';
                 requestAnimationFrame(() => {
@@ -1246,6 +1274,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                 });
             };
 
+            img.onload = onImageReady;
             img.onerror = function () {
                 spinner.style.display = 'none';
                 img.style.display = 'none';
@@ -1253,27 +1282,28 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             };
 
             img.src = url;
+
+            if (img.complete && img.naturalWidth > 0) {
+                onImageReady();
+            }
         }
 
         lightboxEl.style.display = 'flex';
         document.body.style.overflow = 'hidden';
         requestAnimationFrame(() => {
-            lightboxEl.style.opacity = '1';
+            if (lightboxEl) lightboxEl.style.opacity = '1';
         });
-    };
+    }
 
     /**
      * Cierra el visor de pantalla completa y restaura el scroll.
      * @param {Event} [event]
      */
-    window.closeLightbox = function (event) {
-        if (event && event.target && event.target.id === 'coreLightboxImg') {
-            return;
-        }
-
+    function closeUniversalLightbox(event) {
         if (lightboxEl) {
             lightboxEl.style.opacity = '0';
-            setTimeout(() => {
+            if (closeTimeout) clearTimeout(closeTimeout);
+            closeTimeout = setTimeout(() => {
                 lightboxEl.style.display = 'none';
                 const img = document.getElementById('coreLightboxImg');
                 if (img) img.src = '';
@@ -1288,5 +1318,52 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         if (legacy1) legacy1.style.display = 'none';
         const legacy2 = document.getElementById('lightboxModal');
         if (legacy2) legacy2.style.display = 'none';
+    }
+
+    // Exponer de forma global y segura
+    window.openLightbox = openUniversalLightbox;
+    window.closeLightbox = closeUniversalLightbox;
+    window.viewFullImage = openUniversalLightbox;
+
+    /**
+     * Helper universal para renderizar la galería de adjuntos de forma consistente y protegida.
+     * @param {string|Array} attachments
+     * @returns {string} HTML seguro
+     */
+    window.renderTicketAttachments = function (attachments) {
+        let files = [];
+        try {
+            if (typeof attachments === 'string') {
+                files = JSON.parse(attachments);
+            } else if (Array.isArray(attachments)) {
+                files = attachments;
+            }
+        } catch (e) { }
+
+        if (!files || files.length === 0) return '';
+
+        return `
+            <div class="attachments-section" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-top: 15px;">
+                <h4 style="margin: 0 0 10px 0; font-size: 0.95em; color: #2c3e50; display: flex; align-items: center; gap: 6px;">
+                    <span>📎</span> <span>Archivos Adjuntos (${files.length})</span>
+                </h4>
+                <div class="attachment-gallery" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
+                    ${files.map(rawUrl => {
+                        if (!rawUrl) return '';
+                        const safeUrl = window.escapeHtml(normalizeAttachmentUrl(rawUrl));
+                        return `
+                            <div class="attachment-thumb-wrapper" 
+                                 data-url="${safeUrl}"
+                                 onclick="window.openLightbox ? window.openLightbox(this.getAttribute('data-url')) : window.open('${safeUrl}', '_blank')" 
+                                 title="Clic para ver en pantalla completa"
+                                 style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid #dee2e6; transition: all 0.18s; position: relative; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                                <img src="${safeUrl}" alt="Adjunto" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
     };
 })();
+

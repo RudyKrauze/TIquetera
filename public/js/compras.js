@@ -922,30 +922,8 @@
                 </div>
 
 
-                     <div class="detail-section" style="grid-column: 1 / -1; margin-top:1rem;">
-                        <h4 style="font-size:0.9rem; color:#495057; margin-bottom:0.5rem;">Adjuntos</h4>
-                        <div class="attachment-gallery">
-                            ${
-                                (function(){
-                                    let files = [];
-                                    try {
-                                        if (typeof ticket.attachments === 'string') {
-                                            files = JSON.parse(ticket.attachments);
-                                        } else if (Array.isArray(ticket.attachments)) {
-                                            files = ticket.attachments;
-                                        }
-                                    } catch(e) { }
-                                    
-                                    if (files.length === 0) return '<span style="color:#adb5bd; font-style:italic; font-size:0.9em;">Sin adjuntos</span>';
-
-                                    return files.map(url => `
-                                        <div class="attachment-thumb-wrapper" onclick="openLightbox('${url}')">
-                                            <img src="${url}" alt="Adjunto" loading="lazy">
-                                        </div>
-                                    `).join('');
-                                })()
-                            }
-                        </div>
+                    <div class="detail-section" style="grid-column: 1 / -1; margin-top:1rem;">
+                        ${window.renderTicketAttachments ? window.renderTicketAttachments(ticket.attachments) : ''}
                     </div>
 
                     <!-- Comentarios y Updates -->
@@ -1720,15 +1698,4 @@
                 .replace(/'/g, "&#039;");
         }
 
-        // Lightbox Functions (Delegated to core-panel.js)
-        function openLightbox(url) {
-            if (typeof window.openLightbox === 'function') {
-                window.openLightbox(url);
-            }
-        }
-
-        function closeLightbox(event) {
-            if (typeof window.closeLightbox === 'function') {
-                window.closeLightbox(event);
-            }
-        }
+        // Lightbox universal provisto por core-panel.js (window.openLightbox / window.closeLightbox)

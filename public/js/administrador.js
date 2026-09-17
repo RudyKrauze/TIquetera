@@ -941,28 +941,7 @@ async function showTicketDetails(ticketId) {
         </div>
 
         <!-- Attachments -->
-        <div class="attachments-section" style="${(!ticket.attachments || ticket.attachments.length === 0) ? 'display:none;' : ''}; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-top: 15px;">
-            <h4 style="margin: 0 0 10px 0; font-size: 0.95em; color: #2c3e50;">📎 Archivos Adjuntos</h4>
-            <div class="attachment-gallery" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
-                ${
-                    (function(){
-                        let files = [];
-                        try {
-                            if (typeof ticket.attachments === 'string') {
-                                files = JSON.parse(ticket.attachments);
-                            } else if (Array.isArray(ticket.attachments)) {
-                                files = ticket.attachments;
-                            }
-                        } catch(e) { }
-                        return files.map(url => `
-                            <div class="attachment-thumb-wrapper" onclick="openLightbox('${url}')" style="width: 60px; height: 60px; border-radius: 8px; overflow: hidden; cursor: pointer; border: 1px solid #dee2e6;">
-                                <img src="${url}" alt="Adjunto" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                        `).join('');
-                    })()
-                }
-            </div>
-        </div>
+        ${window.renderTicketAttachments ? window.renderTicketAttachments(ticket.attachments) : ''}
 
         <!-- Comment Form -->
         <div class="comment-form" style="margin-top: 20px; padding: 15px; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px;">
@@ -1602,18 +1581,7 @@ async function toggleUserActive(userId, isActive) {
     }
 }
 
-// Lightbox functions (Delegated to core-panel.js)
-function openLightbox(url) {
-    if (typeof window.openLightbox === 'function') {
-        window.openLightbox(url);
-    }
-}
-
-function closeLightbox(event) {
-    if (typeof window.closeLightbox === 'function') {
-        window.closeLightbox(event);
-    }
-}
+// Lightbox universal provisto por core-panel.js (window.openLightbox / window.closeLightbox)
 
 async function addComment() {
     const commentText = document.getElementById('commentText').value.trim();

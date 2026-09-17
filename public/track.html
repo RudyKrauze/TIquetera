@@ -447,6 +447,91 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             border-color: var(--brand-primary);
         }
+
+        /* Track Lightbox */
+        .track-lightbox-overlay {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(10, 15, 29, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 999999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            box-sizing: border-box;
+            opacity: 0;
+            transition: opacity 0.22s ease;
+            user-select: none;
+        }
+
+        .track-lightbox-header {
+            position: absolute;
+            top: 18px;
+            right: 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000002;
+        }
+
+        .track-lightbox-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.14);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(8px);
+            transition: all 0.2s ease;
+        }
+
+        .track-lightbox-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
+            transform: translateY(-2px);
+        }
+
+        .track-lightbox-close {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            font-size: 26px;
+            cursor: pointer;
+            line-height: 1;
+            transition: all 0.2s ease;
+        }
+
+        .track-lightbox-close:hover {
+            background: rgba(239, 68, 68, 0.95);
+            border-color: rgba(239, 68, 68, 1);
+            transform: scale(1.1);
+        }
+
+        .track-lightbox-img {
+            max-width: 92vw;
+            max-height: 84vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 10px;
+            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.9);
+            cursor: zoom-out;
+        }
     </style>
 </head>
 
@@ -532,6 +617,22 @@
                 <a href="/" class="action-btn action-btn--ghost">📝 Crear otro ticket</a>
             </div>
         </section>
+    </div>
+
+    <!-- Track Lightbox Modal -->
+    <div id="trackLightboxOverlay" class="track-lightbox-overlay" onclick="closeTrackLightbox(event)">
+        <div class="track-lightbox-header" id="trackLightboxHeader">
+            <a id="trackLightboxOpenNewTab" href="#" target="_blank" rel="noopener noreferrer" class="track-lightbox-btn">
+                <span>↗</span> <span>Abrir original</span>
+            </a>
+            <a id="trackLightboxDownload" href="#" download="adjunto-ticket" class="track-lightbox-btn">
+                <span>⬇</span> <span>Descargar</span>
+            </a>
+            <button type="button" class="track-lightbox-close" onclick="closeTrackLightbox()">&times;</button>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; max-height: calc(100vh - 80px);">
+            <img id="trackLightboxImg" class="track-lightbox-img" src="" alt="Adjunto en pantalla completa">
+        </div>
     </div>
 
     <script>
@@ -665,9 +766,9 @@
                 if (data.attachments && data.attachments.length > 0) {
                     attachmentsContainer.style.display = 'block';
                     attachmentsGrid.innerHTML = data.attachments.map(url => `
-                        <a href="${url}" target="_blank" class="attachment-item">
-                            <img src="${url}" alt="Adjunto" title="Clic para ver">
-                        </a>
+                        <div class="attachment-item" style="cursor: pointer;" onclick="openTrackLightbox('${url}')" title="Clic para ver en pantalla completa">
+                            <img src="${url}" alt="Adjunto" loading="lazy">
+                        </div>
                     `).join('');
                 } else {
                     attachmentsContainer.style.display = 'none';
@@ -725,6 +826,55 @@
                 }
             });
         }
+
+        // Lightbox de track.html
+        function openTrackLightbox(url) {
+            if (!url) return;
+            let clean = String(url).trim().replace(/\\/g, '/');
+            if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:') && !clean.startsWith('/')) {
+                clean = '/' + clean;
+            }
+            const overlay = document.getElementById('trackLightboxOverlay');
+            const img = document.getElementById('trackLightboxImg');
+            const openTab = document.getElementById('trackLightboxOpenNewTab');
+            const download = document.getElementById('trackLightboxDownload');
+
+            if (openTab) openTab.href = clean;
+            if (download) {
+                download.href = clean;
+                const fn = clean.split('/').pop().split('?')[0] || 'adjunto-ticket';
+                download.setAttribute('download', fn);
+            }
+            if (img) img.src = clean;
+            if (overlay) {
+                overlay.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+                requestAnimationFrame(() => {
+                    overlay.style.opacity = '1';
+                });
+            }
+        }
+
+        function closeTrackLightbox(e) {
+            const header = document.getElementById('trackLightboxHeader');
+            if (e && header && header.contains(e.target)) return;
+            const overlay = document.getElementById('trackLightboxOverlay');
+            if (overlay) {
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.style.display = 'none';
+                    const img = document.getElementById('trackLightboxImg');
+                    if (img) img.src = '';
+                    document.body.style.overflow = '';
+                }, 220);
+            }
+        }
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                closeTrackLightbox();
+            }
+        });
 
         // Cargar ticket al cargar la página
         loadTicket(currentTrackingId);
