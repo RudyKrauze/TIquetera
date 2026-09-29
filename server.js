@@ -715,7 +715,10 @@ function buildTicketsQuery({ baseConditions = [], baseParams = [], query = {}, u
   }
 
   const selectSql = `
-    SELECT t.*, u.name as assigned_to_name
+    SELECT t.id, t.tracking_id, t.title, t.description, t.status, t.priority,
+           t.affected_area, t.department, t.created_by_name, t.created_by_email,
+           t.assigned_to, t.assigned_technician, t.sede, t.created_at, t.updated_at,
+           u.name as assigned_to_name
     FROM tickets t
     LEFT JOIN users u ON t.assigned_to = u.id
     ${whereClause}
@@ -1062,6 +1065,9 @@ app.post('/api/tickets', (req, res, next) => {
     // Invalidar caché de reportes para reflejar el nuevo ticket
     if (typeof invalidateReportCache === 'function') invalidateReportCache();
 
+    // Notificar a todos los clientes conectados que hay un ticket nuevo (refresco reactivo)
+    io.emit('ticket_updated', { action: 'created', department, ticketId: createdTicket.id });
+
     // Enviar respuesta exitosa al cliente para detener el spinner
     res.status(201).json({
       id: createdTicket.id,
@@ -1246,6 +1252,10 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
 
     // Invalidar caché de reportes
     if (typeof invalidateReportCache === 'function') invalidateReportCache();
+
+    // Notificar a todos los clientes conectados que hay un ticket actualizado (refresco reactivo)
+    const updatedDept = ticketWithUser.rows[0]?.department;
+    io.emit('ticket_updated', { action: 'updated', department: updatedDept, ticketId: parseInt(id, 10) });
   } catch (error) {
     console.error('Error updating ticket:', error.message);
     res.status(500).json({ error: 'Error al actualizar ticket' });

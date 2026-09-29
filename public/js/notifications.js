@@ -53,10 +53,8 @@ class NotificationSystem {
         this.setupNetworkListeners();
         await this.connectWebSocket();
         await this.loadInitialNotifications();
-        
-        // Activar sondeo de respaldo periódico (cada 30s) para asegurar recepción
-        // en arquitecturas serverless como Vercel donde los WebSockets no son persistentes
-        this.startPollingFallback();
+        // El polling de respaldo se activa SOLO si el socket falla definitivamente (ver reconnect_failed)
+        // NO se activa aquí de manera incondicional para evitar egress innecesario.
     }
 
     /**
@@ -187,6 +185,7 @@ class NotificationSystem {
 
             this.isConnected = true;
             this.reconnectAttempts = 0;
+            this.stopPollingFallback(); // Cancelar fallback si el socket vuelve
             this.joinDepartment();
         });
 
@@ -216,7 +215,7 @@ class NotificationSystem {
 
         this.socket.on('reconnect_failed', () => {
 
-            this.showConnectionError();
+            this.showConnectionError(); // activa startPollingFallback internamente
         });
 
         this.socket.on('joined', (data) => {
@@ -236,13 +235,23 @@ class NotificationSystem {
     }
 
     /**
-     * Inicia polling de respaldo periódico
+     * Inicia polling de respaldo periódico (SOLO como fallback cuando el socket falla definitivamente)
      */
     startPollingFallback() {
         if (this.pollingInterval) return;
         this.pollingInterval = setInterval(() => {
             this.loadInitialNotifications();
-        }, 30000); // Cada 30 segundos
+        }, 3 * 60 * 1000); // 3 minutos — solo como fallback de emergencia
+    }
+
+    /**
+     * Detiene el polling de respaldo (cuando el socket se reconecta)
+     */
+    stopPollingFallback() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
     }
 
     /**

@@ -54,15 +54,13 @@
         });
 
         function startAutoRefresh() {
-            // Actualizar cada 30 segundos
-            if (refreshInterval) {
-                clearInterval(refreshInterval);
+            // Refresco reactivo: se dispara por evento Socket.IO 'ticket_updated' del servidor.
+            // Fallback automático a 5 min si el socket no está disponible.
+            if (window.TicketRefresh) {
+                window.TicketRefresh.register(() => {
+                    if (currentUser && !isLoading) loadTickets(true);
+                });
             }
-            refreshInterval = setInterval(() => {
-                if (currentUser && !isLoading) {
-                    loadTickets(true); // true = refresh silencioso
-                }
-            }, 30000);
         }
 
         function loadTickets(silentRefresh = false) {
@@ -1263,32 +1261,14 @@
             }, 300);
         });
 
-        // Auto-refresh cada 30 segundos
-        let autoRefreshInterval = null;
-
-        function startAutoRefresh() {
-            // Limpiar interval existente
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-            }
-
-            // Refresh cada 30 segundos
-            autoRefreshInterval = setInterval(() => {
-                loadTickets(true); // true = silent refresh
-            }, 30000);
-        }
+        // Auto-refresh via TicketRefresh reactivo (ya registrado en la función startAutoRefresh principal)
+        // No se necesita un segundo interval.
 
         function stopAutoRefresh() {
-            if (autoRefreshInterval) {
-                clearInterval(autoRefreshInterval);
-                autoRefreshInterval = null;
-            }
+            if (window.TicketRefresh) window.TicketRefresh.unregister();
         }
 
-        // Iniciar auto-refresh al cargar tickets
-        window.addEventListener('load', () => {
-            startAutoRefresh();
-        });
+        // El refresco ya fue registrado en startAutoRefresh() al inicio
 
         // Filter functionality
         document.getElementById('statusFilter')?.addEventListener('change', applyFilters);

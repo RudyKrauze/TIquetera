@@ -60,15 +60,13 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
 });
 
 function startAutoRefresh() {
-    // Actualizar cada 30 segundos
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
+    // Refresco reactivo: se dispara por evento Socket.IO 'ticket_updated' del servidor.
+    // Fallback automático a 5 min si el socket no está disponible.
+    if (window.TicketRefresh) {
+        window.TicketRefresh.register(() => {
+            if (currentUser && !isLoading) loadTickets(true);
+        });
     }
-    refreshInterval = setInterval(() => {
-        if (currentUser && !isLoading) {
-            loadTickets(true); // true = refresh silencioso
-        }
-    }, 30000);
 }
 
 function loadTickets(silentRefresh = false) {
@@ -1198,26 +1196,14 @@ document.getElementById('searchInput').addEventListener('input', function (e) {
     }, 300);
 });
 
-// Auto-refresh cada 30 segundos
-
-function startAutoRefresh() {
-    // Limpiar interval existente
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-    }
-
-    // Refresh cada 30 segundos
-    autoRefreshInterval = setInterval(() => {
-        loadTickets(true); // true = silent refresh
-    }, 30000);
-}
+// Auto-refresh via TicketRefresh reactivo (ya registrado en startAutoRefresh)
+// No se necesita un segundo interval.
 
 function stopAutoRefresh() {
-    if (autoRefreshInterval) {
-        clearInterval(autoRefreshInterval);
-        autoRefreshInterval = null;
-    }
+    if (window.TicketRefresh) window.TicketRefresh.unregister();
 }
+
+// El refresco ya fue registrado en startAutoRefresh() al iniciar sesión
 
 // Iniciar auto-refresh al cargar tickets
 // Movido a loadTickets success para evitar doble llamada o conflictos

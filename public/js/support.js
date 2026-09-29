@@ -48,15 +48,14 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
 });
 
 function startAutoRefresh() {
-    // Actualizar cada 30 segundos
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
+    // Refresco reactivo: se dispara por evento Socket.IO 'ticket_updated' del servidor.
+    // Fallback automático a 5 min si el socket no está disponible.
+    // NO usa setInterval propio para evitar egress innecesario.
+    if (window.TicketRefresh) {
+        window.TicketRefresh.register(() => {
+            if (currentUser && !isLoading) loadMyTickets(true);
+        });
     }
-    refreshInterval = setInterval(() => {
-        if (currentUser && !isLoading) {
-            loadMyTickets(true); // true = refresh silencioso
-        }
-    }, 30000);
 }
 
 function loadMyTickets(silentRefresh = false) {

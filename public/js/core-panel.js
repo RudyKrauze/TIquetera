@@ -19,6 +19,122 @@ window.kanbanDragTicketId = null;
 window.kanbanDragSourceStatus = null;
 
 // ==========================================
+// SISTEMA DE REFRESCO REACTIVO (Anti-Egress)
+// ==========================================
+/**
+ * Sistema centralizado de refresco de tickets.
+ * - Escucha el evento 'ticket_updated' por Socket.IO emitido por el servidor.
+ * - Cuando no hay socket disponible, usa un heartbeat de EMERGENCIA cada 5 minutos.
+ * - ELIMINA la necesidad de setInterval cada 30s en cada módulo.
+ *
+ * Uso desde cualquier módulo:
+ *   window.TicketRefresh.register(() => loadTickets(true));
+ *   window.TicketRefresh.unregister();
+ */
+window.TicketRefresh = (function () {
+    let _callback = null;          // función a llamar cuando hay cambios
+    let _debounceTimer = null;     // evita múltiples llamadas simultáneas
+    let _heartbeatTimer = null;    // fallback cada 5 min si el socket no está
+    let _socketBound = false;      // ya se enlazó al socket de notificaciones
+
+    const HEARTBEAT_MS = 5 * 60 * 1000; // 5 minutos (fallback de emergencia)
+    const DEBOUNCE_MS  = 800;            // evita ráfagas de eventos
+
+    function _triggerRefresh() {
+        if (!_callback) return;
+        clearTimeout(_debounceTimer);
+        _debounceTimer = setTimeout(() => {
+            if (!window.isLoading && _callback) {
+                _callback();
+            }
+        }, DEBOUNCE_MS);
+    }
+
+    function _startHeartbeat() {
+        if (_heartbeatTimer) return;
+        _heartbeatTimer = setInterval(_triggerRefresh, HEARTBEAT_MS);
+    }
+
+    function _stopHeartbeat() {
+        if (_heartbeatTimer) {
+            clearInterval(_heartbeatTimer);
+            _heartbeatTimer = null;
+        }
+    }
+
+    function _bindToSocket() {
+        if (_socketBound) return;
+        // El NotificationSystem expone el socket en window.notificationSystem.socket
+        // Intentamos enlazarnos cuando esté disponible
+        const tryBind = () => {
+            const ns = window.notificationSystem;
+            if (ns && ns.socket) {
+                ns.socket.on('ticket_updated', _triggerRefresh);
+                ns.socket.on('connect', () => {
+                    _stopHeartbeat(); // socket activo → ya no necesitamos heartbeat
+                });
+                ns.socket.on('disconnect', () => {
+                    _startHeartbeat(); // socket caído → activar heartbeat
+                });
+                // Si el socket ya está conectado al momento del bind, detener heartbeat
+                if (ns.isConnected) {
+                    _stopHeartbeat();
+                } else {
+                    _startHeartbeat();
+                }
+                _socketBound = true;
+            }
+        };
+        // Intentar inmediatamente y luego con retry si el sistema de notificaciones aún no cargó
+        tryBind();
+        if (!_socketBound) {
+            let retries = 0;
+            const interval = setInterval(() => {
+                tryBind();
+                if (_socketBound || ++retries > 20) clearInterval(interval);
+            }, 500);
+        }
+    }
+
+    return {
+        /**
+         * Registra el callback de refresco para el módulo actual.
+         * Llámalo una sola vez al iniciar el módulo, reemplaza startAutoRefresh().
+         * @param {Function} fn - función a llamar cuando hay cambios de tickets
+         */
+        register(fn) {
+            _callback = fn;
+            _socketBound = false; // resetear para re-enlazar si cambia el módulo
+            _bindToSocket();
+        },
+
+        /**
+         * Desregistra el callback (al hacer logout o cambiar de página).
+         */
+        unregister() {
+            _callback = null;
+            _stopHeartbeat();
+        },
+
+        /** Fuerza un refresco manual (e.g., al volver a la pestaña). */
+        trigger: _triggerRefresh
+    };
+})();
+
+// Refresco al volver a la pestaña si estuvo inactiva más de 2 minutos
+(function () {
+    let _hiddenAt = null;
+    const STALE_MS = 2 * 60 * 1000;
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            _hiddenAt = Date.now();
+        } else if (_hiddenAt && (Date.now() - _hiddenAt) > STALE_MS) {
+            if (window.TicketRefresh) window.TicketRefresh.trigger();
+        }
+    });
+})();
+
+// ==========================================
 // 2. SEGURIDAD Y SANITIZACIÓN (XSS)
 // ==========================================
 /**

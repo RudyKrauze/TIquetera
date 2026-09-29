@@ -83,16 +83,14 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
 });
 
 function startAutoRefresh() {
-    // Actualizar cada 30 segundos
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
+    // Refresco reactivo: se dispara por evento Socket.IO 'ticket_updated' del servidor.
+    // Fallback automático a 5 min si el socket no está disponible.
+    if (window.TicketRefresh) {
+        window.TicketRefresh.register(() => {
+            const effectiveUser = window.currentUser || currentUser;
+            if (effectiveUser && !isLoading) loadTickets(true);
+        });
     }
-    refreshInterval = setInterval(() => {
-        const effectiveUser = window.currentUser || currentUser;
-        if (effectiveUser && !isLoading) {
-            loadTickets(true); // true = refresh silencioso
-        }
-    }, 30000);
 }
 
 let loadTicketsRequestId = 0;
