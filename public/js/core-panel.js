@@ -1466,14 +1466,21 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                 <div class="attachment-gallery" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
                     ${files.map(rawUrl => {
                         if (!rawUrl) return '';
-                        const safeUrl = window.escapeHtml(normalizeAttachmentUrl(rawUrl));
+                        // normalizeAttachmentUrl devuelve la URL limpia (no escapeada)
+                        // No aplicar escapeHtml a la URL: convierte & → &amp; rompiendo
+                        // URLs de Supabase Storage que contienen query params con '&'.
+                        // Solo se escapa en data-url (atributo HTML) para prevenir XSS de inyección de comillas.
+                        const url = normalizeAttachmentUrl(rawUrl);
+                        const safeAttr = url.replace(/"/g, '&quot;'); // solo escapar comillas dobles
                         return `
-                            <div class="attachment-thumb-wrapper" 
-                                 data-url="${safeUrl}"
-                                 onclick="window.openLightbox ? window.openLightbox(this.getAttribute('data-url')) : window.open('${safeUrl}', '_blank')" 
+                            <div class="attachment-thumb-wrapper"
+                                 data-url="${safeAttr}"
+                                 onclick="window.openLightbox ? window.openLightbox(this.getAttribute('data-url')) : window.open(this.getAttribute('data-url'), '_blank')"
                                  title="Clic para ver en pantalla completa"
                                  style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid #dee2e6; transition: all 0.18s; position: relative; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
-                                <img src="${safeUrl}" alt="Adjunto" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+                                <img src="${safeAttr}" alt="Adjunto" loading="lazy"
+                                     onerror="this.parentElement.style.background='#f1f3f5'; this.style.display='none'; this.parentElement.innerHTML+='<span style=\'font-size:28px;line-height:68px;\'>📎</span>'"
+                                     style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                         `;
                     }).join('')}

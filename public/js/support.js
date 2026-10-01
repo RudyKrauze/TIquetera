@@ -1215,6 +1215,71 @@ function handleModalStatusChange(ticketId, selectEl) {
         });
     };
 
+    // Al pasar de Pendiente → En Progreso: usar el endpoint atómico que crea la tarea automáticamente
+    if (newStatus === 'in-progress' && currentStatus === 'open') {
+        selectEl.disabled = true;
+        if (helpEl) {
+            helpEl.textContent = 'Moviendo a En Progreso y creando tarea...';
+            helpEl.style.color = '#6c757d';
+        }
+
+        fetch(`/api/tickets/${ticketId}/move-and-create-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'include'
+        })
+        .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, data })))
+        .then(({ ok, status, data }) => {
+            selectEl.disabled = false;
+
+            if (ok) {
+                // Éxito: ticket movido y tarea creada
+                selectEl.setAttribute('data-current-status', 'in-progress');
+                if (helpEl) {
+                    helpEl.textContent = 'Ticket en progreso. Tarea creada automáticamente.';
+                    helpEl.style.color = '#2F9E44';
+                }
+                showNotification('✅ Ticket movido a "En Progreso" y tarea creada', 'success');
+                // Actualizar caché local
+                if (Array.isArray(allTickets) && data.ticket) {
+                    const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+                    if (idx !== -1) allTickets[idx] = { ...allTickets[idx], ...data.ticket };
+                }
+                loadMyTickets(true);
+                loadTicketComments(ticketId);
+                if (typeof loadSupportTasks === 'function') loadSupportTasks();
+                if (typeof loadSupportTaskStats === 'function') loadSupportTaskStats();
+
+            } else if (status === 409) {
+                // Ya existe una tarea para este ticket — solo mover el estado sin crear tarea
+                if (helpEl) {
+                    helpEl.textContent = 'Tarea ya existente. Actualizando solo el estado...';
+                    helpEl.style.color = '#6c757d';
+                }
+                performUpdate();
+
+            } else {
+                // Otro error del servidor
+                selectEl.value = currentStatus;
+                if (helpEl) {
+                    helpEl.textContent = data.error || 'No se pudo actualizar el estado.';
+                    helpEl.style.color = '#dc3545';
+                }
+                showNotification(`❌ ${data.error || 'Error al mover ticket'}`, 'error');
+            }
+        })
+        .catch(err => {
+            selectEl.disabled = false;
+            selectEl.value = currentStatus;
+            if (helpEl) {
+                helpEl.textContent = 'Error de conexión. Intenta nuevamente.';
+                helpEl.style.color = '#dc3545';
+            }
+            showNotification('❌ Error al mover ticket a En Progreso', 'error');
+        });
+        return;
+    }
+
     if (newStatus === 'closed') {
         openConfirmDialog({
             title: 'Cerrar ticket',
@@ -1235,6 +1300,7 @@ function handleModalStatusChange(ticketId, selectEl) {
 
     performUpdate();
 }
+
 
 function handleModalPriorityChange(ticketId, selectEl) {
     if (!selectEl) return;
