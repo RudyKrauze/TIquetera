@@ -339,6 +339,8 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
+        <hr style="margin: 4px 0; border: none; border-top: 1px solid #e5e7eb;">
+        <button type="button" role="menuitem" onclick="handleMoveAndCreateTask(${ticketId})" ${currentStatus !== 'open' ? 'disabled' : ''} title="Mover a En Progreso y crear tarea automáticamente">📌 Mover y Crear Tarea</button>
     `;
 
     let clientX = event && typeof event.clientX === 'number' ? event.clientX : 0;
@@ -365,6 +367,53 @@ function handleTicketContextMenuAction(ticketId, targetStatus) {
     if (!ticketId || !targetStatus) return;
     closeActiveTicketContextMenu();
     updateTicketStatus(ticketId, targetStatus);
+}
+
+async function handleMoveAndCreateTask(ticketId) {
+    closeActiveTicketContextMenu();
+    if (!ticketId) return;
+
+    const ticket = allTickets.find(t => String(t.id) === String(ticketId));
+    const ticketLabel = ticket ? `"${ticket.title}"` : `#${ticketId}`;
+
+    if (!confirm(`¿Mover ticket ${ticketLabel} a "En Progreso" y crear una tarea automáticamente?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tickets/${ticketId}/move-and-create-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al mover ticket y crear tarea');
+        }
+
+        // Actualizar cache local de tickets
+        if (Array.isArray(allTickets) && data.ticket) {
+            const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+            if (idx !== -1) {
+                allTickets[idx] = { ...allTickets[idx], ...data.ticket };
+            }
+        }
+
+        showNotification('✅ Ticket movido a "En Progreso" y tarea creada exitosamente', 'success');
+
+        // Refrescar vista de tickets
+        loadMyTickets(true);
+
+        // Refrescar tablero de tareas si las funciones existen
+        if (typeof loadSupportTasks === 'function') loadSupportTasks();
+        if (typeof loadSupportTaskStats === 'function') loadSupportTaskStats();
+
+    } catch (err) {
+        console.error('Error en Mover y Crear Tarea:', err);
+        showNotification(`❌ ${err.message}`, 'error');
+    }
 }
 
 function closeActiveTicketContextMenu() {
@@ -2345,23 +2394,60 @@ function openTaskDetailModal(taskId) {
     const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
     const progressPercent = metrics.total > 0 ? Math.round((metrics.completed / metrics.total) * 100) : (task.status === 'completed' ? 100 : 0);
 
+    const detailSelectStyle = `
+        font-size: 0.78rem; font-weight: 700; padding: 4px 8px 4px 6px;
+        border-radius: 20px; border: 1.5px solid transparent; cursor: pointer;
+        appearance: none; -webkit-appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 6px center;
+        padding-right: 22px; transition: border-color 0.15s;
+    `;
+
     body.innerHTML = `
         <div style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
-                🏢 ${escapeHtml(task.category || 'General')}
-            </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
-                📍 ${escapeHtml(task.sede || 'Todas')}
-            </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
-                ${priorityBadge}
-            </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: ${task.status === 'completed' ? '#D1FAE5' : (task.status === 'in-progress' ? '#E0F2FE' : '#FEF3C7')}; color: ${task.status === 'completed' ? '#065F46' : (task.status === 'in-progress' ? '#0369A1' : '#92400E')};">
-                ${statusBadge}
-            </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #EFF6FF; color: #1E40AF; border: 1px solid #DBEAFE;">
-                👤 Asignado: ${escapeHtml(task.assigned_technician || 'Sin asignar')}
-            </span>
+
+            <!-- Categoría -->
+            <select onchange="updateTaskFieldFromDetail(${task.id}, 'category', this.value)" title="Categoría" style="${detailSelectStyle} background-color: #F3F4F6; color: #374151;">
+                <option value="General" ${(task.category || 'General') === 'General' ? 'selected' : ''}>🏢 General</option>
+                <option value="Hardware &amp; PCs" ${task.category === 'Hardware & PCs' ? 'selected' : ''}>🖥️ Hardware &amp; PCs</option>
+                <option value="Redes &amp; Conectividad" ${task.category === 'Redes & Conectividad' ? 'selected' : ''}>🌐 Redes &amp; Conectividad</option>
+                <option value="Servidores &amp; Backups" ${task.category === 'Servidores & Backups' ? 'selected' : ''}>💾 Servidores &amp; Backups</option>
+                <option value="Software &amp; Licencias" ${task.category === 'Software & Licencias' ? 'selected' : ''}>📦 Software &amp; Licencias</option>
+                <option value="Impresoras &amp; Periféricos" ${task.category === 'Impresoras & Periféricos' ? 'selected' : ''}>🖨️ Impresoras &amp; Periféricos</option>
+                <option value="Ciberseguridad &amp; Accesos" ${task.category === 'Ciberseguridad & Accesos' ? 'selected' : ''}>🔒 Ciberseguridad &amp; Accesos</option>
+                <option value="Telefonía &amp; VoIP" ${task.category === 'Telefonía & VoIP' ? 'selected' : ''}>📞 Telefonía &amp; VoIP</option>
+            </select>
+
+            <!-- Sede -->
+            <select onchange="updateTaskFieldFromDetail(${task.id}, 'sede', this.value)" title="Sede" style="${detailSelectStyle} background-color: #F3F4F6; color: #374151;">
+                <option value="Todas" ${(task.sede || 'Todas') === 'Todas' ? 'selected' : ''}>📍 Todas</option>
+                <option value="Ciudad" ${task.sede === 'Ciudad' ? 'selected' : ''}>📍 Ciudad</option>
+                <option value="Maipú" ${task.sede === 'Maipú' ? 'selected' : ''}>📍 Maipú</option>
+                <option value="San Martín" ${task.sede === 'San Martín' ? 'selected' : ''}>📍 San Martín</option>
+            </select>
+
+            <!-- Prioridad -->
+            <select onchange="updateTaskFieldFromDetail(${task.id}, 'priority', this.value)" title="Prioridad" style="${detailSelectStyle} background-color: #F3F4F6; color: #374151;">
+                <option value="low" ${task.priority === 'low' ? 'selected' : ''}>🔵 Baja</option>
+                <option value="medium" ${(task.priority === 'medium' || !task.priority) ? 'selected' : ''}>🟡 Media</option>
+                <option value="high" ${task.priority === 'high' ? 'selected' : ''}>🟠 Alta</option>
+                <option value="urgent" ${task.priority === 'urgent' ? 'selected' : ''}>🔴 Urgente</option>
+            </select>
+
+            <!-- Estado -->
+            <select onchange="updateTaskFieldFromDetail(${task.id}, 'status', this.value)" title="Estado" style="${detailSelectStyle} background-color: ${task.status === 'completed' ? '#D1FAE5' : (task.status === 'in-progress' ? '#E0F2FE' : '#FEF3C7')}; color: ${task.status === 'completed' ? '#065F46' : (task.status === 'in-progress' ? '#0369A1' : '#92400E')};">
+                <option value="pending" ${(task.status === 'pending' || !task.status) ? 'selected' : ''}>🟡 Pendiente</option>
+                <option value="in-progress" ${task.status === 'in-progress' ? 'selected' : ''}>🔵 En Progreso</option>
+                <option value="completed" ${task.status === 'completed' ? 'selected' : ''}>🟢 Completada</option>
+            </select>
+
+            <!-- Asignado -->
+            <select onchange="updateTaskFieldFromDetail(${task.id}, 'assigned_technician', this.value)" title="Asignado a" style="${detailSelectStyle} background-color: #EFF6FF; color: #1E40AF; border-color: #DBEAFE;">
+                <option value="" ${!task.assigned_technician ? 'selected' : ''}>👤 Sin asignar</option>
+                <option value="Rodolfo" ${task.assigned_technician === 'Rodolfo' ? 'selected' : ''}>👤 Rodolfo</option>
+                <option value="Matias" ${task.assigned_technician === 'Matias' ? 'selected' : ''}>👤 Matias</option>
+            </select>
+
             ${task.due_date ? `
                 <span style="font-size: 0.8rem; font-weight: 600; color: #6B7280; margin-left: auto;">
                     📅 Vence: <strong>${task.due_date.substring(0, 10)}</strong>
@@ -2476,6 +2562,63 @@ function editTaskFromDetail(taskId) {
     closeTaskDetailModal();
     if (task) {
         openTaskModal(task);
+    }
+}
+
+async function updateTaskFieldFromDetail(taskId, field, value) {
+    const task = allSupportTasks.find(t => String(t.id) === String(taskId));
+    if (!task) return;
+
+    // Construir payload completo con el campo actualizado
+    const payload = {
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        category: task.category,
+        sede: task.sede,
+        assigned_technician: task.assigned_technician,
+        due_date: task.due_date ? task.due_date.substring(0, 10) : null,
+        is_recurring: task.is_recurring,
+        recurrence_interval: task.recurrence_interval,
+        checklist: task.checklist || [],
+        status: task.status
+    };
+    payload[field] = value;
+
+    try {
+        const response = await fetch(`/api/maintenance/tasks/${taskId}`, {
+            method: 'PUT',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error('Error al guardar');
+        const updated = await response.json();
+
+        // Actualizar en el array local
+        const idx = allSupportTasks.findIndex(t => String(t.id) === String(taskId));
+        if (idx !== -1) allSupportTasks[idx] = updated;
+
+        renderCalendar();
+        loadSupportTaskStats();
+
+        // Feedback visual sutil: flash verde en el select que cambió
+        const selects = document.querySelectorAll('#taskDetailBody select');
+        selects.forEach(sel => {
+            if (sel.value === value || sel.getAttribute('title')?.toLowerCase().includes(field.replace('_', ' '))) {
+                sel.style.outline = '2px solid #10B981';
+                setTimeout(() => { sel.style.outline = ''; }, 700);
+            }
+        });
+
+        // Si cambió el estado, refresca el modal completo para reflejar colores
+        if (field === 'status') {
+            openTaskDetailModal(taskId);
+        }
+
+    } catch (err) {
+        showNotification(`❌ Error al guardar: ${err.message}`, 'error');
     }
 }
 
@@ -2985,5 +3128,6 @@ window.handleRecurrenceIntervalChange = handleRecurrenceIntervalChange;
 window.toggleRecurrenceDay = toggleRecurrenceDay;
 window.setRecurrenceDaysPreset = setRecurrenceDaysPreset;
 window.formatRecurrenceLabel = formatRecurrenceLabel;
+window.updateTaskFieldFromDetail = updateTaskFieldFromDetail;
 
 

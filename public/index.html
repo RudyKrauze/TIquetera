@@ -6,7 +6,8 @@
     <title>Sistema de Tickets - Imagen Diagnóstica</title>
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#008B8B" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.webp" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -852,7 +853,10 @@
       <!-- Header Superior con Logo a la Izquierda y Botón Login / Rastreo a la Derecha -->
       <header class="header">
         <div class="logo">
-          <img src="/logo.png" alt="Imagen Diagnóstica" class="logo-img" />
+          <picture>
+            <source srcset="/logo.webp" type="image/webp" />
+            <img src="/logo.png" alt="Imagen Diagnóstica" class="logo-img" />
+          </picture>
           <div>
             <div class="logo-text">Sistema de Tickets</div>
             <div class="logo-subtext">Imagen Diagnóstica</div>

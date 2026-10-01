@@ -443,6 +443,8 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
+        <hr style="margin: 4px 0; border: none; border-top: 1px solid #e5e7eb;">
+        <button type="button" role="menuitem" onclick="handleMoveAndCreateTask(${ticketId})" ${currentStatus !== 'open' ? 'disabled' : ''} title="Mover a En Progreso y crear tarea automáticamente">📌 Mover y Crear Tarea</button>
     `;
 
     let clientX = event && typeof event.clientX === 'number' ? event.clientX : 0;
@@ -469,6 +471,53 @@ function handleTicketContextMenuAction(ticketId, targetStatus) {
     if (!ticketId || !targetStatus) return;
     closeActiveTicketContextMenu();
     updateTicketStatus(ticketId, targetStatus);
+}
+
+async function handleMoveAndCreateTask(ticketId) {
+    closeActiveTicketContextMenu();
+    if (!ticketId) return;
+
+    const ticket = allTickets.find(t => String(t.id) === String(ticketId));
+    const ticketLabel = ticket ? `"${ticket.title}"` : `#${ticketId}`;
+
+    if (!confirm(`¿Mover ticket ${ticketLabel} a "En Progreso" y crear una tarea automáticamente?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tickets/${ticketId}/move-and-create-task`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            credentials: 'include'
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Error al mover ticket y crear tarea');
+        }
+
+        // Actualizar cache local de tickets
+        if (Array.isArray(allTickets) && data.ticket) {
+            const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+            if (idx !== -1) {
+                allTickets[idx] = { ...allTickets[idx], ...data.ticket };
+            }
+        }
+
+        showNotification('✅ Ticket movido a "En Progreso" y tarea creada exitosamente', 'success');
+
+        // Refrescar vista de tickets
+        loadTickets(true);
+
+        // Refrescar tablero de tareas si las funciones existen
+        if (typeof loadGerenciaTasks === 'function') loadGerenciaTasks();
+        if (typeof loadGerenciaTaskStats === 'function') loadGerenciaTaskStats();
+
+    } catch (err) {
+        console.error('Error en Mover y Crear Tarea:', err);
+        showNotification(`❌ ${err.message}`, 'error');
+    }
 }
 
 function closeActiveTicketContextMenu() {

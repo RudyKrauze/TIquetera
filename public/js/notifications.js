@@ -3,7 +3,25 @@
  * =========================================
  * Maneja la conexión WebSocket, dropdown de notificaciones,
  * toasts push y sonidos de alerta.
+ *
+ * En entornos Serverless (Vercel), Socket.IO no puede establecer WebSocket
+ * real y cae a HTTP Long Polling costoso. Detectamos el entorno y usamos
+ * el polling de respaldo eficiente directamente (cada 2 min).
  */
+
+/**
+ * Detecta si la app está corriendo en Vercel Serverless.
+ * - En Vercel: HTTPS y dominio no local → no hay WebSocket real.
+ * - En local/Docker: localhost o IP de red privada → WebSocket funciona.
+ */
+const IS_SERVERLESS = (
+    window.location.hostname.endsWith('.vercel.app') ||
+    (
+        window.location.protocol === 'https:' &&
+        !window.location.hostname.includes('localhost') &&
+        !/^(127\.0\.0\.1|192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[01])\.)/.test(window.location.hostname)
+    )
+);
 
 class NotificationSystem {
     constructor() {
@@ -51,10 +69,18 @@ class NotificationSystem {
         this.setupDropdown();
         this.setupClickOutside();
         this.setupNetworkListeners();
-        await this.connectWebSocket();
-        await this.loadInitialNotifications();
-        // El polling de respaldo se activa SOLO si el socket falla definitivamente (ver reconnect_failed)
-        // NO se activa aquí de manera incondicional para evitar egress innecesario.
+
+        if (IS_SERVERLESS) {
+            // En Vercel Serverless: WebSocket no disponible → usar polling eficiente directamente.
+            // Evita miles de requests HTTP/s de Socket.IO Long Polling que generaban el egress excesivo.
+            await this.loadInitialNotifications();
+            this.startPollingFallback();
+        } else {
+            // En local / Docker / servidor dedicado: WebSocket real vía Socket.IO.
+            await this.connectWebSocket();
+            await this.loadInitialNotifications();
+            // El polling de respaldo se activa SOLO si el socket falla definitivamente (ver reconnect_failed)
+        }
     }
 
     /**
@@ -148,16 +174,23 @@ class NotificationSystem {
      * Conecta al servidor WebSocket
      */
     async connectWebSocket() {
+        // En serverless no intentar WebSocket — el init() ya maneja este caso.
+        if (IS_SERVERLESS) return Promise.resolve();
+
         return new Promise((resolve) => {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${window.location.protocol}//${window.location.host}`;
-            
+
             // Cargar Socket.io desde CDN si no está disponible
             if (typeof io === 'undefined') {
                 const script = document.createElement('script');
                 script.src = 'https://cdn.socket.io/4.7.2/socket.io.min.js';
                 script.onload = () => {
                     this.initializeSocket(wsUrl);
+                    resolve();
+                };
+                script.onerror = () => {
+                    console.warn('Socket.IO CDN no disponible, activando polling de respaldo');
+                    this.startPollingFallback();
                     resolve();
                 };
                 document.head.appendChild(script);
@@ -239,9 +272,10 @@ class NotificationSystem {
      */
     startPollingFallback() {
         if (this.pollingInterval) return;
+        const intervalMs = IS_SERVERLESS ? 2 * 60 * 1000 : 3 * 60 * 1000;
         this.pollingInterval = setInterval(() => {
             this.loadInitialNotifications();
-        }, 3 * 60 * 1000); // 3 minutos — solo como fallback de emergencia
+        }, intervalMs); // 2 min en serverless (modo principal), 3 min en local (fallback emergencia)
     }
 
     /**

@@ -143,6 +143,7 @@ CREATE TABLE IF NOT EXISTS maintenance_tasks (
     completed_at TIMESTAMP,
     completed_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    source_ticket_id INTEGER REFERENCES tickets(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

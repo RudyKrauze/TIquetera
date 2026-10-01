@@ -24,6 +24,8 @@ const helmet = require('helmet');
 const xss = require('xss-clean');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const compression = require('compression');
+
 const isServerless = !!process.env.VERCEL;
 let createClient = null;
 try {
@@ -151,10 +153,31 @@ app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3005'],
   credentials: true
 }));
+
+// Comprimir todas las respuestas HTTP (JSON, HTML, CSS, JS)
+// Reduce egress en 60-80% para respuestas de texto. No afecta imágenes (ya comprimidas).
+app.use(compression({
+  level: 6,       // balance velocidad/tamaño (1=rápido, 9=máximo)
+  threshold: 1024 // solo comprimir respuestas > 1KB
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Assets estáticos con cache de browser (7 días en prod, sin cache en index.html/sw.js)
+app.use(express.static(path.join(__dirname, 'public'), {
+  maxAge: isServerless ? '7d' : '1h',
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    // index.html y service worker siempre frescos (nunca cacheados en browser)
+    if (filePath.endsWith('index.html') || filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
+
 
 // Security Middleware
 app.use(helmet({
@@ -219,8 +242,9 @@ function authenticateToken(req, res, next) {
     token = req.cookies.token;
   }
   
-  console.log(`[AUTH DEBUG] URL: ${req.url} | Cookie: ${req.headers.cookie ? 'YES' : 'NO'} | Token found: ${!!token}`);
-  if (req.headers.cookie) console.log(`[AUTH DEBUG] Cookies: ${req.headers.cookie}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`[AUTH DEBUG] URL: ${req.url} | Token found: ${!!token}`);
+  }
 
   if (!token) {
     return res.status(401).json({ error: 'Token no proporcionado' });
@@ -1262,6 +1286,172 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
   }
 });
 
+// POST /api/tickets/:id/move-and-create-task - Mover ticket a "en progreso" y crear tarea automáticamente
+// Operación atómica: si falla la creación de la tarea, no se mueve el ticket
+app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTickets, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+
+  try {
+    // 1. Obtener el ticket completo
+    const ticketCheck = await client.query(
+      "SELECT id, department, status, priority, title, description, tracking_id, sede, assigned_technician FROM tickets WHERE id = $1",
+      [id]
+    );
+
+    if (ticketCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+
+    const ticket = ticketCheck.rows[0];
+
+    // 2. Validar que el ticket esté en estado 'open' (pendiente)
+    if (ticket.status !== 'open') {
+      return res.status(400).json({ error: 'Solo se pueden mover tickets con estado "Pendiente"' });
+    }
+
+    // 3. Verificar permisos por departamento (misma lógica que PUT /api/tickets/:id)
+    if (req.user.role === 'administrador') {
+      return res.status(403).json({ error: 'Solo lectura' });
+    }
+
+    if (!['support', 'gerencia'].includes(req.user.role)) {
+      const roleToDept = {
+        'rrhh': 'Recursos Humanos',
+        'mantenimiento': 'Mantenimiento',
+        'compras': 'Compras e Insumos'
+      };
+      const allowedDept = roleToDept[req.user.role];
+      if (ticket.department !== allowedDept) {
+        return res.status(403).json({ error: 'No tienes permiso para modificar tickets de otro departamento' });
+      }
+    }
+
+    // 4. Verificar que no exista ya una tarea creada desde este ticket (prevenir duplicados)
+    const existingTask = await client.query(
+      "SELECT id, title FROM maintenance_tasks WHERE source_ticket_id = $1",
+      [ticket.id]
+    );
+
+    if (existingTask.rows.length > 0) {
+      return res.status(409).json({ 
+        error: 'Ya existe una tarea creada desde este ticket',
+        existingTaskId: existingTask.rows[0].id,
+        existingTaskTitle: existingTask.rows[0].title
+      });
+    }
+
+    // 5. Determinar departamento de la tarea según el rol del usuario
+    let taskDepartment = 'Mantenimiento';
+    if (req.user.role === 'support') {
+      taskDepartment = 'Sistemas';
+    } else if (req.user.role === 'mantenimiento') {
+      taskDepartment = 'Mantenimiento';
+    } else if (req.user.role === 'gerencia') {
+      taskDepartment = 'Gerencia';
+    }
+
+    // 6. Preparar datos de la tarea
+    const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
+    const taskTitle = ticket.title;
+    const taskDescription = `[Ticket ${trackingId}] ${ticket.description || ''}`.trim();
+    const actorName = req.user.name || req.user.email || 'Usuario';
+
+    // 7. Ejecutar transacción atómica
+    await client.query('BEGIN');
+
+    try {
+      // 7a. Mover ticket a "en progreso"
+      const updatedTicketResult = await client.query(
+        `UPDATE tickets SET status = 'in-progress', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+        [ticket.id]
+      );
+
+      // 7b. Registrar cambio de estado en historial
+      const historyText = `🔄 Estado cambiado de "Abierto" a "En Progreso" por ${actorName} (Mover y Crear Tarea)`;
+
+      await client.query(
+        `INSERT INTO ticket_updates (ticket_id, user_id, update_type, content, created_at)
+         VALUES ($1, $2, 'status_change', $3, NOW())`,
+        [ticket.id, req.user.id || null, historyText]
+      );
+
+      // 7c. Crear tarea de mantenimiento vinculada al ticket
+      const taskResult = await client.query(`
+        INSERT INTO maintenance_tasks (
+          title, description, priority, category, department, sede,
+          assigned_technician, status, source_ticket_id, created_by
+        )
+        VALUES ($1, $2, $3, 'General', $4, $5, $6, 'pending', $7, $8)
+        RETURNING *
+      `, [
+        taskTitle,
+        taskDescription,
+        ticket.priority || 'medium',
+        taskDepartment,
+        ticket.sede || 'Todas',
+        ticket.assigned_technician || null,
+        ticket.id,
+        req.user.id
+      ]);
+
+      await client.query('COMMIT');
+
+      const createdTask = taskResult.rows[0];
+
+      // 8. Auditoría
+      await logAudit(req.user.id, 'move_and_create_task', `/api/tickets/${ticket.id}/move-and-create-task`, {
+        ticketId: ticket.id,
+        trackingId,
+        taskId: createdTask.id,
+        taskTitle: createdTask.title
+      }, req.ip);
+
+      // 9. Obtener ticket con nombre de usuario asignado
+      const ticketWithUser = await pool.query(
+        `SELECT t.*, u.name as assigned_to_name 
+         FROM tickets t 
+         LEFT JOIN users u ON t.assigned_to = u.id 
+         WHERE t.id = $1`,
+        [ticket.id]
+      );
+
+      // 10. Notificar cambio de estado por email
+      if (typeof emailService?.sendTicketStatusChange === 'function') {
+        emailService.sendTicketStatusChange(ticketWithUser.rows[0], 'in-progress');
+      }
+
+      // 11. Invalidar caché de reportes
+      if (typeof invalidateReportCache === 'function') invalidateReportCache();
+
+      // 12. Emitir evento Socket.IO para refrescar vistas
+      const updatedDept = ticketWithUser.rows[0]?.department;
+      io.emit('ticket_updated', { action: 'updated', department: updatedDept, ticketId: parseInt(id, 10) });
+
+      res.status(201).json({
+        ticket: ticketWithUser.rows[0],
+        task: createdTask,
+        message: `Ticket movido a "En Progreso" y tarea "${createdTask.title}" creada exitosamente`
+      });
+
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    }
+  } catch (error) {
+    console.error('Error en move-and-create-task:', error.message);
+    if (error.code === '23505') {
+      // Violación de UNIQUE constraint (source_ticket_id duplicado)
+      return res.status(409).json({ error: 'Ya existe una tarea creada desde este ticket' });
+    }
+    if (!res.headersSent) {
+      res.status(500).json({ error: error.message || 'Error al mover ticket y crear tarea' });
+    }
+  } finally {
+    client.release();
+  }
+});
+
 // Add comment/update to ticket - REQUIERE AUTENTICACIÓN
 // El administrador tiene solo lectura, no puede comentar/actualizar
 app.post('/api/tickets/:id/updates', authenticateToken, canWriteTickets, async (req, res) => {
@@ -1851,37 +2041,43 @@ app.get('/admin', requireAuthPage, (req, res) => {
 
 // Panel de Gerencia (Nueva ruta)
 app.get('/gerencia', requireAuthPage, requireGerenciaPage, (req, res) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'gerencia.html'));
 });
 
 // Panel de administrador (gestión completa) - SOLO ADMINISTRADORES
 app.get('/administrador', requireAuthPage, requireAdminPage, (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'administrador.html'));
 });
 
 // Panel de Sistemas - SOLO support y administrador
 app.get('/support', requireAuthPage, requireRolePage(['support', 'administrador']), (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'support.html'));
 });
 
 // Panel de RRHH - SOLO rrhh y administrador
 app.get('/rrhh', requireAuthPage, requireRolePage(['rrhh', 'administrador']), (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'rrhh.html'));
 });
 
 // Panel de mantenimiento - SOLO mantenimiento y administrador
 app.get('/mantenimiento', requireAuthPage, requireRolePage(['mantenimiento', 'administrador']), (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'mantenimiento.html'));
 });
 
 // Panel de compras e insumos - SOLO compras y administrador
 app.get('/compras', requireAuthPage, requireRolePage(['compras', 'administrador']), (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'compras.html'));
 });
 
 // Página de historial de notificaciones
 app.get('/notificaciones', requireAuthPage, (req, res) => {
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   res.sendFile(resolveView('private', 'notificaciones.html'));
 });
 
@@ -4029,7 +4225,7 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
 app.get('/reports', (req, res) => res.redirect('/reportes'));
 
 app.get('/reportes', (req, res, next) => {
-  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60');
   const token = req.cookies.token;
 
   if (!token) {

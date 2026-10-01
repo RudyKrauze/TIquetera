@@ -5,12 +5,15 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "optimize:images": "node scripts/optimize-images.js",
+    "migrate:uploads": "node scripts/migrate-uploads-to-supabase.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "axios": "^1.20.0",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -27,6 +30,7 @@
     "xss-clean": "^0.1.4"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "sharp": "^0.35.5"
   }
 }

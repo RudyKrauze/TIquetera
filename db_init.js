@@ -210,6 +210,17 @@ async function initializeDatabase(pool) {
       console.log('ℹ️ Nota: Error no crítico al verificar assigned_technician en tickets:', techError.message);
     }
 
+    // 6c. Migración: Agregar columna source_ticket_id a maintenance_tasks para trazabilidad ticket→tarea
+    try {
+      await pool.query(`
+        ALTER TABLE maintenance_tasks ADD COLUMN IF NOT EXISTS source_ticket_id INTEGER REFERENCES tickets(id) ON DELETE SET NULL;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_maintenance_tasks_source_ticket ON maintenance_tasks(source_ticket_id) WHERE source_ticket_id IS NOT NULL;
+      `);
+      console.log('✅ Verificación de columna source_ticket_id en maintenance_tasks completada.');
+    } catch (srcTicketError) {
+      console.log('ℹ️ Nota: Error no crítico al verificar source_ticket_id en maintenance_tasks:', srcTicketError.message);
+    }
+
     // 7. Migración: Crear tabla shared_tasks_boards si no existe
     try {
       await pool.query(`
