@@ -1066,12 +1066,14 @@
           <button class="close-modal" onclick="closeLoginModal()">×</button>
         </div>
         <div class="modal-body">
-          <form id="loginForm">
+          <form id="loginForm" autocomplete="on">
             <div class="form-group">
               <label for="loginEmail">Email</label>
               <input
                 type="email"
                 id="loginEmail"
+                name="email"
+                autocomplete="username"
                 required
                 placeholder="usuario@ejemplo.com"
               />
@@ -1082,6 +1084,8 @@
                 <input
                   type="password"
                   id="loginPassword"
+                  name="password"
+                  autocomplete="current-password"
                   required
                   placeholder="••••••••"
                 />

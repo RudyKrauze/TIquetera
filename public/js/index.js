@@ -521,6 +521,22 @@
 
               const target = roleToRoute[role] || "/";
 
+              // Informar al gestor de contraseñas del browser (Chrome/Edge/Safari)
+              // que el login fue exitoso, para que ofrezca guardar las credenciales.
+              // Esto es necesario porque el login usa fetch (no un POST de formulario nativo).
+              if (window.PasswordCredential && navigator.credentials) {
+                try {
+                  const cred = new PasswordCredential({
+                    id: email,
+                    password: password,
+                    name: email,
+                  });
+                  await navigator.credentials.store(cred);
+                } catch (_) {
+                  // El guardado de credenciales es opcional — no bloquear la navegación
+                }
+              }
+
               window.location.href = target;
             } else {
               if (response.status === 429) {
