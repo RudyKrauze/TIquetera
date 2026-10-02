@@ -303,25 +303,70 @@ function handleKanbanDragLeave(event) {
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// HELPER: Mover ticket open → in-progress + crear tarea automáticamente
+// ─────────────────────────────────────────────────────────────────────────
+function moveTicketToInProgress(ticketId, opts) {
+    const { onSuccess, onError, onFallback } = opts || {};
+    fetch(`/api/tickets/${ticketId}/move-and-create-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        credentials: 'include'
+    })
+    .then(function(resp) {
+        return resp.json().then(function(data) { return { ok: resp.ok, status: resp.status, data: data }; });
+    })
+    .then(function(r) {
+        if (r.ok) {
+            showNotification('✅ En Progreso. Tarea creada automáticamente.', 'success');
+            if (Array.isArray(allTickets) && r.data.ticket) {
+                var idx = allTickets.findIndex(function(t) { return String(t.id) === String(ticketId); });
+                if (idx !== -1) allTickets[idx] = Object.assign({}, allTickets[idx], r.data.ticket);
+            }
+            loadMyTickets(true);
+            if (typeof loadSupportTasks === 'function') loadSupportTasks();
+            if (typeof loadSupportTaskStats === 'function') loadSupportTaskStats();
+            if (typeof onSuccess === 'function') onSuccess(r.data);
+        } else if (r.status === 409) {
+            showNotification('ℹ️ Tarea ya existe. Solo actualizando estado.', 'info');
+            if (typeof onFallback === 'function') { onFallback(); } else { updateTicketStatus(ticketId, 'in-progress'); }
+        } else if (r.status === 400) {
+            updateTicketStatus(ticketId, 'in-progress');
+            if (typeof onSuccess === 'function') onSuccess({});
+        } else {
+            var msg = (r.data && r.data.error) || 'Error al mover ticket';
+            showNotification('❌ ' + msg, 'error');
+            if (typeof onError === 'function') onError(new Error(msg));
+        }
+    })
+    .catch(function(err) {
+        showNotification('❌ Error de conexión', 'error');
+        if (typeof onError === 'function') onError(err);
+    });
+}
+
 function handleKanbanDrop(event, targetStatus) {
     event.preventDefault();
-    const column = event.currentTarget.closest('.kanban-column');
-    if (column) {
-        column.classList.remove('drag-over');
-    }
+    var column = event.currentTarget.closest('.kanban-column');
+    if (column) column.classList.remove('drag-over');
 
-    const ticketId = kanbanDragTicketId || (event.dataTransfer && event.dataTransfer.getData('text/plain'));
+    var ticketId = kanbanDragTicketId || (event.dataTransfer && event.dataTransfer.getData('text/plain'));
     if (!ticketId) return;
 
-    if (targetStatus === kanbanDragSourceStatus) {
+    var sourceStatus = kanbanDragSourceStatus;
+    if (targetStatus === sourceStatus) {
         kanbanDragTicketId = null;
         kanbanDragSourceStatus = null;
         return;
     }
-
     kanbanDragTicketId = null;
     kanbanDragSourceStatus = null;
-    updateTicketStatus(ticketId, targetStatus);
+
+    if (targetStatus === 'in-progress' && sourceStatus === 'open') {
+        moveTicketToInProgress(ticketId);
+    } else {
+        updateTicketStatus(ticketId, targetStatus);
+    }
 }
 
 function openTicketContextMenu(event, ticketId, currentStatus) {
@@ -336,9 +381,9 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
     menu.className = 'ticket-context-menu';
     menu.setAttribute('role', 'menu');
     menu.innerHTML = `
-        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
-        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
-        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open', '${currentStatus}')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress', '${currentStatus}')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed', '${currentStatus}')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
     `;
 
     let clientX = event && typeof event.clientX === 'number' ? event.clientX : 0;
@@ -361,10 +406,14 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
     document.addEventListener('click', handleTicketContextMenuOutsideClick, { capture: true, once: true });
 }
 
-function handleTicketContextMenuAction(ticketId, targetStatus) {
+function handleTicketContextMenuAction(ticketId, targetStatus, currentStatus) {
     if (!ticketId || !targetStatus) return;
     closeActiveTicketContextMenu();
-    updateTicketStatus(ticketId, targetStatus);
+    if (targetStatus === 'in-progress' && currentStatus === 'open') {
+        moveTicketToInProgress(ticketId);
+    } else {
+        updateTicketStatus(ticketId, targetStatus);
+    }
 }
 
 function closeActiveTicketContextMenu() {
@@ -1165,6 +1214,31 @@ function handleModalStatusChange(ticketId, selectEl) {
             }
         });
     };
+
+    // Pendiente → En Progreso: endpoint atómico (crea tarea automáticamente)
+    if (newStatus === 'in-progress' && currentStatus === 'open') {
+        selectEl.disabled = true;
+        if (helpEl) { helpEl.textContent = 'Creando tarea y moviendo ticket...'; helpEl.style.color = '#6c757d'; }
+        moveTicketToInProgress(ticketId, {
+            onSuccess: function(data) {
+                selectEl.disabled = false;
+                selectEl.setAttribute('data-current-status', 'in-progress');
+                if (helpEl) { helpEl.textContent = '✅ En Progreso. Tarea creada.'; helpEl.style.color = '#2F9E44'; }
+                if (data && data.ticket) syncModalTicketState(data.ticket);
+                loadTicketComments(ticketId);
+            },
+            onError: function() {
+                selectEl.disabled = false;
+                selectEl.value = currentStatus;
+                if (helpEl) { helpEl.textContent = 'Error al mover ticket.'; helpEl.style.color = '#dc3545'; }
+            },
+            onFallback: function() {
+                if (helpEl) { helpEl.textContent = 'Tarea ya existe. Actualizando estado...'; helpEl.style.color = '#6c757d'; }
+                performUpdate();
+            }
+        });
+        return;
+    }
 
     if (newStatus === 'closed') {
         openConfirmDialog({
