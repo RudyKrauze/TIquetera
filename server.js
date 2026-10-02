@@ -1189,6 +1189,7 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
 
     // Registrar cambios en el historial (ticket_updates)
     const actorName = req.user.name || req.user.email || 'Usuario';
+    let autoCreatedTask = null;
 
     if (status && status !== previousTicket.status) {
       const statusNames = { 'open': 'Abierto', 'in-progress': 'En Progreso', 'closed': 'Cerrado' };
@@ -1202,6 +1203,58 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
         historyText = `🔒 Ticket cerrado por ${actorName}`;
       } else {
         historyText = `🔄 Estado cambiado de "${oldStatusName}" a "${newStatusName}" por ${actorName}`;
+      }
+
+      // Auto-creación de tarea de mantenimiento si pasa de open a in-progress
+      if (status === 'in-progress' && previousTicket.status === 'open') {
+        try {
+          const existing = await pool.query(
+            'SELECT id, title FROM maintenance_tasks WHERE source_ticket_id = $1', [id]
+          );
+          if (existing.rows.length === 0) {
+            const roleToDeptTask = {
+              'support': 'Sistemas',
+              'mantenimiento': 'Mantenimiento',
+              'gerencia': 'Gerencia',
+              'rrhh': 'Recursos Humanos',
+              'compras': 'Compras e Insumos'
+            };
+            const taskDepartment = previousTicket.department || roleToDeptTask[req.user.role] || 'Sistemas';
+            const trackingId = previousTicket.tracking_id || `TKT-${String(id).padStart(5, '0')}`;
+            const taskDescription = `[Ticket ${trackingId}] ${previousTicket.description || ''}`.trim();
+            const techToAssign = assigned_technician !== undefined
+              ? (assigned_technician ? String(assigned_technician).trim() : null)
+              : (previousTicket.assigned_technician || null);
+
+            const taskResult = await pool.query(`
+              INSERT INTO maintenance_tasks (
+                title, description, priority, category, department, sede,
+                assigned_technician, status, source_ticket_id, created_by
+              ) VALUES ($1, $2, $3, 'General', $4, $5, $6, 'pending', $7, $8)
+              RETURNING *
+            `, [
+              previousTicket.title,
+              taskDescription,
+              previousTicket.priority || 'medium',
+              taskDepartment,
+              previousTicket.sede || 'Todas',
+              techToAssign,
+              id,
+              req.user.id
+            ]);
+
+            autoCreatedTask = taskResult.rows[0];
+            historyText += ` (Tarea #${autoCreatedTask.id} creada automáticamente en ${taskDepartment})`;
+
+            if (typeof io !== 'undefined') {
+              io.emit('maintenance_task_created', autoCreatedTask);
+            }
+            await logAudit(req.user.id, 'auto_create_maintenance_task', `/api/tickets/${id}`,
+              { ticketId: id, taskId: autoCreatedTask.id }, req.ip);
+          }
+        } catch (taskErr) {
+          console.error('Error auto-creando tarea en PUT /api/tickets/:id:', taskErr.message);
+        }
       }
 
       await pool.query(
@@ -1248,7 +1301,10 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
       [id]
     );
 
-    res.json(ticketWithUser.rows[0]);
+    res.json({
+      ...ticketWithUser.rows[0],
+      created_task: autoCreatedTask
+    });
 
     // Enviar notificación de email si cambia el estado
     if (status && typeof emailService?.sendTicketStatusChange === 'function') {
@@ -1284,9 +1340,9 @@ app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTic
     }
     const ticket = ticketResult.rows[0];
 
-    if (ticket.status !== 'open') {
+    if (ticket.status !== 'open' && ticket.status !== 'in-progress') {
       client.release();
-      return res.status(400).json({ error: 'Solo tickets en estado Pendiente pueden moverse' });
+      return res.status(400).json({ error: 'Solo tickets en estado Pendiente o En Progreso pueden vincularse a una tarea' });
     }
     if (req.user.role === 'administrador') {
       client.release();
@@ -1315,24 +1371,28 @@ app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTic
     }
 
     const roleToDeptTask = { 'support': 'Sistemas', 'mantenimiento': 'Mantenimiento', 'gerencia': 'Gerencia', 'rrhh': 'Recursos Humanos', 'compras': 'Compras e Insumos' };
-    const taskDepartment = roleToDeptTask[req.user.role] || 'Sistemas';
+    const taskDepartment = ticket.department || roleToDeptTask[req.user.role] || 'Sistemas';
     const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
     const actorName = req.user.name || req.user.email || 'Usuario';
     const taskDescription = `[Ticket ${trackingId}] ${ticket.description || ''}`.trim();
 
     await client.query('BEGIN');
 
-    const updatedTicket = await client.query(
-      `UPDATE tickets SET status = 'in-progress', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
-      [ticket.id]
-    );
+    let updatedTicketRow = ticket;
+    if (ticket.status === 'open') {
+      const updatedTicket = await client.query(
+        `UPDATE tickets SET status = 'in-progress', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+        [ticket.id]
+      );
+      updatedTicketRow = updatedTicket.rows[0];
 
-    await client.query(
-      `INSERT INTO ticket_updates (ticket_id, user_id, update_type, content)
-       VALUES ($1, $2, 'status_change', $3)`,
-      [ticket.id, req.user.id || null,
-       `🔄 Estado cambiado de "Pendiente" a "En Progreso" por ${actorName} (automático al crear tarea)`]
-    );
+      await client.query(
+        `INSERT INTO ticket_updates (ticket_id, user_id, update_type, content)
+         VALUES ($1, $2, 'status_change', $3)`,
+        [ticket.id, req.user.id || null,
+         `🔄 Estado cambiado de "Pendiente" a "En Progreso" por ${actorName} (automático al crear tarea)`]
+      );
+    }
 
     const taskResult = await client.query(`
       INSERT INTO maintenance_tasks (
@@ -1355,11 +1415,12 @@ app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTic
 
     if (typeof invalidateReportCache === 'function') invalidateReportCache();
     if (typeof io !== 'undefined') {
+      io.emit('maintenance_task_created', createdTask);
       io.emit('ticket_updated', { action: 'updated', department: ticket.department, ticketId: parseInt(id, 10) });
     }
 
     return res.status(201).json({
-      ticket: updatedTicket.rows[0],
+      ticket: updatedTicketRow,
       task: createdTask,
       message: `Ticket movido a "En Progreso" y tarea "${createdTask.title}" creada`
     });

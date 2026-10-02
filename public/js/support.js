@@ -473,7 +473,13 @@ function updateTicketStatus(ticketId, status, options) {
             return response.json();
         })
         .then(data => {
-            showNotification(`✅ Estado cambiado a: ${statusText}`, 'success');
+            if (data && data.created_task) {
+                showNotification(`✅ En Progreso. Tarea creada automáticamente: "${data.created_task.title}"`, 'success');
+                if (typeof loadSupportTasks === 'function') loadSupportTasks();
+                if (typeof loadSupportTaskStats === 'function') loadSupportTaskStats();
+            } else {
+                showNotification(`✅ Estado cambiado a: ${statusText}`, 'success');
+            }
 
             // Mantener cache local sincronizada
             if (Array.isArray(allTickets)) {
