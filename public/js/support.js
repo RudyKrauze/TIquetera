@@ -303,6 +303,57 @@ function handleKanbanDragLeave(event) {
     }
 }
 
+// =====================================================================
+// HELPER COMPARTIDO: Mover ticket open → in-progress con auto-task
+// Usado por: modal dropdown, menú contextual, drag & drop kanban
+// =====================================================================
+function moveTicketToInProgress(ticketId, { onSuccess, onError, onFallback } = {}) {
+    fetch(`/api/tickets/${ticketId}/move-and-create-task`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        credentials: 'include'
+    })
+    .then(response => response.json().then(data => ({ ok: response.ok, status: response.status, data })))
+    .then(({ ok, status, data }) => {
+        if (ok) {
+            // Éxito: ticket movido y tarea creada
+            showNotification('✅ Ticket en progreso. Tarea creada automáticamente.', 'success');
+            // Actualizar caché local
+            if (Array.isArray(allTickets) && data.ticket) {
+                const idx = allTickets.findIndex(t => String(t.id) === String(ticketId));
+                if (idx !== -1) allTickets[idx] = { ...allTickets[idx], ...data.ticket };
+            }
+            loadMyTickets(true);
+            if (typeof loadSupportTasks === 'function') loadSupportTasks();
+            if (typeof loadSupportTaskStats === 'function') loadSupportTaskStats();
+            if (typeof onSuccess === 'function') onSuccess(data);
+
+        } else if (status === 409) {
+            // Ya existe tarea: solo mover estado con PUT simple (no crear duplicado)
+            showNotification('ℹ️ Ya existe una tarea. Moviendo ticket...', 'info');
+            if (typeof onFallback === 'function') {
+                onFallback();
+            } else {
+                updateTicketStatus(ticketId, 'in-progress');
+            }
+
+        } else if (status === 400) {
+            // Ticket ya no está en "open" — mover igual con PUT
+            updateTicketStatus(ticketId, 'in-progress');
+            if (typeof onSuccess === 'function') onSuccess({});
+
+        } else {
+            const msg = data?.error || 'Error al mover ticket a En Progreso';
+            showNotification(`❌ ${msg}`, 'error');
+            if (typeof onError === 'function') onError(new Error(msg));
+        }
+    })
+    .catch(err => {
+        showNotification('❌ Error de conexión al mover ticket', 'error');
+        if (typeof onError === 'function') onError(err);
+    });
+}
+
 function handleKanbanDrop(event, targetStatus) {
     event.preventDefault();
     const column = event.currentTarget.closest('.kanban-column');
@@ -319,9 +370,16 @@ function handleKanbanDrop(event, targetStatus) {
         return;
     }
 
+    const sourceStatus = kanbanDragSourceStatus;
     kanbanDragTicketId = null;
     kanbanDragSourceStatus = null;
-    updateTicketStatus(ticketId, targetStatus);
+
+    // Drag open → in-progress: usar endpoint atómico
+    if (targetStatus === 'in-progress' && sourceStatus === 'open') {
+        moveTicketToInProgress(ticketId);
+    } else {
+        updateTicketStatus(ticketId, targetStatus);
+    }
 }
 
 function openTicketContextMenu(event, ticketId, currentStatus) {
@@ -336,11 +394,17 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
     menu.className = 'ticket-context-menu';
     menu.setAttribute('role', 'menu');
     menu.innerHTML = `
+<<<<<<< Updated upstream
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
         <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
         <hr style="margin: 4px 0; border: none; border-top: 1px solid #e5e7eb;">
         <button type="button" role="menuitem" onclick="handleMoveAndCreateTask(${ticketId})" ${currentStatus !== 'open' ? 'disabled' : ''} title="Mover a En Progreso y crear tarea automáticamente">📌 Mover y Crear Tarea</button>
+=======
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'open', '${currentStatus}')" ${currentStatus === 'open' ? 'disabled' : ''}>🟡 Mover a Pendiente</button>
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'in-progress', '${currentStatus}')" ${currentStatus === 'in-progress' ? 'disabled' : ''}>🔵 Mover a En Progreso</button>
+        <button type="button" role="menuitem" onclick="handleTicketContextMenuAction(${ticketId}, 'closed', '${currentStatus}')" ${currentStatus === 'closed' ? 'disabled' : ''}>🟢 Mover a Cerrado</button>
+>>>>>>> Stashed changes
     `;
 
     let clientX = event && typeof event.clientX === 'number' ? event.clientX : 0;
@@ -363,10 +427,15 @@ function openTicketContextMenu(event, ticketId, currentStatus) {
     document.addEventListener('click', handleTicketContextMenuOutsideClick, { capture: true, once: true });
 }
 
-function handleTicketContextMenuAction(ticketId, targetStatus) {
+function handleTicketContextMenuAction(ticketId, targetStatus, currentStatus) {
     if (!ticketId || !targetStatus) return;
     closeActiveTicketContextMenu();
-    updateTicketStatus(ticketId, targetStatus);
+    // Contexto menú: open → in-progress usa endpoint atómico
+    if (targetStatus === 'in-progress' && currentStatus === 'open') {
+        moveTicketToInProgress(ticketId);
+    } else {
+        updateTicketStatus(ticketId, targetStatus);
+    }
 }
 
 async function handleMoveAndCreateTask(ticketId) {
@@ -1187,34 +1256,30 @@ function handleModalStatusChange(ticketId, selectEl) {
         return;
     }
 
+    const setHelp = (text, color) => {
+        if (helpEl) { helpEl.textContent = text; helpEl.style.color = color; }
+    };
+
     const performUpdate = () => {
         selectEl.disabled = true;
-        if (helpEl) {
-            helpEl.textContent = 'Actualizando estado...';
-            helpEl.style.color = '#6c757d';
-        }
+        setHelp('Actualizando estado...', '#6c757d');
 
         updateTicketStatus(ticketId, newStatus, {
             onSuccess: function () {
                 selectEl.disabled = false;
                 selectEl.setAttribute('data-current-status', newStatus);
-                if (helpEl) {
-                    helpEl.textContent = 'Estado actualizado correctamente.';
-                    helpEl.style.color = '#2F9E44';
-                }
+                setHelp('Estado actualizado correctamente.', '#2F9E44');
                 loadTicketComments(ticketId);
             },
             onError: function () {
                 selectEl.disabled = false;
                 selectEl.value = currentStatus;
-                if (helpEl) {
-                    helpEl.textContent = 'No se pudo actualizar el estado. Intenta nuevamente.';
-                    helpEl.style.color = '#dc3545';
-                }
+                setHelp('No se pudo actualizar el estado. Intenta nuevamente.', '#dc3545');
             }
         });
     };
 
+<<<<<<< Updated upstream
     // Al pasar de Pendiente → En Progreso: usar el endpoint atómico que crea la tarea automáticamente
     if (newStatus === 'in-progress' && currentStatus === 'open') {
         selectEl.disabled = true;
@@ -1279,6 +1344,38 @@ function handleModalStatusChange(ticketId, selectEl) {
         });
         return;
     }
+=======
+    // ── INTERCEPCIÓN: Pendiente → En Progreso ──────────────────────────────
+    // Usa el endpoint atómico que mueve el ticket Y crea la tarea en una sola
+    // transacción. Se aplica solo cuando el ticket viene de 'open'.
+    if (newStatus === 'in-progress' && currentStatus === 'open') {
+        selectEl.disabled = true;
+        setHelp('Moviendo a En Progreso y creando tarea...', '#6c757d');
+
+        moveTicketToInProgress(ticketId, {
+            onSuccess: function (data) {
+                selectEl.disabled = false;
+                selectEl.setAttribute('data-current-status', 'in-progress');
+                setHelp('✅ Ticket en progreso. Tarea creada automáticamente.', '#2F9E44');
+                // Sincronizar datos del modal con el ticket actualizado
+                if (data.ticket) syncModalTicketState(data.ticket);
+                loadTicketComments(ticketId);
+            },
+            onError: function () {
+                selectEl.disabled = false;
+                selectEl.value = currentStatus;
+                setHelp('Error al mover ticket. Intenta nuevamente.', '#dc3545');
+            },
+            onFallback: function () {
+                // 409: ya existe tarea — hacer PUT simple sin crear tarea
+                setHelp('Tarea ya existente. Actualizando solo el estado...', '#6c757d');
+                performUpdate();
+            }
+        });
+        return;
+    }
+    // ──────────────────────────────────────────────────────────────────────
+>>>>>>> Stashed changes
 
     if (newStatus === 'closed') {
         openConfirmDialog({
@@ -1289,10 +1386,7 @@ function handleModalStatusChange(ticketId, selectEl) {
             onConfirm: performUpdate,
             onCancel: function () {
                 selectEl.value = currentStatus;
-                if (helpEl) {
-                    helpEl.textContent = 'Cambio de estado cancelado.';
-                    helpEl.style.color = '#6c757d';
-                }
+                setHelp('Cambio de estado cancelado.', '#6c757d');
             }
         });
         return;
