@@ -1267,6 +1267,114 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
   }
 });
 
+// POST /api/tickets/:id/move-and-create-task
+// Operación atómica: mueve ticket open → in-progress Y crea tarea vinculada.
+// Si ya existe tarea para este ticket (source_ticket_id UNIQUE) → retorna 409.
+app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTickets, async (req, res) => {
+  const { id } = req.params;
+  const client = await pool.connect();
+  try {
+    const ticketResult = await client.query(
+      `SELECT id, department, status, priority, title, description, tracking_id, sede, assigned_technician
+       FROM tickets WHERE id = $1`, [id]
+    );
+    if (ticketResult.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+    const ticket = ticketResult.rows[0];
+
+    if (ticket.status !== 'open') {
+      client.release();
+      return res.status(400).json({ error: 'Solo tickets en estado Pendiente pueden moverse' });
+    }
+    if (req.user.role === 'administrador') {
+      client.release();
+      return res.status(403).json({ error: 'El administrador tiene solo lectura' });
+    }
+    if (!['support', 'gerencia'].includes(req.user.role)) {
+      const roleToDept = { 'rrhh': 'Recursos Humanos', 'mantenimiento': 'Mantenimiento', 'compras': 'Compras e Insumos' };
+      const allowedDept = roleToDept[req.user.role];
+      if (allowedDept && ticket.department !== allowedDept) {
+        client.release();
+        return res.status(403).json({ error: 'Sin permiso para tickets de otro departamento' });
+      }
+    }
+
+    // Prevenir duplicados
+    const existing = await client.query(
+      'SELECT id, title FROM maintenance_tasks WHERE source_ticket_id = $1', [ticket.id]
+    );
+    if (existing.rows.length > 0) {
+      client.release();
+      return res.status(409).json({
+        error: 'Ya existe una tarea para este ticket',
+        existingTaskId: existing.rows[0].id,
+        existingTaskTitle: existing.rows[0].title
+      });
+    }
+
+    const roleToDeptTask = { 'support': 'Sistemas', 'mantenimiento': 'Mantenimiento', 'gerencia': 'Gerencia', 'rrhh': 'Recursos Humanos', 'compras': 'Compras e Insumos' };
+    const taskDepartment = roleToDeptTask[req.user.role] || 'Sistemas';
+    const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
+    const actorName = req.user.name || req.user.email || 'Usuario';
+    const taskDescription = `[Ticket ${trackingId}] ${ticket.description || ''}`.trim();
+
+    await client.query('BEGIN');
+
+    const updatedTicket = await client.query(
+      `UPDATE tickets SET status = 'in-progress', updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *`,
+      [ticket.id]
+    );
+
+    await client.query(
+      `INSERT INTO ticket_updates (ticket_id, user_id, update_type, content)
+       VALUES ($1, $2, 'status_change', $3)`,
+      [ticket.id, req.user.id || null,
+       `🔄 Estado cambiado de "Pendiente" a "En Progreso" por ${actorName} (automático al crear tarea)`]
+    );
+
+    const taskResult = await client.query(`
+      INSERT INTO maintenance_tasks (
+        title, description, priority, category, department, sede,
+        assigned_technician, status, source_ticket_id, created_by
+      ) VALUES ($1, $2, $3, 'General', $4, $5, $6, 'pending', $7, $8)
+      RETURNING *
+    `, [
+      ticket.title, taskDescription, ticket.priority || 'medium',
+      taskDepartment, ticket.sede || 'Todas', ticket.assigned_technician || null,
+      ticket.id, req.user.id
+    ]);
+
+    await client.query('COMMIT');
+    client.release();
+
+    const createdTask = taskResult.rows[0];
+    await logAudit(req.user.id, 'move_and_create_task', `/api/tickets/${ticket.id}/move-and-create-task`,
+      { ticketId: ticket.id, trackingId, taskId: createdTask.id }, req.ip);
+
+    if (typeof invalidateReportCache === 'function') invalidateReportCache();
+    if (typeof io !== 'undefined') {
+      io.emit('ticket_updated', { action: 'updated', department: ticket.department, ticketId: parseInt(id, 10) });
+    }
+
+    return res.status(201).json({
+      ticket: updatedTicket.rows[0],
+      task: createdTask,
+      message: `Ticket movido a "En Progreso" y tarea "${createdTask.title}" creada`
+    });
+
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    client.release();
+    console.error('Error en move-and-create-task:', error.message);
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Ya existe una tarea para este ticket' });
+    }
+    return res.status(500).json({ error: 'Error al mover ticket y crear tarea: ' + error.message });
+  }
+});
+
 // Add comment/update to ticket - REQUIERE AUTENTICACIÓN
 // El administrador tiene solo lectura, no puede comentar/actualizar
 app.post('/api/tickets/:id/updates', authenticateToken, canWriteTickets, async (req, res) => {
