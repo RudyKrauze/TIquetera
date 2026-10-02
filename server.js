@@ -1116,7 +1116,7 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
   try {
     // Verificar permisos sobre el ticket específico y obtener estado previo
     const ticketCheck = await pool.query(
-        "SELECT id, department, status, priority, title, assigned_technician FROM tickets WHERE id = $1",
+        "SELECT id, department, status, priority, title, description, tracking_id, sede, assigned_technician FROM tickets WHERE id = $1",
         [id]
     );
 
@@ -1221,7 +1221,8 @@ app.put('/api/tickets/:id', authenticateToken, canWriteTickets, async (req, res)
             };
             const taskDepartment = previousTicket.department || roleToDeptTask[req.user.role] || 'Sistemas';
             const trackingId = previousTicket.tracking_id || `TKT-${String(id).padStart(5, '0')}`;
-            const taskDescription = `[Ticket ${trackingId}] ${previousTicket.description || ''}`.trim();
+            const ticketDesc = (previousTicket.description || '').trim();
+            const taskDescription = ticketDesc ? `[ ${trackingId} ] ${ticketDesc}` : `[ ${trackingId} ]`;
             const techToAssign = assigned_technician !== undefined
               ? (assigned_technician ? String(assigned_technician).trim() : null)
               : (previousTicket.assigned_technician || null);
@@ -1374,7 +1375,8 @@ app.post('/api/tickets/:id/move-and-create-task', authenticateToken, canWriteTic
     const taskDepartment = ticket.department || roleToDeptTask[req.user.role] || 'Sistemas';
     const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
     const actorName = req.user.name || req.user.email || 'Usuario';
-    const taskDescription = `[Ticket ${trackingId}] ${ticket.description || ''}`.trim();
+    const ticketDesc = (ticket.description || '').trim();
+    const taskDescription = ticketDesc ? `[ ${trackingId} ] ${ticketDesc}` : `[ ${trackingId} ]`;
 
     await client.query('BEGIN');
 
