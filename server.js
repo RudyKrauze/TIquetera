@@ -248,7 +248,12 @@ function requireAuthPage(req, res, next) {
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       console.log('❌ Token validation failed in requireAuthPage:', err.message);
-      res.clearCookie('token');
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
+        sameSite: (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') ? 'none' : 'lax',
+        path: '/'
+      });
       return res.redirect('/?error=invalid_token');
     }
     req.user = user;
@@ -1745,12 +1750,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    // Establecer token en cookie (httpOnly: true para mitigar ataques XSS)
+    // Establecer token en cookie
+    // secure:true en Vercel (HTTPS), false en red local (HTTP)
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
     res.cookie('token', token, {
-      httpOnly: true, // Bloquear acceso JS para mitigar XSS
-      secure: false, // Forzar false (necesario para HTTP en red local 192.168.x.x) 
-      sameSite: 'lax', // Lax requerido para navegación en red local y evitar bucles de login
-      path: '/', // Explícitamente enviar en todas las rutas
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: isProduction ? 'none' : 'lax',
+      path: '/',
       maxAge: 24 * 60 * 60 * 1000 // 24 horas
     });
 
@@ -1772,7 +1779,13 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
 // Logout endpoint
 app.post('/api/logout', (req, res) => {
-  res.clearCookie('token');
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    path: '/'
+  });
   res.json({ message: 'Sesión cerrada exitosamente' });
 });
 
