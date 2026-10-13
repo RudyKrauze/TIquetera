@@ -436,6 +436,8 @@
         document.getElementById("loginModalTitle").textContent =
           "🔐 Iniciar Sesión";
         document.getElementById("loginModal").style.display = "flex";
+        document.body.classList.add("modal-open");
+        document.documentElement.classList.add("modal-open");
       }
 
       function searchTicketPublic() {
@@ -458,6 +460,8 @@
         document.getElementById("loginModal").style.display = "none";
         document.getElementById("loginError").style.display = "none";
         document.getElementById("loginForm").reset();
+        document.body.classList.remove("modal-open");
+        document.documentElement.classList.remove("modal-open");
       }
 
       function togglePasswordVisibility() {
@@ -551,10 +555,14 @@
         currentTrackingId = trackingId; // Guardar para uso posterior
         document.getElementById("trackingNumber").textContent = trackingId;
         document.getElementById("trackingModal").style.display = "flex";
+        document.body.classList.add("modal-open");
+        document.documentElement.classList.add("modal-open");
       }
 
       function closeTrackingModal() {
         document.getElementById("trackingModal").style.display = "none";
+        document.body.classList.remove("modal-open");
+        document.documentElement.classList.remove("modal-open");
       }
 
       function copyTrackingNumber() {

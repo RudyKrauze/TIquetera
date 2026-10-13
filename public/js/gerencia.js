@@ -754,11 +754,13 @@ function showTicketDetails(ticketId) {
     `;
 
     modal.style.display = 'block';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
     loadTicketComments(ticketId);
 }
 
 function closeTicketModal() {
     document.getElementById('ticketModal').style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 function loadTicketComments(ticketId) {
@@ -1989,11 +1991,13 @@ function openDayTasksModal(dateKey) {
     }
 
     modal.style.display = 'flex';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeDayTasksModal() {
     const modal = document.getElementById('dayTasksModalDialog');
     if (modal) modal.style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 function handleDayTasksAddClick() {
@@ -2055,11 +2059,13 @@ function openTaskModal(taskToEdit = null, defaultDate = null) {
 
     renderChecklistBuilderList();
     modal.style.display = 'flex';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeTaskModal() {
     const modal = document.getElementById('taskModalDialog');
     if (modal) modal.style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 function toggleRecurrenceOptions(show) {
@@ -2271,11 +2277,13 @@ function openTaskDetailModal(taskId) {
     `;
 
     modal.style.display = 'flex';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeTaskDetailModal() {
     const modal = document.getElementById('taskDetailModalDialog');
     if (modal) modal.style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 async function toggleChecklistItem(taskId, itemId, newDone) {
@@ -2375,11 +2383,13 @@ function showConfirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = 
     }
 
     modal.style.display = 'flex';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeConfirmModal() {
     const modal = document.getElementById('confirmActionModal');
     if (modal) modal.style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 // =======================================================
@@ -2430,12 +2440,14 @@ function openShareTasksModal() {
     const modal = document.getElementById('shareTasksModalDialog');
     if (!modal) return;
     modal.style.display = 'flex';
+    if (window.ModalScrollLock) window.ModalScrollLock.lock();
     loadActiveTaskShareLinks();
 }
 
 function closeShareTasksModal() {
     const modal = document.getElementById('shareTasksModalDialog');
     if (modal) modal.style.display = 'none';
+    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 function toggleTaskShareCustomDates() {

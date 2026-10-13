@@ -648,11 +648,13 @@ function applyFilters() {
             `;
 
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
             loadTicketComments(ticketId);
         }
 
         function closeTicketModal() {
             document.getElementById('ticketModal').style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
         }
 
         function loadTicketComments(ticketId) {
@@ -1969,11 +1971,13 @@ function applyFilters() {
             }
 
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
         }
 
         function closeDayTasksModal() {
             const modal = document.getElementById('dayTasksModalDialog');
             if (modal) modal.style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
         }
 
         function handleDayTasksAddClick() {
@@ -2067,11 +2071,13 @@ function applyFilters() {
             renderChecklistBuilderList();
 
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
         }
 
         function closeTaskModal() {
             const modal = document.getElementById('taskModalDialog');
             if (modal) modal.style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
         }
 
         let selectedRecurrenceDays = [];
@@ -2497,11 +2503,13 @@ function applyFilters() {
             `;
 
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
         }
 
         function closeTaskDetailModal() {
             const modal = document.getElementById('taskDetailModalDialog');
             if (modal) modal.style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
             currentDetailTaskId = null;
         }
 
@@ -2612,11 +2620,13 @@ function applyFilters() {
             };
 
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
         }
 
         function closeConfirmModal() {
             const modal = document.getElementById('confirmActionModal');
             if (modal) modal.style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
             if (typeof currentCancelCallback === 'function') {
                 currentCancelCallback();
             }
@@ -2814,12 +2824,14 @@ function applyFilters() {
             if (resBox) resBox.style.display = 'none';
             toggleTaskShareCustomDates();
             modal.style.display = 'flex';
+            if (window.ModalScrollLock) window.ModalScrollLock.lock();
             loadSharedTaskLinks();
         }
 
         function closeShareTasksModal() {
             const modal = document.getElementById('shareTasksModalDialog');
             if (modal) modal.style.display = 'none';
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
         }
 
         async function generateSharedTaskBoardLink() {

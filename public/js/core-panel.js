@@ -1405,7 +1405,11 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         }
 
         lightboxEl.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
+        if (window.ModalScrollLock) {
+            window.ModalScrollLock.lock();
+        } else {
+            document.body.style.overflow = 'hidden';
+        }
         requestAnimationFrame(() => {
             if (lightboxEl) lightboxEl.style.opacity = '1';
         });
@@ -1423,10 +1427,18 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                 lightboxEl.style.display = 'none';
                 const img = document.getElementById('coreLightboxImg');
                 if (img) img.src = '';
-                document.body.style.overflow = '';
+                if (window.ModalScrollLock) {
+                    window.ModalScrollLock.unlock();
+                } else {
+                    document.body.style.overflow = '';
+                }
             }, 220);
         } else {
-            document.body.style.overflow = '';
+            if (window.ModalScrollLock) {
+                window.ModalScrollLock.unlock();
+            } else {
+                document.body.style.overflow = '';
+            }
         }
 
         // Limpieza de cualquier elemento legacy que pudiera estar abierto
@@ -1481,5 +1493,198 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             </div>
         `;
     };
+
+    // ==========================================
+    // SISTEMA UNIVERSAL DE BLOQUEO DE SCROLL EN MODALES (Scroll-Lock UX)
+    // ==========================================
+    window.ModalScrollLock = (function () {
+        let _openCount = 0;
+        let _originalBodyPaddingRight = '';
+        let _originalHtmlOverflow = '';
+        let _originalBodyOverflow = '';
+        let _isLocked = false;
+
+        function lock() {
+            _openCount++;
+            if (_isLocked) return;
+
+            // Calcular ancho de barra de scroll para evitar salto visual (layout shift)
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                _originalBodyPaddingRight = document.body.style.paddingRight || '';
+                document.body.style.paddingRight = `${scrollbarWidth}px`;
+            }
+
+            _originalHtmlOverflow = document.documentElement.style.overflow || '';
+            _originalBodyOverflow = document.body.style.overflow || '';
+
+            document.documentElement.classList.add('modal-open');
+            document.body.classList.add('modal-open');
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+
+            _isLocked = true;
+        }
+
+        function unlock() {
+            _openCount = Math.max(0, _openCount - 1);
+            if (_openCount > 0) return; // Todavía hay modales abiertos (ej. confirmación sobre tarea)
+
+            if (!_isLocked) return;
+
+            document.documentElement.classList.remove('modal-open');
+            document.body.classList.remove('modal-open');
+            document.documentElement.style.overflow = _originalHtmlOverflow;
+            document.body.style.overflow = _originalBodyOverflow;
+
+            if (_originalBodyPaddingRight !== '') {
+                document.body.style.paddingRight = _originalBodyPaddingRight;
+                _originalBodyPaddingRight = '';
+            } else {
+                document.body.style.paddingRight = '';
+            }
+
+            _isLocked = false;
+        }
+
+        function reset() {
+            _openCount = 0;
+            if (!_isLocked) return;
+            document.documentElement.classList.remove('modal-open');
+            document.body.classList.remove('modal-open');
+            document.documentElement.style.overflow = _originalHtmlOverflow;
+            document.body.style.overflow = _originalBodyOverflow;
+            if (_originalBodyPaddingRight !== '') {
+                document.body.style.paddingRight = _originalBodyPaddingRight;
+                _originalBodyPaddingRight = '';
+            } else {
+                document.body.style.paddingRight = '';
+            }
+            _isLocked = false;
+        }
+
+        function isAnyModalVisible() {
+            const modalSelectors = [
+                '.task-modal-overlay',
+                '.ticket-detail-modal',
+                '.modal',
+                '.modal-overlay',
+                '.ticket-modal',
+                '#dayTasksModalDialog',
+                '#taskModalDialog',
+                '#taskDetailModalDialog',
+                '#confirmActionModal',
+                '#shareTasksModalDialog',
+                '#ticketModal',
+                '#userModal',
+                '#resetPasswordModal',
+                '#coreUniversalLightbox'
+            ];
+            const elements = document.querySelectorAll(modalSelectors.join(','));
+            for (const el of elements) {
+                if (el.id === 'coreUniversalLightbox') {
+                    if (el.style && el.style.display === 'flex') return true;
+                    continue;
+                }
+                if (el.style && (el.style.display === 'flex' || el.style.display === 'block' || el.style.display === 'grid')) {
+                    return true;
+                }
+                if (el.classList.contains('active') || el.classList.contains('show')) {
+                    return true;
+                }
+                // Comprobación de visibilidad efectiva
+                if (el.offsetParent !== null) {
+                    const style = window.getComputedStyle(el);
+                    if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0' && el.offsetHeight > 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function sync() {
+            if (isAnyModalVisible()) {
+                if (!_isLocked) lock();
+            } else {
+                if (_isLocked) reset();
+            }
+        }
+
+        // Inicializar observador automático de modales en el DOM
+        if (typeof MutationObserver !== 'undefined') {
+            let syncRaf = null;
+            const observer = new MutationObserver((mutations) => {
+                let needsSync = false;
+                for (const m of mutations) {
+                    if (m.target === document.body || m.target === document.documentElement) continue;
+                    const target = m.target;
+                    if (target && target.classList && (
+                        target.classList.contains('task-modal-overlay') ||
+                        target.classList.contains('ticket-detail-modal') ||
+                        target.classList.contains('modal') ||
+                        target.classList.contains('modal-overlay') ||
+                        target.classList.contains('ticket-modal') ||
+                        (target.id && (target.id.includes('Modal') || target.id.includes('Lightbox') || target.id.includes('Dialog')))
+                    )) {
+                        needsSync = true;
+                        break;
+                    }
+                }
+                if (needsSync) {
+                    if (syncRaf) cancelAnimationFrame(syncRaf);
+                    syncRaf = requestAnimationFrame(() => {
+                        sync();
+                    });
+                }
+            });
+
+            const startObserver = () => {
+                if (document.body) {
+                    observer.observe(document.body, {
+                        attributes: true,
+                        attributeFilter: ['style', 'class'],
+                        subtree: true
+                    });
+                    sync();
+                } else {
+                    document.addEventListener('DOMContentLoaded', startObserver);
+                }
+            };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startObserver);
+            } else {
+                startObserver();
+            }
+        }
+
+        // Prevenir scroll wheel / touchmove directamente sobre los backdrops oscuros
+        const preventBackdropScroll = (e) => {
+            if (document.body && document.body.classList.contains('modal-open')) {
+                const target = e.target;
+                if (target && target.classList && (
+                    target.classList.contains('task-modal-overlay') ||
+                    target.classList.contains('ticket-detail-modal') ||
+                    target.classList.contains('modal-overlay') ||
+                    target.classList.contains('modal')
+                )) {
+                    e.preventDefault();
+                }
+            }
+        };
+
+        window.addEventListener('wheel', preventBackdropScroll, { passive: false });
+        window.addEventListener('touchmove', preventBackdropScroll, { passive: false });
+
+        return {
+            lock,
+            unlock,
+            reset,
+            sync,
+            isLocked: () => _isLocked
+        };
+    })();
 })();
+
 

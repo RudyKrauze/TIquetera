@@ -9,6 +9,22 @@
     let currentCalendarDate = new Date();
     let currentCalendarView = 'month';
 
+    const ModalScrollLock = {
+        lock: () => {
+            document.documentElement.classList.add('modal-open');
+            document.body.classList.add('modal-open');
+            document.body.style.overflow = 'hidden';
+        },
+        unlock: () => {
+            const anyOpen = Array.from(document.querySelectorAll('.task-modal-overlay')).some(m => m.style.display === 'flex');
+            if (!anyOpen) {
+                document.documentElement.classList.remove('modal-open');
+                document.body.classList.remove('modal-open');
+                document.body.style.overflow = '';
+            }
+        }
+    };
+
     function getShareTokenFromUrl() {
         const pathParts = window.location.pathname.split('/');
         const lastPart = pathParts[pathParts.length - 1];
@@ -534,11 +550,13 @@
         }
 
         modal.style.display = 'flex';
+        ModalScrollLock.lock();
     }
 
     function closeDayTasksModal() {
         const modal = document.getElementById('dayTasksModalDialog');
         if (modal) modal.style.display = 'none';
+        ModalScrollLock.unlock();
     }
 
     function openTaskFromDayModal(taskId) {
@@ -629,11 +647,13 @@
         `;
 
         modal.style.display = 'flex';
+        ModalScrollLock.lock();
     }
 
     function closeTaskDetailModal() {
         const modal = document.getElementById('taskDetailModalDialog');
         if (modal) modal.style.display = 'none';
+        ModalScrollLock.unlock();
     }
 
     function exportTasksToCSV() {

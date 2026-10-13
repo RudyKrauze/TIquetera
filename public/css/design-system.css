@@ -60,12 +60,43 @@
   box-sizing: border-box;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 html,
 body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
   max-width: 100vw;
+}
+
+/* Prevenir scroll del fondo cuando un modal está abierto */
+html.modal-open,
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Evitar scroll chaining (fuga de scroll al fondo) en overlays y tarjetas de modal */
+.task-modal-overlay,
+.ticket-detail-modal,
+.modal-overlay,
+.modal,
+.ticket-modal {
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.task-modal-card,
+.ticket-modal-content,
+.modal-content,
+.modal-card,
+.day-tasks-list,
+#dayTasksListBody,
+.modal-body {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 body {

@@ -4,7 +4,7 @@
  * Maneja notificaciones push en segundo plano y offline
  */
 
-const CACHE_NAME = 'tiquetera-v1';
+const CACHE_NAME = 'tiquetera-v2';
 const NOTIFICATION_ICON = '/img/logo-icon.svg';
 const NOTIFICATION_BADGE = '/img/badge-icon.svg';
 
@@ -90,8 +90,17 @@ self.addEventListener('fetch', (event) => {
 
 // Activación del Service Worker
 self.addEventListener('activate', (event) => {
-
-    event.waitUntil(clients.claim());
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        }).then(() => clients.claim())
+    );
 });
 
 // Recepción de notificaciones push
