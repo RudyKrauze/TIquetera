@@ -34,7 +34,12 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
                     return;
                 }
                 currentUser = data.user;
-                document.getElementById('userName').textContent = currentUser.name;
+                if (typeof window.updateNavbarUserName === 'function') {
+                    window.updateNavbarUserName(currentUser.name);
+                } else {
+                    const nameEl = document.getElementById('userName');
+                    if (nameEl) nameEl.textContent = currentUser.name;
+                }
                 hideLogin();
                 loadMyTickets();
                 startAutoRefresh();
@@ -64,7 +69,12 @@ function loadMyTickets(silentRefresh = false) {
     isLoading = true;
 
     if (!silentRefresh) {
-        document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #28a745;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+        const listEl = document.getElementById('ticketsList');
+        if (listEl) {
+            listEl.innerHTML = typeof window.renderSkeletonTicketGrid === 'function'
+                ? window.renderSkeletonTicketGrid(4)
+                : '<div class="loading-state-box"><p>Cargando tickets...</p></div>';
+        }
     }
 
     fetch(`/api/tickets/assigned/${currentUser.id}`, {
@@ -90,7 +100,7 @@ function loadMyTickets(silentRefresh = false) {
             if (error.message.includes('401') || error.message.includes('403')) {
                 logout();
             } else if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">❌ Error al cargar tickets. <button onclick="loadMyTickets()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">Reintentar</button></div>';
+                document.getElementById('ticketsList').innerHTML = '<div class="error-state-box">❌ Error al cargar tickets. <button onclick="loadMyTickets()" class="btn btn-primary" style="margin-top: 1rem;">Reintentar</button></div>';
             }
         });
 }
@@ -696,9 +706,7 @@ function showTicketDetails(ticketId) {
         <div style="margin-top: 30px;">
             <h3 style="color: #2c3e50; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px; margin-bottom: 20px;">📋 Historial</h3>
             <div id="commentsList" class="timeline">
-                <div style="text-align:center; padding:2rem; color:#6c757d;">
-                    Cargando historial...
-                </div>
+                ${typeof window.renderSkeletonDetails === 'function' ? window.renderSkeletonDetails() : '<div class="loading-state-box">Cargando historial...</div>'}
             </div>
         </div>
     `;
@@ -793,7 +801,7 @@ function loadTicketComments(ticketId) {
                                 ${escapeHtml(displayName)}
                             </span>
                             ${badgeHtml}
-                            <span class="comment-date" style="font-size:0.8em; color:#868e96;">${getRelativeTime(comment.created_at)}</span>
+                            <span class="comment-date">${getRelativeTime(comment.created_at)}</span>
                         </div>
                         <div class="comment-text" style="color:#212529; line-height:1.5;">
                             ${escapeHtml(comment.content).replace(/\n/g, '<br>')}
@@ -818,7 +826,7 @@ function addComment() {
     const commentText = document.getElementById('commentText').value.trim();
 
     if (!commentText) {
-        alert('Por favor, escribe un comentario');
+        showNotification('Por favor, escribe un comentario', 'warning');
         return;
     }
 
@@ -2280,7 +2288,7 @@ function renderChecklistBuilder() {
         <div class="checklist-builder-item">
             <span class="chk-item-num">${idx + 1}.</span>
             <span class="chk-item-text">${escapeHtml(item.text)}</span>
-            <button type="button" class="btn-remove-chk" onclick="removeChecklistItemBuilder(${idx})" title="Eliminar paso">
+            <button type="button" class="btn-remove-chk" onclick="removeChecklistItemBuilder(${idx})" title="Eliminar paso" aria-label="Eliminar paso">
                 🗑️
             </button>
         </div>
@@ -2486,7 +2494,7 @@ function openTaskDetailModal(taskId) {
             </div>
 
             ${checklist.length === 0 ? `
-                <div style="text-align: center; padding: 16px; color: #9CA3AF; font-size: 0.88rem; background: #F9FAFB; border-radius: 8px;">
+                <div class="empty-inline-msg" style="padding: 16px; background: #F9FAFB; border-radius: 8px;">
                     Esta tarea no tiene pasos de verificación definidos.
                 </div>
             ` : `
@@ -2928,7 +2936,7 @@ async function loadSharedTaskLinks() {
         if (!Array.isArray(links) || links.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="4" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">
+                    <td colspan="4" class="empty-inline-msg" style="padding: 1.5rem;">
                         No hay enlaces públicos activos creados.
                     </td>
                 </tr>
@@ -2959,23 +2967,23 @@ async function loadSharedTaskLinks() {
 
             return `
                 <tr style="border-bottom: 1px solid #F1F5F9;">
-                    <td style="padding: 8px 10px; font-weight: 600; color: #1E293B;">
+                    <td data-label="Título" style="padding: 8px 10px; font-weight: 600; color: #1E293B;">
                         ${escapeHtml(link.title)}
                     </td>
-                    <td style="padding: 8px 10px;">
+                    <td data-label="Rango" style="padding: 8px 10px;">
                         <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: #E6FCF5; color: #008B8B; font-weight: 600; border: 1px solid #C3FAE8;">
                             📅 ${escapeHtml(periodLabel)}
                         </span>
                     </td>
-                    <td style="padding: 8px 10px;">
+                    <td data-label="Expiración" style="padding: 8px 10px;">
                         <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: ${isExpired ? '#FEE2E2' : '#E0F2FE'}; color: ${isExpired ? '#DC2626' : '#0369A1'}; font-weight: 600;">
                             ${isExpired ? '⚠️ Expirado' : `⏳ ${expStr}`}
                         </span>
                     </td>
-                    <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
-                        <button type="button" onclick="copySpecificUrl('${link.url}')" style="padding: 4px 8px; font-size: 0.75rem; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; margin-right: 4px;" title="Copiar enlace">📋</button>
-                        <a href="${link.url}" target="_blank" style="padding: 4px 8px; font-size: 0.75rem; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 4px; text-decoration: none; margin-right: 4px;" title="Abrir">↗️</a>
-                        <button type="button" onclick="deleteSharedTaskLink('${link.token}')" style="padding: 4px 8px; font-size: 0.75rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; border-radius: 4px; cursor: pointer;" title="Eliminar enlace">🗑️</button>
+                    <td data-label="Acción" style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+                        <button type="button" onclick="copySpecificUrl('${link.url}')" class="btn-icon" style="background: #F1F5F9; border: 1px solid #CBD5E1;" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
+                        <a href="${link.url}" target="_blank" class="btn-icon" style="background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; text-decoration: none;" title="Abrir" aria-label="Abrir enlace">↗️</a>
+                        <button type="button" onclick="deleteSharedTaskLink('${link.token}')" class="btn-icon" style="background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA;" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
                     </td>
                 </tr>
             `;

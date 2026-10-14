@@ -40,7 +40,11 @@
                             return;
                         }
                         currentUser = data.user;
-                        document.getElementById('currentUserName').textContent = currentUser.name;
+                        if (window.updateNavbarUserName) {
+                            window.updateNavbarUserName(currentUser.name);
+                        } else {
+                            document.getElementById('currentUserName').textContent = currentUser.name;
+                        }
                         hideLogin();
                         loadTickets();
                         startAutoRefresh();
@@ -69,7 +73,9 @@
             isLoading = true;
 
             if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #6c757d;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+                document.getElementById('ticketsList').innerHTML = window.renderSkeletonTicketGrid
+                    ? window.renderSkeletonTicketGrid(4)
+                    : '<div class="loading-state-box"><div class="loading-spinner"></div><p>Cargando tickets...</p></div>';
             }
 
             // El rol compras solo puede acceder a tickets de su departamento
@@ -810,12 +816,9 @@
             // Reset modal display
             modal.style.display = 'flex';
 
-            modalBody.innerHTML = `
-                <div style="text-align: center; padding: 2rem;">
-                    <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(102, 126, 234, 0.3); border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-                    <p style="margin-top: 15px; color: #6c757d;">Cargando detalles...</p>
-                </div>
-            `;
+            modalBody.innerHTML = window.renderSkeletonDetails
+                ? window.renderSkeletonDetails()
+                : `<div class="loading-state-box"><div class="loading-spinner"></div><p>Cargando detalles...</p></div>`;
 
             // Cargar actualizaciones del ticket
             try {
@@ -907,7 +910,7 @@
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">👤 Solicitante</div>
                         <div class="detail-value">
                             ${escapeHtml(ticket.created_by_name || 'Anónimo')}
-                            ${ticket.created_by_email ? `<div style="font-size:0.85em; color:#999">${escapeHtml(ticket.created_by_email)}</div>` : ''}
+                            ${ticket.created_by_email ? `<div class="text-muted" style="font-size:0.85em;">${escapeHtml(ticket.created_by_email)}</div>` : ''}
                         </div>
                     </div>
                     <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
@@ -947,9 +950,7 @@
                         
                         <!-- Lista de Comentarios -->
                         <div id="commentsList" class="comments-list">
-                            <div style="display:flex; justify-content:center; padding:2rem; color:#9ca3af;">
-                                Cargando historial...
-                            </div>
+                            ${window.renderSkeletonDetails ? window.renderSkeletonDetails() : '<div class="loading-state-box">Cargando historial...</div>'}
                         </div>
 
                         </div>
@@ -1055,7 +1056,7 @@
                                     ${escapeHtml(displayName)}
                                 </span>
                                 ${badgeHtml}
-                                <span class="comment-date" style="font-size:0.8em; color:#868e96;">${getRelativeTime(comment.created_at)}</span>
+                                <span class="comment-date">${getRelativeTime(comment.created_at)}</span>
                             </div>
                             <div class="comment-text" style="color:#212529; line-height:1.5;">
                                 ${escapeHtml(comment.content).replace(/\n/g, '<br>')}
@@ -1321,6 +1322,10 @@
         let editingUserId = null;
 
         function loadUsers() {
+            const tbody = document.getElementById('usersTableBody');
+            if (tbody && window.renderSkeletonTableRows) {
+                tbody.innerHTML = window.renderSkeletonTableRows(8, 5);
+            }
             fetch('/api/users/all', {
                 credentials: 'include'
             })
@@ -1349,13 +1354,13 @@
 
                 return `
                 <tr>
-                    <td>${user.id}</td>
-                    <td>${user.name}</td>
-                    <td>${user.email}</td>
-                    <td><span class="role-badge role-${user.role}">${getRoleLabel(user.role)}</span></td>
-                    <td>${user.department || '-'}</td>
-                    <td>${formatDate(user.created_at)}</td>
-                    <td>
+                    <td data-label="ID">${user.id}</td>
+                    <td data-label="Nombre">${user.name}</td>
+                    <td data-label="Email">${user.email}</td>
+                    <td data-label="Rol"><span class="role-badge role-${user.role}">${getRoleLabel(user.role)}</span></td>
+                    <td data-label="Departamento">${user.department || '-'}</td>
+                    <td data-label="Fecha Creación">${formatDate(user.created_at)}</td>
+                    <td data-label="Estado">
                         <div class="user-status-toggle">
                             <label class="switch">
                                 <input type="checkbox" ${user.active ? 'checked' : ''} onchange="toggleUserActive(${user.id}, this.checked)" ${isDefaultAdmin ? 'disabled' : ''}>
@@ -1366,17 +1371,17 @@
                             </span>
                         </div>
                     </td>
-                    <td>
+                    <td data-label="Acciones">
                         ${canModify ? `
-                            <button class="btn-icon btn-edit" onclick="openEditUserModal(${user.id})" title="Editar">
+                            <button class="btn-icon btn-edit" onclick="openEditUserModal(${user.id})" title="Editar" aria-label="Editar usuario ${escapeHtml(user.name)}">
                                 ✏️
                             </button>
                             ${isAdmin ? `
-                                <button class="btn-icon btn-key" onclick="openResetPasswordModal(${user.id}, '${user.name}')" title="Restablecer Contraseña">
+                                <button class="btn-icon btn-key" onclick="openResetPasswordModal(${user.id}, '${user.name}')" title="Restablecer Contraseña" aria-label="Restablecer contraseña de ${escapeHtml(user.name)}">
                                     🔑
                                 </button>
                             ` : ''}
-                        ` : '<span style="color: #6c757d;">Protegido</span>'}
+                        ` : '<span class="text-muted">Protegido</span>'}
                     </td>
                 </tr>
                 `;

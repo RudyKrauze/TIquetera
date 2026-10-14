@@ -9,10 +9,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/notifications.css?v=3.1">
-    <link rel="stylesheet" href="/css/support.css?v=3.3">
-    <link rel="stylesheet" href="/css/mantenimiento.css?v=3.3">
-    <link rel="stylesheet" href="/css/design-system.css?v=3.3">
+    <link rel="stylesheet" href="/css/notifications.css?v=4.0">
+    <link rel="stylesheet" href="/css/support.css?v=4.0">
+    <link rel="stylesheet" href="/css/mantenimiento.css?v=4.0">
+    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
 </head>
 
 <body style="visibility: hidden; opacity: 0;">
@@ -28,6 +28,11 @@
                 📊 Reportes
             </a>
             <span id="userName">Cargando...</span>
+
+            <!-- Conmutador de Modo Oscuro / Claro -->
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode()" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+                <span aria-hidden="true">🌙</span>
+            </button>
 
             <!-- Sistema de Notificaciones -->
             <div class="notification-wrapper">
@@ -117,7 +122,7 @@
                                        onchange="applyFilters()" 
                                        placeholder="Hasta">
                                 <button id="clearDatesBtn" class="btn-clear-dates" onclick="clearDateFilters()" 
-                                        title="Limpiar fechas">
+                                        title="Limpiar fechas" aria-label="Limpiar filtro de fechas">
                                     🗑️
                                 </button>
                             </div>
@@ -180,8 +185,8 @@
                     <div class="calendar-nav-left">
                         <button class="btn-cal-today" onclick="calendarGoToday()">Hoy</button>
                         <div class="calendar-nav-arrows">
-                            <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior">◀</button>
-                            <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente">▶</button>
+                            <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior" aria-label="Período anterior">◀</button>
+                            <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente" aria-label="Período siguiente">▶</button>
                         </div>
                         <span class="calendar-current-title" id="calendarCurrentTitle">Agosto 2026</span>
                     </div>
@@ -212,7 +217,7 @@
                         <input type="text" id="taskSearchInput" class="task-search-field"
                             placeholder="Buscar"
                             oninput="debounceTaskSearch()">
-                        <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; loadSupportTasks();" title="Limpiar búsqueda">&times;</button>
+                        <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; loadSupportTasks();" title="Limpiar búsqueda" aria-label="Limpiar búsqueda">&times;</button>
                     </div>
 
                     <div class="tasks-filters-group">
@@ -305,11 +310,11 @@
     </div>
 
     <!-- Modal de Creación / Edición de Tarea de Soporte -->
-    <div id="taskModalDialog" class="task-modal-overlay" style="display: none;">
+    <div id="taskModalDialog" class="task-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle" style="display: none;">
         <div class="task-modal-card">
             <div style="padding: 1.25rem 1.5rem; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
                 <h3 id="taskModalTitle" style="font-size: 1.15rem; font-weight: 700; color: #111827;">➕ Nueva Tarea de Soporte Técnico</h3>
-                <button onclick="closeTaskModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer;">&times;</button>
+                <button type="button" onclick="closeTaskModal()" aria-label="Cerrar modal de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer;">&times;</button>
             </div>
             
             <form id="taskFormElement" onsubmit="handleSaveTask(event)" style="padding: 1.5rem;">
@@ -439,7 +444,7 @@
                     </div>
 
                     <div id="checklistBuilderContainer" class="checklist-builder-box">
-                        <div id="emptyChecklistMsg" style="text-align: center; color: #9CA3AF; font-size: 0.82rem; padding: 6px;">
+                        <div id="emptyChecklistMsg" style="text-align: center; color: #4B5563; font-size: 0.82rem; padding: 6px;">
                             No hay ítems agregados aún. Agrega los pasos a verificar.
                         </div>
                         <div id="checklistBuilderList"></div>
@@ -459,11 +464,11 @@
     </div>
 
     <!-- Modal de Detalles de Tarea de Soporte -->
-    <div class="task-modal-overlay" id="taskDetailModalDialog" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
+    <div class="task-modal-overlay" id="taskDetailModalDialog" role="dialog" aria-modal="true" aria-labelledby="taskDetailModalHeaderTitle" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
         <div class="task-modal-card" style="max-width: 650px;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
                 <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
-                <button type="button" onclick="closeTaskDetailModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div style="padding: 20px;" id="taskDetailBody">
                 <!-- Se llena dinámicamente con openTaskDetailModal() -->
@@ -479,7 +484,7 @@
                     <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="dayTasksModalTitle">📅 Tareas del Día</h3>
                     <span id="dayTasksModalBadge" class="day-tasks-count-badge">0 tareas</span>
                 </div>
-                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;" id="dayTasksListBody">
                 <!-- Se llena dinámicamente con openDayTasksModal() -->
@@ -495,11 +500,11 @@
     </div>
 
     <!-- Modal de Confirmación Estilizado -->
-    <div class="task-modal-overlay" id="confirmActionModal" style="display: none; z-index: 10005;" onclick="if(event.target===this) closeConfirmModal();">
+    <div class="task-modal-overlay" id="confirmActionModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="display: none; z-index: 10005;" onclick="if(event.target===this) closeConfirmModal();">
         <div class="task-modal-card" style="max-width: 440px; text-align: center; padding: 26px 22px;">
             <div style="font-size: 3.2rem; margin-bottom: 12px; line-height: 1;" id="confirmIcon">⚠️</div>
             <h3 style="font-size: 1.22rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;" id="confirmTitle">¿Confirmar Acción?</h3>
-            <p style="font-size: 0.92rem; color: #6B7280; line-height: 1.5; margin-bottom: 22px;" id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
+            <p style="font-size: 0.92rem; color: #4B5563; line-height: 1.5; margin-bottom: 22px;" id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
                 <button type="button" onclick="closeConfirmModal()" style="padding: 10px 18px; border: 1.5px solid #D1D5DB; background: #FFFFFF; color: #374151; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;">
                     Cancelar
@@ -524,7 +529,7 @@
                     <label for="loginPassword">Contraseña:</label>
                     <div class="password-container">
                         <input type="password" id="loginPassword" required>
-                        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)">
+                        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)" aria-label="Mostrar u ocultar contraseña">
                             👁️
                         </button>
                     </div>
@@ -536,11 +541,11 @@
     </div>
 
     <!-- Ticket Detail Modal -->
-    <div class="ticket-detail-modal" id="ticketModal">
+    <div class="ticket-detail-modal" id="ticketModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="ticket-modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Detalles del Ticket</h3>
-                <button class="close-modal" onclick="closeTicketModal()">×</button>
+                <button class="close-modal" onclick="closeTicketModal()" aria-label="Cerrar detalles del ticket">×</button>
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Ticket details will be populated here -->
@@ -549,14 +554,14 @@
     </div>
 
     <!-- Modal Compartir Tablero de Tareas -->
-    <div class="task-modal-overlay" id="shareTasksModalDialog" style="display: none;" onclick="if(event.target===this) closeShareTasksModal();">
+    <div class="task-modal-overlay" id="shareTasksModalDialog" role="dialog" aria-modal="true" style="display: none;" onclick="if(event.target===this) closeShareTasksModal();">
         <div class="task-modal-card" style="max-width: 680px;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
                 <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;">🔗 Compartir Tablero de Tareas</h3>
-                <button type="button" onclick="closeShareTasksModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" onclick="closeShareTasksModal()" aria-label="Cerrar compartir tablero de tareas" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div style="padding: 20px;">
-                <p style="font-size: 0.88rem; color: #6B7280; margin-bottom: 14px;">
+                <p style="font-size: 0.88rem; color: #4B5563; margin-bottom: 14px;">
                     Genera un enlace público protegido para que directivos, auditores o miembros del equipo puedan consultar el estado del tablero de tareas y rutinas de soporte en tiempo real sin requerir inicio de sesión.
                 </p>
 
@@ -654,7 +659,7 @@
                 <div>
                     <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;">Enlaces Activos Creados</h4>
                     <div id="sharedTaskLinksContainer" style="max-height: 180px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
+                        <table class="shared-links-table responsive-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
                             <thead>
                                 <tr style="background: #F8FAFC; text-align: left; border-bottom: 1px solid #E2E8F0;">
                                     <th style="padding: 8px 10px;">Título</th>
@@ -665,7 +670,7 @@
                             </thead>
                             <tbody id="sharedTaskLinksTableBody">
                                 <tr>
-                                    <td colspan="4" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">Cargando enlaces...</td>
+                                    <td colspan="4" class="empty-inline-msg" style="padding: 1.5rem;">Cargando enlaces...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -675,8 +680,8 @@
         </div>
     </div>
 
-    <script src="/js/core-panel.js?v=3.3"></script>
-    <script src="/js/support.js?v=3.3"></script>
+    <script src="/js/core-panel.js?v=4.0"></script>
+    <script src="/js/support.js?v=4.0"></script>
 
     <!-- Sistema de Notificaciones -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>

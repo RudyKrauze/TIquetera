@@ -193,24 +193,10 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_ticket_updates_ticket_id ON ticket_updates(ticket_id);
 
--- 4. USUARIOS INICIALES (Contraseña por defecto hasheada: admin123 / support123 / etc.)
--- Hashes generados con bcrypt:
--- admin123 -> $2a$08$gE4Y9.h4yF9jJc3q1A6YmO7rQk6K2C1c8cQ3x7gXm9gA2g9o2mY2e
--- support123 -> $2a$08$wV3r4M1t5P8u9R2Y3o4WaeN1r4T5o6Y7u8I9p0A1s2D3f4G5h6J7k
--- Si usas db_init.js, se crearán automáticamente al conectar el backend.
-INSERT INTO users (email, password, name, role, department) 
-VALUES 
-  ('admin@tiquetera.com', '$2a$08$4Uj7G7pS6v2cO8U8sC7Myeo4xVq2gqM8L.uQ2yB7c7Lq9sA5uK9ea', 'Administrador', 'administrador', NULL),
-  ('soporte@tiquetera.com', '$2a$08$4Uj7G7pS6v2cO8U8sC7Myeo4xVq2gqM8L.uQ2yB7c7Lq9sA5uK9ea', 'Sistemas', 'support', 'Sistemas'),
-  ('rrhh@tiquetera.com', '$2a$08$4Uj7G7pS6v2cO8U8sC7Myeo4xVq2gqM8L.uQ2yB7c7Lq9sA5uK9ea', 'Recursos Humanos', 'rrhh', 'Recursos Humanos'),
-  ('mantenimiento@tiquetera.com', '$2a$08$4Uj7G7pS6v2cO8U8sC7Myeo4xVq2gqM8L.uQ2yB7c7Lq9sA5uK9ea', 'Mantenimiento', 'mantenimiento', 'Mantenimiento'),
-  ('compras@tiquetera.com', '$2a$08$4Uj7G7pS6v2cO8U8sC7Myeo4xVq2gqM8L.uQ2yB7c7Lq9sA5uK9ea', 'Compras e Insumos', 'compras', 'Compras e Insumos')
-ON CONFLICT (email) DO NOTHING;
-
-INSERT INTO system_config (key, value) VALUES 
-  ('default_users_created', 'true'),
-  ('areas_migrated_v2', 'true')
-ON CONFLICT (key) DO NOTHING;
+-- 4. USUARIOS INICIALES
+-- Nota de seguridad: Los usuarios iniciales NO se insertan con hashes estáticos aquí.
+-- Al iniciar el backend (db_init.js), se crean automáticamente utilizando las contraseñas
+-- configuradas en las variables de entorno (ADMIN_PASSWORD, DEFAULT_*_PASSWORD) o claves aleatorias seguras.
 
 -- 5. CONFIGURACIÓN DEL BUCKET DE SUPABASE STORAGE (Para imágenes adjuntas)
 -- Crea el bucket público "ticket-attachments" en storage.buckets si no existe
@@ -231,7 +217,7 @@ BEGIN
     END IF;
 END $$;
 
--- Política de inserción (permite al backend subir archivos con service_role o anon_key)
+-- Política de inserción restringida a service_role (el backend sube los archivos de forma controlada)
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -240,6 +226,7 @@ BEGIN
     ) THEN
         CREATE POLICY "Allow Uploads ticket-attachments"
         ON storage.objects FOR INSERT
+        TO service_role
         WITH CHECK (bucket_id = 'ticket-attachments');
     END IF;
 END $$;

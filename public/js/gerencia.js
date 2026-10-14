@@ -69,7 +69,12 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
                 }
                 currentUser = data.user;
                 window.currentUser = data.user;
-                document.getElementById('currentUserName').textContent = currentUser.name;
+                if (typeof window.updateNavbarUserName === 'function') {
+                    window.updateNavbarUserName(currentUser.name);
+                } else {
+                    const nameEl = document.getElementById('currentUserName');
+                    if (nameEl) nameEl.textContent = currentUser.name;
+                }
                 hideLogin();
                 loadTickets();
                 startAutoRefresh();
@@ -133,7 +138,9 @@ function loadTickets(silentRefresh = false) {
     if (!silentRefresh) {
         const listEl = document.getElementById('ticketsList');
         if (listEl) {
-            listEl.innerHTML = '<div style="padding: 2rem; text-align: center; color: #667eea;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+            listEl.innerHTML = typeof window.renderSkeletonTicketGrid === 'function'
+                ? window.renderSkeletonTicketGrid(4)
+                : '<div class="loading-state-box"><p>Cargando tickets...</p></div>';
         }
     }
 
@@ -746,9 +753,7 @@ function showTicketDetails(ticketId) {
         <div style="margin-top: 30px;">
             <h3 style="color: #2c3e50; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px; margin-bottom: 20px;">📋 Historial</h3>
             <div id="commentsList" class="timeline">
-                <div style="text-align:center; padding: 2rem; color: #6c757d;">
-                    Cargando historial...
-                </div>
+                ${typeof window.renderSkeletonDetails === 'function' ? window.renderSkeletonDetails() : '<div class="loading-state-box">Cargando historial...</div>'}
             </div>
         </div>
     `;
@@ -844,7 +849,7 @@ function loadTicketComments(ticketId) {
                                 ${escapeHtml(displayName)}
                             </span>
                             ${badgeHtml}
-                            <span class="comment-date" style="font-size:0.8em; color:#868e96;">${getRelativeTime(comment.created_at)}</span>
+                            <span class="comment-date">${getRelativeTime(comment.created_at)}</span>
                         </div>
                         <div class="comment-text" style="color:#212529; line-height:1.5;">
                             ${escapeHtml(comment.content).replace(/\n/g, '<br>')}
@@ -1377,7 +1382,9 @@ function loadUsers() {
     
     if (!tbody) return;
     
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">Cargando usuarios...</td></tr>';
+    tbody.innerHTML = typeof window.renderSkeletonTableRows === 'function'
+        ? window.renderSkeletonTableRows(8, 5)
+        : '<tr><td colspan="8" class="loading-state-box">Cargando usuarios...</td></tr>';
 
     fetch('/api/users', {
         credentials: 'include'
@@ -1388,32 +1395,32 @@ function loadUsers() {
         })
         .then(users => {
             if (users.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem;">No hay usuarios registrados</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-inline-msg">No hay usuarios registrados</td></tr>';
                 return;
             }
 
             tbody.innerHTML = users.map(user => `
                 <tr>
-                    <td>${user.id}</td>
-                    <td>${escapeHtml(user.name)}</td>
-                    <td>${escapeHtml(user.email)}</td>
-                    <td><span class="role-badge role-${user.role}">${getRoleText(user.role)}</span></td>
-                    <td>${escapeHtml(user.department || '-')}</td>
-                    <td>${new Date(user.created_at).toLocaleDateString('es-ES')}</td>
-                    <td>
+                    <td data-label="ID">${user.id}</td>
+                    <td data-label="Nombre">${escapeHtml(user.name)}</td>
+                    <td data-label="Email">${escapeHtml(user.email)}</td>
+                    <td data-label="Rol"><span class="role-badge role-${user.role}">${getRoleText(user.role)}</span></td>
+                    <td data-label="Departamento">${escapeHtml(user.department || '-')}</td>
+                    <td data-label="Fecha Registro">${new Date(user.created_at).toLocaleDateString('es-ES')}</td>
+                    <td data-label="Estado">
                         <span class="user-status-label ${user.active !== false ? 'active' : 'inactive'}">
                             ${user.active !== false ? 'Activo' : 'Inactivo'}
                         </span>
                     </td>
-                    <td>
-                        <span style="color: #6c757d; font-style: italic;">Solo lectura</span>
+                    <td data-label="Acciones">
+                        <span class="text-muted" style="font-style: italic;">Solo lectura</span>
                     </td>
                 </tr>
             `).join('');
         })
         .catch(error => {
 
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #dc3545;">Error al cargar usuarios</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="error-state-box">Error al cargar usuarios</td></tr>';
         });
 }
 
@@ -1871,7 +1878,7 @@ function renderCalendarWeek() {
                     <span class="week-day-num ${isToday ? 'today-badge' : ''}">${dObj.getDate()}</span>
                 </div>
                 <div class="calendar-week-col-body" onclick="openDayTasksModal('${dateKey}')">
-                    ${tasksHtml.length ? tasksHtml : '<div style="color: #94A3B8; font-size: 0.75rem; text-align: center; padding: 1rem;">Sin tareas</div>'}
+                    ${tasksHtml.length ? tasksHtml : '<div class="empty-inline-msg" style="font-size: 0.75rem; padding: 1rem;">Sin tareas</div>'}
                 </div>
             </div>
         `;
@@ -1962,7 +1969,7 @@ function openDayTasksModal(dateKey) {
 
     if (body) {
         if (tasks.length === 0) {
-            body.innerHTML = '<div style="text-align: center; color: #94A3B8; padding: 2rem;">No hay tareas para este día.</div>';
+            body.innerHTML = '<div class="empty-inline-msg" style="padding: 2rem;">No hay tareas para este día.</div>';
         } else {
             body.innerHTML = tasks.map(task => {
                 const isCompleted = task.status === 'completed';
@@ -2139,7 +2146,7 @@ function renderChecklistBuilderList() {
     listEl.innerHTML = taskChecklistBuilderItems.map((item, idx) => `
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; margin-bottom: 6px;">
             <span style="font-size: 0.88rem; color: #1E293B;">${escapeHtml(item.text)}</span>
-            <button type="button" onclick="removeChecklistItemBuilder(${idx})" style="background: none; border: none; color: #EF4444; font-weight: 700; cursor: pointer;">&times;</button>
+            <button type="button" onclick="removeChecklistItemBuilder(${idx})" aria-label="Eliminar paso" style="background: none; border: none; color: #EF4444; font-weight: 700; cursor: pointer;">&times;</button>
         </div>
     `).join('');
 }
@@ -2254,7 +2261,7 @@ function openTaskDetailModal(taskId) {
                     ${checklist.map(item => `
                         <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #1E293B; cursor: pointer;">
                             <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${task.id}, '${item.id}', this.checked)" style="width: 18px; height: 18px; accent-color: #10B981;">
-                            <span style="${item.done ? 'text-decoration: line-through; color: #94A3B8;' : ''}">${escapeHtml(item.text)}</span>
+                            <span class="${item.done ? 'checklist-item-done' : 'checklist-item-text'}">${escapeHtml(item.text)}</span>
                         </label>
                     `).join('')}
                 </div>
@@ -2521,7 +2528,7 @@ async function loadActiveTaskShareLinks() {
         const links = await response.json();
 
         if (links.length === 0) {
-            container.innerHTML = '<div style="color: #9CA3AF; font-size: 0.82rem; text-align: center; padding: 10px;">No hay enlaces compartidos activos.</div>';
+            container.innerHTML = '<div class="empty-inline-msg">No hay enlaces compartidos activos.</div>';
             return;
         }
 
@@ -2535,8 +2542,8 @@ async function loadActiveTaskShareLinks() {
                         <div style="font-size: 0.75rem; color: #64748B;">Período: ${l.period} | Creado: ${l.created_at ? l.created_at.substring(0, 10) : ''}</div>
                     </div>
                     <div style="display: flex; gap: 6px;">
-                        <button type="button" onclick="copyToClipboard('${shareUrl}')" style="padding: 4px 8px; background: #E2E8F0; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">📋 Copiar</button>
-                        <button type="button" onclick="deleteTaskShareLink('${l.token}')" style="padding: 4px 8px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">🗑️</button>
+                        <button type="button" onclick="copyToClipboard('${shareUrl}')" aria-label="Copiar enlace" style="padding: 4px 8px; background: #E2E8F0; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">📋 Copiar</button>
+                        <button type="button" onclick="deleteTaskShareLink('${l.token}')" aria-label="Eliminar enlace" style="padding: 4px 8px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">🗑️</button>
                     </div>
                 </div>
             `;

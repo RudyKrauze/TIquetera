@@ -25,6 +25,41 @@
         }
     };
 
+    function showNotification(message, type = 'info') {
+        if (typeof window.showNotification === 'function') {
+            window.showNotification(message, type);
+            return;
+        }
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${type}`;
+        toast.setAttribute('role', type === 'error' || type === 'warning' ? 'alert' : 'status');
+        toast.textContent = message;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const detailModal = document.getElementById('taskDetailModalDialog');
+            if (detailModal && detailModal.style.display === 'flex') {
+                closeTaskDetailModal();
+                return;
+            }
+            const dayModal = document.getElementById('dayTasksModalDialog');
+            if (dayModal && dayModal.style.display === 'flex') {
+                closeDayTasksModal();
+                return;
+            }
+        }
+    });
+
     function getShareTokenFromUrl() {
         const pathParts = window.location.pathname.split('/');
         const lastPart = pathParts[pathParts.length - 1];
@@ -602,7 +637,7 @@
                         ${checklist.map(item => `
                             <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; background: white; border: 1px solid #E5E7EB;">
                                 <span>${item.done ? '✅' : '⬜'}</span>
-                                <span style="font-size: 0.88rem; color: ${item.done ? '#9CA3AF' : '#1F2937'}; ${item.done ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.text)}</span>
+                                <span style="font-size: 0.88rem; color: ${item.done ? '#4B5563' : '#1F2937'}; ${item.done ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.text)}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -658,7 +693,7 @@
 
     function exportTasksToCSV() {
         if (!allPublicTasks || allPublicTasks.length === 0) {
-            alert('No hay tareas disponibles para exportar');
+            showNotification('No hay tareas disponibles para exportar', 'warning');
             return;
         }
 
@@ -768,8 +803,8 @@
                 <div style="background: white; border-radius: 12px; padding: 3rem; text-align: center; border: 1px solid #E5E7EB; max-width: 600px; margin: 3rem auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
                     <h2 style="font-size: 1.5rem; color: #1F2937; margin-bottom: 0.5rem;">Enlace No Disponible</h2>
-                    <p style="color: #6B7280; font-size: 0.95rem; margin-bottom: 1.5rem;">${escapeHtml(msg)}</p>
-                    <p style="color: #9CA3AF; font-size: 0.85rem;">Si crees que esto es un error, solicita un nuevo enlace público al administrador del sistema.</p>
+                    <p style="color: #4B5563; font-size: 0.95rem; margin-bottom: 1.5rem;">${escapeHtml(msg)}</p>
+                    <p style="color: #4B5563; font-size: 0.85rem;">Si crees que esto es un error, solicita un nuevo enlace público al administrador del sistema.</p>
                 </div>
             `;
         }
@@ -799,9 +834,66 @@
     window.openTaskFromDayModal = openTaskFromDayModal;
     window.exportTasksToCSV = exportTasksToCSV;
 
+    // ==========================================
+    // GESTOR DE MODO OSCURO (Tablero Público)
+    // ==========================================
+    const STORAGE_KEY = 'ticket_theme';
+    function getPreferredTheme() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === 'dark' || saved === 'light') return saved;
+        } catch (_) {}
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function updateToggleButtons(theme) {
+        const isDark = theme === 'dark';
+        const label = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+        const icon = isDark ? '☀️' : '🌙';
+        document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            btn.innerHTML = `<span aria-hidden="true">${icon}</span>`;
+            btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        });
+    }
+    function applyTheme(theme, persist = false) {
+        const normalized = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', normalized);
+        if (document.body) document.body.classList.toggle('dark-mode', normalized === 'dark');
+        if (persist) {
+            try { localStorage.setItem(STORAGE_KEY, normalized); } catch (_) {}
+        }
+        updateToggleButtons(normalized);
+    }
+    window.toggleDarkMode = function () {
+        const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next, true);
+        return next;
+    };
+    function mountToggle() {
+        if (document.querySelector('.theme-toggle-btn')) {
+            updateToggleButtons(getPreferredTheme());
+            return;
+        }
+        const navActions = document.querySelector('.public-navbar .nav-actions');
+        if (navActions) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'themeToggleBtn';
+            btn.className = 'theme-toggle-btn';
+            btn.addEventListener('click', window.toggleDarkMode);
+            navActions.insertBefore(btn, navActions.firstChild);
+            updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
+        }
+    }
+    applyTheme(getPreferredTheme(), false);
+
     document.addEventListener('DOMContentLoaded', () => {
+        mountToggle();
         const yr = document.getElementById('currentYear');
         if (yr) yr.textContent = new Date().getFullYear();
         loadPublicBoardData();
     });
 })();
+

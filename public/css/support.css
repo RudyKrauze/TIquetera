@@ -439,7 +439,7 @@ body {
 
 .ticket-meta-time {
   font-size: 0.78em;
-  color: #868e96;
+  color: var(--color-text-muted, #4b5563);
 }
 
 .ticket-actions {

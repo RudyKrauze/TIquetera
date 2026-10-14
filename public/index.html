@@ -844,7 +844,7 @@
         }
       }
     </style>
-    <link rel="stylesheet" href="/css/design-system.css" />
+    <link rel="stylesheet" href="/css/design-system.css?v=4.0" />
   </head>
 
   <body>
@@ -876,6 +876,18 @@
               Rastrear
             </button>
           </div>
+
+          <button
+            type="button"
+            id="themeToggleBtn"
+            class="theme-toggle-btn"
+            onclick="window.toggleDarkMode && window.toggleDarkMode()"
+            aria-label="Cambiar a modo oscuro"
+            title="Cambiar a modo oscuro"
+            aria-pressed="false"
+          >
+            <span aria-hidden="true">🌙</span>
+          </button>
 
           <button
             type="button"
@@ -1059,7 +1071,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h2 id="loginModalTitle">🔐 Iniciar Sesión</h2>
-          <button class="close-modal" onclick="closeLoginModal()">×</button>
+          <button class="close-modal" onclick="closeLoginModal()" aria-label="Cerrar modal de inicio de sesión">×</button>
         </div>
         <div class="modal-body">
           <form id="loginForm">
@@ -1085,6 +1097,7 @@
                   type="button"
                   class="password-toggle"
                   onclick="togglePasswordVisibility()"
+                  aria-label="Mostrar u ocultar contraseña"
                 >
                   👁️
                 </button>
@@ -1105,7 +1118,7 @@
             <p class="tracking-modal-eyebrow">✅ Ticket creado</p>
             <h2>¡Número generado exitosamente!</h2>
           </div>
-          <button class="close-modal" onclick="closeTrackingModal()">×</button>
+          <button class="close-modal" onclick="closeTrackingModal()" aria-label="Cerrar modal de seguimiento">×</button>
         </div>
         <div class="modal-body">
           <p class="tracking-modal-support">Tu número de seguimiento es:</p>
@@ -1139,7 +1152,7 @@
       </div>
     </div>
 
-    <script src="/js/index.js"></script>
+    <script src="/js/index.js?v=4.0"></script>
     <script src="/js/pwa-install.js"></script>
   </body>
 </html>

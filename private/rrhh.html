@@ -9,9 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/notifications.css?v=3.1">
-    <link rel="stylesheet" href="/css/rrhh.css?v=3.1">
-    <link rel="stylesheet" href="/css/design-system.css?v=3.1">
+    <link rel="stylesheet" href="/css/notifications.css?v=4.0">
+    <link rel="stylesheet" href="/css/rrhh.css?v=4.0">
+    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
 </head>
 
 <body style="visibility: hidden; opacity: 0; transition: opacity 0.5s ease;">
@@ -27,6 +27,11 @@
                 📊 Reportes
             </a>
             <span id="userName">Cargando...</span>
+
+            <!-- Conmutador de Modo Oscuro / Claro -->
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode()" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+                <span aria-hidden="true">🌙</span>
+            </button>
 
             <!-- Sistema de Notificaciones -->
             <div class="notification-wrapper">
@@ -104,7 +109,7 @@
                                    onchange="applyFilters()" 
                                    placeholder="Hasta">
                             <button id="clearDatesBtn" class="btn-clear-dates" onclick="clearDateFilters()" 
-                                    title="Limpiar fechas">
+                                    title="Limpiar fechas" aria-label="Limpiar filtro de fechas">
                                 🗑️
                             </button>
                         </div>
@@ -146,7 +151,7 @@
                     <label for="loginPassword">Contraseña:</label>
                     <div class="password-container">
                         <input type="password" id="loginPassword" required>
-                        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)">
+                        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword', this)" aria-label="Mostrar u ocultar contraseña">
                             👁️
                         </button>
                     </div>
@@ -158,11 +163,11 @@
     </div>
 
     <!-- Ticket Detail Modal -->
-    <div class="ticket-detail-modal" id="ticketModal">
+    <div class="ticket-detail-modal" id="ticketModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <div class="ticket-modal-content">
             <div class="modal-header">
                 <h3 id="modalTitle">Detalles del Ticket</h3>
-                <button class="close-modal" onclick="closeTicketModal()">×</button>
+                <button class="close-modal" onclick="closeTicketModal()" aria-label="Cerrar detalles del ticket">×</button>
             </div>
             <div class="modal-body" id="modalBody">
                 <!-- Ticket details will be populated here -->
@@ -170,8 +175,8 @@
         </div>
     </div>
 
-    <script src="/js/core-panel.js?v=3.2"></script>
-    <script src="/js/rrhh.js?v=3.2"></script>
+    <script src="/js/core-panel.js?v=4.0"></script>
+    <script src="/js/rrhh.js?v=4.0"></script>
 
     <!-- Sistema de Notificaciones -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>

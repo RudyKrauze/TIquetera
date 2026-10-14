@@ -393,8 +393,19 @@ function renderTrendsChart() {
     const ctx = document.getElementById('trendsChart');
     if (!ctx) return;
 
-    // Usar colores del tema claro
-    const colors = COLORS;
+    // Seleccionar colores según el tema activo (Claro / Oscuro)
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const colors = isDark ? {
+        ...COLORS,
+        text: '#F8FAFC',
+        textMuted: '#94A3B8',
+        grid: 'rgba(148, 163, 184, 0.14)',
+        border: '#334155',
+        tooltipBg: 'rgba(30, 41, 59, 0.96)'
+    } : {
+        ...COLORS,
+        tooltipBg: 'rgba(255, 255, 255, 0.98)'
+    };
 
     // Preparar datos
     const labels = trendsData.map(d => formatDate(d.date));
@@ -504,7 +515,7 @@ function renderTrendsChart() {
                 },
                 tooltip: {
                     enabled: true,
-                    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                    backgroundColor: colors.tooltipBg,
                     titleColor: colors.text,
                     bodyColor: colors.textMuted,
                     borderColor: colors.border,
@@ -586,6 +597,12 @@ function renderTrendsChart() {
         }
     });
 }
+
+window.addEventListener('themechange', () => {
+    if (trendsData && trendsData.length > 0) {
+        renderTrendsChart();
+    }
+});
 
 function showEmptyChart() {
     const container = document.querySelector('.chart-container');
@@ -689,7 +706,7 @@ function renderTable() {
     if (departmentsData.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" style="text-align: center; padding: 2rem; color: var(--chart-text-muted, #6B7280);">
+                <td colspan="6" class="empty-inline-msg" style="padding: 2rem;">
                     No hay datos disponibles
                 </td>
             </tr>
@@ -704,12 +721,12 @@ function renderTable() {
 
         return `
             <tr style="animation: fadeIn 0.2s ease ${i * 0.05}s both;">
-                <td><strong>${escapeHtml(dept.department)}</strong></td>
-                <td class="text-center">${dept.total}</td>
-                <td class="text-center" style="color: ${colors.secondary}; font-weight: 600;">${dept.closed}</td>
-                <td class="text-center" style="color: ${colors.warning}; font-weight: 600;">${dept.open + dept.inProgress}</td>
-                <td class="text-center">${dept.avgResolutionHours}h</td>
-                <td>
+                <td data-label="Departamento"><strong>${escapeHtml(dept.department)}</strong></td>
+                <td data-label="Total Tickets" class="text-center">${dept.total}</td>
+                <td data-label="Cerrados" class="text-center text-success">${dept.closed}</td>
+                <td data-label="Pendientes" class="text-center text-warning">${dept.open + dept.inProgress}</td>
+                <td data-label="Tiempo Promedio" class="text-center">${dept.avgResolutionHours}h</td>
+                <td data-label="Tasa de Resolución">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div class="progress-bar" style="flex: 1;">
                             <div class="progress-bar-fill" style="width: ${dept.resolutionRate}%; background: linear-gradient(90deg, ${colors.primary}, ${rateColor});"></div>
@@ -1134,39 +1151,47 @@ async function loadSharedLinksHistory() {
         const activeLinks = Array.isArray(list) ? list.filter(item => item.is_active !== false) : [];
 
         if (activeLinks.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 1.25rem; color: #9CA3AF;">No hay enlaces compartidos creados aún.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" class="empty-inline-msg" style="padding: 1.25rem;">No hay enlaces compartidos creados aún.</td></tr>';
             return;
         }
 
         tbody.innerHTML = activeLinks.map(item => {
             const isExpired = item.isExpired;
-            const statusLabel = isExpired ? '<span style="color: #F59E0B; font-weight: 600; font-size: 0.8rem;">(Expirado)</span>' : '<span style="color: #10B981; font-weight: 600; font-size: 0.8rem;">(Activo)</span>';
+            const statusLabel = isExpired ? '<span class="text-warning" style="font-size: 0.8rem;">(Expirado)</span>' : '<span class="text-success" style="font-size: 0.8rem;">(Activo)</span>';
             const expiresText = item.expires_at ? formatDate(item.expires_at) : 'Permanente';
             const periodLabel = item.period === '7d' ? 'Semanal' : (item.period === '30d' ? 'Mensual' : (item.period === '1d' ? 'Diario' : item.period));
 
             return `
-                <tr id="shared-row-${item.token}" style="border-bottom: 1px solid #E5E7EB;">
-                    <td style="padding: 8px 10px;">
-                        <strong style="color: #1F2937;">${escapeHtml(item.title)}</strong> ${statusLabel}<br>
-                        <span style="font-size: 0.78rem; color: #6B7280;">${periodLabel} | ${item.department === 'all' ? 'Todos' : escapeHtml(item.department)}</span>
+                <tr id="shared-row-${item.token}">
+                    <td data-label="Título / Alcance" class="table-cell-title">
+                        <strong>${escapeHtml(item.title)}</strong> ${statusLabel}<br>
+                        <span class="table-cell-sub">${periodLabel} | ${item.department === 'all' ? 'Todos' : escapeHtml(item.department)}</span>
                     </td>
-                    <td style="padding: 8px 10px; font-size: 0.8rem; color: #4B5563;">${expiresText}</td>
-                    <td style="padding: 8px 10px; text-align: center; font-weight: 700;">${item.views_count || 0}</td>
-                    <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
-                        <button onclick="copySpecificShareUrl('${item.url}', this)" style="padding: 5px 9px; font-size: 0.8rem; background: #E5E7EB; border: none; border-radius: 5px; cursor: pointer; margin-right: 4px;" title="Copiar enlace">📋</button>
-                        <a href="${item.url}" target="_blank" style="padding: 5px 9px; font-size: 0.8rem; background: #E5E7EB; color: #1F2937; text-decoration: none; border-radius: 5px; margin-right: 4px; display: inline-block;" title="Abrir reporte">↗️</a>
-                        <button onclick="deleteSharedLink('${item.token}')" style="padding: 5px 9px; font-size: 0.8rem; background: #FEE2E2; color: #DC2626; border: none; border-radius: 5px; cursor: pointer;" title="Eliminar enlace">🗑️</button>
+                    <td data-label="Expira" class="table-cell-meta">${expiresText}</td>
+                    <td data-label="Vistas" class="table-cell-center">${item.views_count || 0}</td>
+                    <td data-label="Acciones" class="table-cell-actions">
+                        <button onclick="copySpecificShareUrl('${item.url}', this)" class="btn-icon" style="background: #E5E7EB;" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
+                        <a href="${item.url}" target="_blank" class="btn-icon" style="background: #E5E7EB; color: #1F2937; text-decoration: none;" title="Abrir reporte" aria-label="Abrir reporte">↗️</a>
+                        <button onclick="deleteSharedLink('${item.token}')" class="btn-icon" style="background: #FEE2E2; color: #DC2626;" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
                     </td>
                 </tr>
             `;
         }).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 1rem; color: #EF4444;">${escapeHtml(e.message)}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="4" class="error-state-box">${escapeHtml(e.message)}</td></tr>`;
     }
 }
 
 async function deleteSharedLink(token) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este enlace público?')) {
+    const confirmed = window.showConfirmDialog ? await window.showConfirmDialog({
+        title: 'Eliminar Enlace Público',
+        message: '¿Estás seguro de que deseas eliminar este enlace público? Esta acción es irreversible.',
+        confirmLabel: 'Eliminar',
+        cancelLabel: 'Cancelar',
+        isDanger: true
+    }) : true;
+
+    if (!confirmed) {
         return;
     }
 

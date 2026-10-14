@@ -314,7 +314,7 @@ function renderDeptChart(deptList) {
 function renderDepartmentTable(deptList) {
     const tbody = document.getElementById('reportTableBody');
     if (!deptList || deptList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #6B7280; padding: 2rem;">No hay datos registrados en este período.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #4B5563; padding: 2rem;">No hay datos registrados en este período.</td></tr>';
         return;
     }
 
@@ -322,15 +322,15 @@ function renderDepartmentTable(deptList) {
         const rate = parseFloat(d.resolutionRate) || 0;
         return `
             <tr>
-                <td><strong>${escapeHtml(d.department)}</strong></td>
-                <td style="text-align: center; font-weight: 700;">${d.total}</td>
-                <td style="text-align: center; color: #2F9E44; font-weight: 700;">${d.closed}</td>
-                <td style="text-align: center; color: #F59F00; font-weight: 700;">${d.pending || (d.open + d.inProgress)}</td>
-                <td style="text-align: center;">${d.avgResolutionHours}h</td>
-                <td>
+                <td data-label="Departamento"><strong>${escapeHtml(d.department)}</strong></td>
+                <td data-label="Total Tickets" style="text-align: center; font-weight: 700;">${d.total}</td>
+                <td data-label="Resueltos" style="text-align: center; color: #2F9E44; font-weight: 700;">${d.closed}</td>
+                <td data-label="Pendientes" style="text-align: center; color: #D97706; font-weight: 700;">${d.pending || (d.open + d.inProgress)}</td>
+                <td data-label="Tiempo Promedio" style="text-align: center;">${d.avgResolutionHours}h</td>
+                <td data-label="% Eficiencia">
                     <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600; margin-bottom: 2px;">
                         <span>${rate}%</span>
-                        <span style="color: #6B7280;">${d.closed}/${d.total} resueltos</span>
+                        <span style="color: #4B5563;">${d.closed}/${d.total} resueltos</span>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar" style="width: ${Math.min(100, rate)}%; background-color: ${rate >= 70 ? '#2F9E44' : rate >= 40 ? '#F59F00' : '#E03131'};"></div>
@@ -383,8 +383,89 @@ function copyPublicReportUrl(btnElement) {
 
 window.copyPublicReportUrl = copyPublicReportUrl;
 
-window.addEventListener('DOMContentLoaded', () => {
-    const yearEl = document.getElementById('currentYear');
-    if (yearEl) yearEl.textContent = new Date().getFullYear();
-    loadReportData();
-});
+// ==========================================
+// GESTOR DE MODO OSCURO (Reporte Público)
+// ==========================================
+(function () {
+    const STORAGE_KEY = 'ticket_theme';
+    function getPreferredTheme() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === 'dark' || saved === 'light') return saved;
+        } catch (_) {}
+        return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    function syncCharts(isDark) {
+        if (!window.Chart || !window.Chart.instances) return;
+        const textColor = isDark ? '#cbd5e1' : '#4b5563';
+        const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(0, 0, 0, 0.06)';
+        try {
+            Object.values(window.Chart.instances).forEach(chart => {
+                if (!chart || !chart.options) return;
+                if (chart.options.scales) {
+                    Object.values(chart.options.scales).forEach(scale => {
+                        if (scale.ticks) scale.ticks.color = textColor;
+                        if (scale.grid) scale.grid.color = gridColor;
+                    });
+                }
+                if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                    chart.options.plugins.legend.labels.color = textColor;
+                }
+                chart.update('none');
+            });
+        } catch (_) {}
+    }
+    function updateToggleButtons(theme) {
+        const isDark = theme === 'dark';
+        const label = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+        const icon = isDark ? '☀️' : '🌙';
+        document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            btn.innerHTML = `<span aria-hidden="true">${icon}</span>`;
+            btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        });
+    }
+    function applyTheme(theme, persist = false) {
+        const normalized = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', normalized);
+        if (document.body) document.body.classList.toggle('dark-mode', normalized === 'dark');
+        if (persist) {
+            try { localStorage.setItem(STORAGE_KEY, normalized); } catch (_) {}
+        }
+        updateToggleButtons(normalized);
+        syncCharts(normalized === 'dark');
+    }
+    window.toggleDarkMode = function () {
+        const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+        const next = current === 'dark' ? 'light' : 'dark';
+        applyTheme(next, true);
+        return next;
+    };
+    function mountToggle() {
+        if (document.querySelector('.theme-toggle-btn')) {
+            updateToggleButtons(getPreferredTheme());
+            return;
+        }
+        const navActions = document.querySelector('.public-navbar .nav-actions');
+        if (navActions) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'themeToggleBtn';
+            btn.className = 'theme-toggle-btn';
+            btn.addEventListener('click', window.toggleDarkMode);
+            navActions.insertBefore(btn, navActions.firstChild);
+            updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
+        }
+    }
+    applyTheme(getPreferredTheme(), false);
+    window.addEventListener('DOMContentLoaded', () => {
+        mountToggle();
+        const yearEl = document.getElementById('currentYear');
+        if (yearEl) yearEl.textContent = new Date().getFullYear();
+        loadReportData().then(() => {
+            syncCharts((document.documentElement.getAttribute('data-theme') || getPreferredTheme()) === 'dark');
+        });
+    });
+})();
+

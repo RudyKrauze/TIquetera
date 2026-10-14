@@ -34,7 +34,11 @@
                             return;
                         }
                         currentUser = data.user;
-                        document.getElementById('userName').textContent = currentUser.name;
+                        if (window.updateNavbarUserName) {
+                            window.updateNavbarUserName(currentUser.name);
+                        } else {
+                            document.getElementById('userName').textContent = currentUser.name;
+                        }
                         hideLogin();
                         loadMyTickets();
                         startAutoRefresh();
@@ -63,7 +67,9 @@
             isLoading = true;
 
             if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #28a745;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+                document.getElementById('ticketsList').innerHTML = window.renderSkeletonTicketGrid
+                    ? window.renderSkeletonTicketGrid(4)
+                    : '<div class="loading-state-box"><div class="loading-spinner"></div><p>Cargando tickets...</p></div>';
             }
 
             fetch(`/api/tickets/assigned/${currentUser.id}`, {
@@ -640,9 +646,7 @@ function applyFilters() {
                 <div style="margin-top: 30px;">
                     <h3 style="color: #2c3e50; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px; margin-bottom: 20px;">📋 Historial</h3>
                     <div id="commentsList" class="timeline">
-                            <div style="text-align:center; padding:2rem; color:#6c757d;">
-                            Cargando historial...
-                        </div>
+                        ${window.renderSkeletonDetails ? window.renderSkeletonDetails() : '<div class="loading-state-box">Cargando historial...</div>'}
                     </div>
                 </div>
             `;
@@ -735,7 +739,7 @@ function applyFilters() {
                                     ${escapeHtml(displayName)}
                                 </span>
                                 ${badgeHtml}
-                                <span class="comment-date" style="font-size:0.8em; color:#868e96;">${getRelativeTime(comment.created_at)}</span>
+                                <span class="comment-date">${getRelativeTime(comment.created_at)}</span>
                             </div>
                             <div class="comment-text" style="color:#212529; line-height:1.5;">
                                 ${escapeHtml(comment.content).replace(/\n/g, '<br>')}
@@ -757,7 +761,7 @@ function applyFilters() {
             const commentText = document.getElementById('commentText').value.trim();
 
             if (!commentText) {
-                alert('Por favor, escribe un comentario');
+                showNotification('Por favor, escribe un comentario', 'warning');
                 return;
             }
 
@@ -1840,7 +1844,7 @@ function applyFilters() {
                 if (typeof window.showToast === 'function') {
                     window.showToast(err.message, 'error');
                 } else {
-                    alert(err.message);
+                    showNotification(err.message, 'error');
                 }
             }
         }
@@ -1881,7 +1885,7 @@ function applyFilters() {
                 if (typeof window.showToast === 'function') {
                     window.showToast(err.message, 'error');
                 } else {
-                    alert(err.message);
+                    showNotification(err.message, 'error');
                 }
             } finally {
                 pendingTaskStatusUpdates.delete(taskId);
@@ -2289,7 +2293,7 @@ function applyFilters() {
             listContainer.innerHTML = taskChecklistBuilderItems.map((item, idx) => `
                 <div class="checklist-builder-item">
                     <span style="font-weight: 500; color: #374151;">🔹 ${escapeHtml(item.text)}</span>
-                    <button type="button" onclick="removeChecklistItemBuilder(${idx})" style="background: none; border: none; color: #EF4444; font-weight: bold; cursor: pointer; padding: 2px 6px;" title="Eliminar ítem">❌</button>
+                    <button type="button" onclick="removeChecklistItemBuilder(${idx})" style="background: none; border: none; color: #EF4444; font-weight: bold; cursor: pointer; padding: 2px 6px;" title="Eliminar ítem" aria-label="Eliminar ítem">❌</button>
                 </div>
             `).join('');
         }
@@ -2311,7 +2315,7 @@ function applyFilters() {
                 const intervalSelect = document.getElementById('taskRecurrenceIntervalInput')?.value;
                 if (intervalSelect === 'custom_days') {
                     if (!selectedRecurrenceDays || selectedRecurrenceDays.length === 0) {
-                        alert('Por favor selecciona al menos un día de la semana para la repetición personalizada (ej. Martes y Viernes)');
+                        showNotification('Por favor selecciona al menos un día de la semana para la repetición personalizada (ej. Martes y Viernes)', 'warning');
                         return;
                     }
                     const sortedDays = [...selectedRecurrenceDays].sort((a, b) => {
@@ -2326,7 +2330,7 @@ function applyFilters() {
             }
 
             if (!title) {
-                alert('El título es requerido');
+                showNotification('El título es requerido', 'warning');
                 return;
             }
 
@@ -2371,7 +2375,7 @@ function applyFilters() {
                 if (typeof window.showToast === 'function') {
                     window.showToast(err.message, 'error');
                 } else {
-                    alert(err.message);
+                    showNotification(err.message, 'error');
                 }
             }
         }
@@ -2436,7 +2440,7 @@ function applyFilters() {
                             ${checklist.map(item => `
                                 <label style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; background: white; border: 1px solid #E5E7EB; cursor: pointer; transition: background 0.15s;" onmouseover="this.style.background='#F3F4F6'" onmouseout="this.style.background='white'">
                                     <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItemInDetail(${task.id}, '${item.id}', ${item.done})" style="width: 18px; height: 18px; accent-color: #008B8B; cursor: pointer;">
-                                    <span style="font-size: 0.88rem; color: ${item.done ? '#9CA3AF' : '#1F2937'}; ${item.done ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.text)}</span>
+                                    <span class="${item.done ? 'checklist-item-done' : 'checklist-item-text'}">${escapeHtml(item.text)}</span>
                                 </label>
                             `).join('')}
                         </div>
@@ -2655,7 +2659,7 @@ function applyFilters() {
                 if (typeof window.showToast === 'function') {
                     window.showToast(err.message, 'error');
                 } else {
-                    alert(err.message);
+                    showNotification(err.message, 'error');
                 }
             }
         }
@@ -2913,7 +2917,7 @@ function applyFilters() {
                 if (!Array.isArray(links) || links.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="4" style="text-align: center; padding: 1.5rem; color: #9CA3AF;">
+                            <td colspan="4" class="empty-inline-msg" style="padding: 1.5rem;">
                                 No hay enlaces públicos activos creados.
                             </td>
                         </tr>
@@ -2944,23 +2948,23 @@ function applyFilters() {
 
                     return `
                         <tr style="border-bottom: 1px solid #F1F5F9;">
-                            <td style="padding: 8px 10px; font-weight: 600; color: #1E293B;">
+                            <td data-label="Título" style="padding: 8px 10px; font-weight: 600; color: #1E293B;">
                                 ${escapeHtml(link.title)}
                             </td>
-                            <td style="padding: 8px 10px;">
+                            <td data-label="Rango" style="padding: 8px 10px;">
                                 <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: #E6FCF5; color: #008B8B; font-weight: 600; border: 1px solid #C3FAE8;">
                                     📅 ${escapeHtml(periodLabel)}
                                 </span>
                             </td>
-                            <td style="padding: 8px 10px;">
+                            <td data-label="Expiración" style="padding: 8px 10px;">
                                 <span style="font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; background: ${isExpired ? '#FEE2E2' : '#E0F2FE'}; color: ${isExpired ? '#DC2626' : '#0369A1'}; font-weight: 600;">
                                     ${isExpired ? '⚠️ Expirado' : `⏳ ${expStr}`}
                                 </span>
                             </td>
-                            <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
-                                <button type="button" onclick="copySpecificUrl('${link.url}')" style="padding: 4px 8px; font-size: 0.75rem; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; margin-right: 4px;" title="Copiar enlace">📋</button>
-                                <a href="${link.url}" target="_blank" style="padding: 4px 8px; font-size: 0.75rem; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 4px; text-decoration: none; margin-right: 4px;" title="Abrir">↗️</a>
-                                <button type="button" onclick="deleteSharedTaskLink('${link.token}')" style="padding: 4px 8px; font-size: 0.75rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; border-radius: 4px; cursor: pointer;" title="Eliminar enlace">🗑️</button>
+                            <td data-label="Acción" style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+                                <button type="button" onclick="copySpecificUrl('${link.url}')" style="padding: 4px 8px; font-size: 0.75rem; background: #F1F5F9; border: 1px solid #CBD5E1; border-radius: 4px; cursor: pointer; margin-right: 4px;" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
+                                <a href="${link.url}" target="_blank" style="padding: 4px 8px; font-size: 0.75rem; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 4px; text-decoration: none; margin-right: 4px;" title="Abrir" aria-label="Abrir enlace">↗️</a>
+                                <button type="button" onclick="deleteSharedTaskLink('${link.token}')" style="padding: 4px 8px; font-size: 0.75rem; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; border-radius: 4px; cursor: pointer;" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
                             </td>
                         </tr>
                     `;

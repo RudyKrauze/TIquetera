@@ -45,7 +45,12 @@ document.getElementById('loginFormElement').addEventListener('submit', function 
                     return;
                 }
                 currentUser = data.user;
-                document.getElementById('currentUserName').textContent = currentUser.name;
+                if (typeof window.updateNavbarUserName === 'function') {
+                    window.updateNavbarUserName(currentUser.name);
+                } else {
+                    const nameEl = document.getElementById('currentUserName');
+                    if (nameEl) nameEl.textContent = currentUser.name;
+                }
                 hideLogin();
                 loadTickets();
                 startAutoRefresh();
@@ -75,7 +80,12 @@ function loadTickets(silentRefresh = false) {
     isLoading = true;
 
     if (!silentRefresh) {
-        document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #6c757d;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+        const listEl = document.getElementById('ticketsList');
+        if (listEl) {
+            listEl.innerHTML = typeof window.renderSkeletonTicketGrid === 'function'
+                ? window.renderSkeletonTicketGrid(4)
+                : '<div class="loading-state-box"><p>Cargando tickets...</p></div>';
+        }
     }
 
     fetch('/api/tickets')
@@ -100,7 +110,7 @@ function loadTickets(silentRefresh = false) {
             if (error.message.includes('401') || error.message.includes('403')) {
                 logout();
             } else if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">❌ Error al cargar tickets. <button onclick="loadTickets()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Reintentar</button></div>';
+                document.getElementById('ticketsList').innerHTML = '<div class="error-state-box">❌ Error al cargar tickets. <button onclick="loadTickets()" class="btn btn-primary" style="margin-top: 1rem;">Reintentar</button></div>';
             }
         });
 }
@@ -827,13 +837,10 @@ async function showTicketDetails(ticketId) {
 
     const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
 
-    // Mostrar loading inicial
-    modalBody.innerHTML = `
-        <div style="text-align: center; padding: 2rem;">
-            <div style="display: inline-block; width: 40px; height: 40px; border: 4px solid rgba(102, 126, 234, 0.3); border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin-top: 15px; color: #6c757d;">Cargando detalles...</p>
-        </div>
-    `;
+    // Mostrar loading inicial con skeleton
+    modalBody.innerHTML = typeof window.renderSkeletonDetails === 'function'
+        ? window.renderSkeletonDetails()
+        : '<div class="loading-state-box"><p>Cargando detalles...</p></div>';
     modal.style.display = 'block';
 
     // Cargar actualizaciones del ticket
@@ -1015,7 +1022,7 @@ async function showTicketDetails(ticketId) {
                                 <div class="timeline-header" style="margin-bottom:6px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:${isMe ? 'flex-end' : 'flex-start'};">
                                     <span class="timeline-user" style="font-weight:600; font-size:0.95em; color:#343a40;">${escapeHtml(displayName)}</span>
                                     ${badgeHtml}
-                                    <span class="timeline-date" style="font-size:0.8em; color:#868e96;">${getRelativeTime(update.created_at)}</span>
+                                    <span class="timeline-date">${getRelativeTime(update.created_at)}</span>
                                 </div>
                                 <div class="timeline-content" style="color:#212529; line-height:1.5;">${escapeHtml(update.content).replace(/\n/g, '<br>')}</div>
                             </div>
@@ -1262,6 +1269,11 @@ function showTab(tabName) {
 let allUsers = [];
 
 function loadUsers() {
+    const tbody = document.getElementById('usersTableBody');
+    if (tbody && typeof window.renderSkeletonTableRows === 'function') {
+        tbody.innerHTML = window.renderSkeletonTableRows(8, 5);
+    }
+
     fetch('/api/users/all', {
         credentials: 'include'
     })
@@ -1296,16 +1308,16 @@ function renderUsers() {
 
         return `
         <tr>
-            <td>${user.id}</td>
-            <td>${user.name}</td>
-            <td>${user.email}</td>
-            <td><span class="role-badge role-${user.role}">${getRoleLabel(user.role)}</span></td>
-            <td>${user.department || '-'}</td>
-            <td>${formatDate(user.created_at)}</td>
-            <td>
+            <td data-label="ID">${user.id}</td>
+            <td data-label="Nombre">${escapeHtml(user.name)}</td>
+            <td data-label="Email">${escapeHtml(user.email)}</td>
+            <td data-label="Rol"><span class="role-badge role-${user.role}">${getRoleLabel(user.role)}</span></td>
+            <td data-label="Departamento">${escapeHtml(user.department || '-')}</td>
+            <td data-label="Creado">${formatDate(user.created_at)}</td>
+            <td data-label="Estado">
                 <div class="user-status-toggle">
                     <label class="switch">
-                        <input type="checkbox" ${user.active ? 'checked' : ''} onchange="toggleUserActive(${user.id}, this.checked)" ${(!canModify || isDefaultAdmin) ? 'disabled' : ''}>
+                        <input type="checkbox" ${user.active ? 'checked' : ''} onchange="toggleUserActive(${user.id}, this.checked)" ${(!canModify || isDefaultAdmin) ? 'disabled' : ''} aria-label="Cambiar estado activo de ${escapeHtml(user.name)}">
                         <span class="switch-slider" style="${(!canModify) ? 'cursor: not-allowed; opacity: 0.6;' : ''}"></span>
                     </label>
                     <span class="user-status-label ${user.active ? 'active' : 'inactive'}">
@@ -1313,17 +1325,17 @@ function renderUsers() {
                     </span>
                 </div>
             </td>
-            <td>
+            <td data-label="Acciones">
                 ${canModify ? `
-                    <button class="btn-icon btn-edit" onclick="openEditUserModal(${user.id})" title="Editar">
+                    <button class="btn-icon btn-edit" onclick="openEditUserModal(${user.id})" title="Editar" aria-label="Editar usuario ${escapeHtml(user.name)}">
                         ✏️
                     </button>
                     ${isAdmin ? `
-                        <button class="btn-icon btn-key" onclick="openResetPasswordModal(${user.id}, '${user.name}')" title="Restablecer Contraseña">
+                        <button class="btn-icon btn-key" onclick="openResetPasswordModal(${user.id}, '${escapeHtml(user.name)}')" title="Restablecer Contraseña" aria-label="Restablecer contraseña de ${escapeHtml(user.name)}">
                             🔑
                         </button>
                     ` : ''}
-                ` : '<span style="color: #6c757d;">Protegido</span>'}
+                ` : '<span class="text-muted">Protegido</span>'}
             </td>
         </tr>
         `;

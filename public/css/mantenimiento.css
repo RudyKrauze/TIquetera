@@ -433,7 +433,7 @@
 
         .ticket-meta-time {
             font-size: 0.78em;
-            color: #868e96;
+            color: var(--color-text-muted, #4b5563);
         }
 
         .ticket-actions {
@@ -1936,7 +1936,7 @@
     font-size: 0.88rem;
     line-height: 1;
     pointer-events: none;
-    color: #94A3B8;
+    color: #475569;
     z-index: 2;
     display: flex;
     align-items: center;
@@ -1959,7 +1959,7 @@
 }
 
 .task-search-field::placeholder {
-    color: #94A3B8;
+    color: #475569;
     opacity: 1;
 }
 
@@ -1974,14 +1974,14 @@
     background: none;
     border: none;
     font-size: 1.1rem;
-    color: #94A3B8;
+    color: #475569;
     cursor: pointer;
     padding: 0 4px;
     line-height: 1;
 }
 
 .tasks-search-clear:hover {
-    color: #475569;
+    color: #1E293B;
 }
 
 .tasks-filters-group {
@@ -2415,7 +2415,7 @@
 
 .day-tasks-empty-subtitle {
     font-size: 0.85rem;
-    color: #94A3B8;
+    color: #475569;
 }
 
 /* Contenedor de Píldoras de Evento */
@@ -2733,7 +2733,7 @@
 
 .empty-day-msg {
     font-size: 0.68rem;
-    color: #94A3B8;
+    color: #475569;
     text-align: center;
     padding: 12px 2px;
     font-style: italic;
@@ -3210,7 +3210,7 @@
 
 .checklist-item-row.done .checklist-item-text {
     text-decoration: line-through;
-    color: #9CA3AF;
+    color: #475569;
 }
 
 /* Footer de Tarjeta */

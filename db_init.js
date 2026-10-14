@@ -1,6 +1,14 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+
+function getEnvPasswordOrRandom(envVarValue) {
+  if (envVarValue && String(envVarValue).trim() !== '') {
+    return String(envVarValue).trim();
+  }
+  return crypto.randomBytes(16).toString('hex');
+}
 
 /**
  * Inicializa la base de datos: crea tablas, índices y usuarios por defecto.
@@ -29,42 +37,42 @@ async function initializeDatabase(pool) {
       const defaultUsers = [
         {
           email: process.env.ADMIN_EMAIL || process.env.DEFAULT_ADMIN_EMAIL || 'admin@tiquetera.com',
-          password: process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
+          password: getEnvPasswordOrRandom(process.env.ADMIN_PASSWORD || process.env.DEFAULT_ADMIN_PASSWORD),
           name: 'Administrador',
           role: 'administrador',
           department: null
         },
         {
-          email: 'soporte@tiquetera.com',
-          password: process.env.DEFAULT_SUPPORT_PASSWORD || 'support123',
+          email: process.env.DEFAULT_SUPPORT_EMAIL || 'soporte@tiquetera.com',
+          password: getEnvPasswordOrRandom(process.env.DEFAULT_SUPPORT_PASSWORD),
           name: 'Sistemas',
           role: 'support',
           department: 'Sistemas'
         },
         {
-          email: 'rrhh@tiquetera.com',
-          password: process.env.DEFAULT_RRHH_PASSWORD || 'rrhh123',
+          email: process.env.DEFAULT_RRHH_EMAIL || 'rrhh@tiquetera.com',
+          password: getEnvPasswordOrRandom(process.env.DEFAULT_RRHH_PASSWORD),
           name: 'Recursos Humanos',
           role: 'rrhh',
           department: 'Recursos Humanos'
         },
         {
-          email: 'mantenimiento@tiquetera.com',
-          password: process.env.DEFAULT_MANT_PASSWORD || 'mant123',
+          email: process.env.DEFAULT_MANT_EMAIL || 'mantenimiento@tiquetera.com',
+          password: getEnvPasswordOrRandom(process.env.DEFAULT_MANT_PASSWORD),
           name: 'Mantenimiento',
           role: 'mantenimiento',
           department: 'Mantenimiento'
         },
         {
-          email: 'compras@tiquetera.com',
-          password: process.env.DEFAULT_COMPRAS_PASSWORD || 'compras123',
+          email: process.env.DEFAULT_COMPRAS_EMAIL || 'compras@tiquetera.com',
+          password: getEnvPasswordOrRandom(process.env.DEFAULT_COMPRAS_PASSWORD),
           name: 'Compras e Insumos',
           role: 'compras',
           department: 'Compras e Insumos'
         },
         {
           email: process.env.DEFAULT_GERENCIA_EMAIL || 'gerencia@tiquetera.com',
-          password: process.env.DEFAULT_GERENCIA_PASSWORD || 'gerencia123',
+          password: getEnvPasswordOrRandom(process.env.DEFAULT_GERENCIA_PASSWORD),
           name: 'Gerencia',
           role: 'gerencia',
           department: 'Gerencia'
@@ -98,7 +106,7 @@ async function initializeDatabase(pool) {
       await pool.query("UPDATE users SET active = TRUE, department = 'Gerencia' WHERE role = 'gerencia' AND (active = FALSE OR department IS NULL OR department != 'Gerencia')");
       const gerenciaCheck = await pool.query("SELECT id FROM users WHERE role = 'gerencia'");
       if (gerenciaCheck.rows.length === 0) {
-        const hashedPassword = bcrypt.hashSync(process.env.DEFAULT_GERENCIA_PASSWORD || 'gerencia123', 8);
+        const hashedPassword = bcrypt.hashSync(getEnvPasswordOrRandom(process.env.DEFAULT_GERENCIA_PASSWORD), 8);
         await pool.query(
           `INSERT INTO users (email, password, name, role, department, active) 
            VALUES ($1, $2, 'Gerencia', 'gerencia', 'Gerencia', TRUE) ON CONFLICT (email) DO UPDATE SET active = TRUE, department = 'Gerencia'`,

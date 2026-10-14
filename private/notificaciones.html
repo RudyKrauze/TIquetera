@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/design-system.css">
-    <link rel="stylesheet" href="/css/notifications.css">
+    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
+    <link rel="stylesheet" href="/css/notifications.css?v=4.0">
     <style>
         :root {
             --brand-primary: #008B8B;
@@ -242,7 +242,7 @@
             display: flex;
             gap: 16px;
             font-size: 0.8rem;
-            color: #9CA3AF;
+            color: #4B5563;
             flex-wrap: wrap;
         }
 
@@ -422,6 +422,9 @@
             <h1>Historial de Notificaciones</h1>
         </div>
         <div class="navbar-actions">
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode()" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+                <span aria-hidden="true">🌙</span>
+            </button>
             <a href="javascript:history.back()" class="back-btn">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                     stroke-width="2">
@@ -496,7 +499,7 @@
         </div>
     </div>
 
-    <script src="/js/core-panel.js"></script>
+    <script src="/js/core-panel.js?v=4.0"></script>
     <script>
         let currentPage = 1;
         const limit = 20;

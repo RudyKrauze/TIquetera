@@ -565,6 +565,21 @@
         document.documentElement.classList.remove("modal-open");
       }
 
+      window.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") {
+          const loginModal = document.getElementById("loginModal");
+          if (loginModal && loginModal.style.display === "flex") {
+            closeLoginModal();
+            return;
+          }
+          const trackingModal = document.getElementById("trackingModal");
+          if (trackingModal && trackingModal.style.display === "flex") {
+            closeTrackingModal();
+            return;
+          }
+        }
+      });
+
       function copyTrackingNumber() {
         const trackingNumber =
           document.getElementById("trackingNumber").textContent;
@@ -631,17 +646,20 @@
             if (successful) {
               showCopyFeedback();
             } else {
-              alert(
-                "No se pudo copiar. Por favor copia manualmente: " +
-                  trackingNumber
-              );
+              const tooltip = document.getElementById("copyTooltip");
+              if (tooltip) {
+                tooltip.textContent = "Copia manualmente: " + trackingNumber;
+                tooltip.classList.add("visible");
+                setTimeout(function () { tooltip.classList.remove("visible"); }, 4000);
+              }
             }
           } catch (err) {
-
-            alert(
-              "No se pudo copiar. Por favor copia manualmente: " +
-                  trackingNumber
-            );
+            const tooltip = document.getElementById("copyTooltip");
+            if (tooltip) {
+              tooltip.textContent = "Copia manualmente: " + trackingNumber;
+              tooltip.classList.add("visible");
+              setTimeout(function () { tooltip.classList.remove("visible"); }, 4000);
+            }
           }
 
           document.body.removeChild(textArea);
@@ -752,3 +770,66 @@
           if (headerP) headerP.textContent = `Bienvenido, ${user.name}`;
         }
       }
+
+      // ==========================================
+      // GESTOR DE MODO OSCURO (Portal Principal)
+      // ==========================================
+      (function () {
+        const STORAGE_KEY = 'ticket_theme';
+        function getPreferredTheme() {
+          try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === 'dark' || saved === 'light') return saved;
+          } catch (_) {}
+          return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        function updateToggleButtons(theme) {
+          const isDark = theme === 'dark';
+          const label = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+          const icon = isDark ? '☀️' : '🌙';
+          document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            btn.innerHTML = `<span aria-hidden="true">${icon}</span>`;
+            btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+          });
+        }
+        function applyTheme(theme, persist = false) {
+          const normalized = theme === 'dark' ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', normalized);
+          if (document.body) document.body.classList.toggle('dark-mode', normalized === 'dark');
+          if (persist) {
+            try { localStorage.setItem(STORAGE_KEY, normalized); } catch (_) {}
+          }
+          updateToggleButtons(normalized);
+        }
+        window.toggleDarkMode = function () {
+          const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+          const next = current === 'dark' ? 'light' : 'dark';
+          applyTheme(next, true);
+          return next;
+        };
+        function mountToggle() {
+          if (document.querySelector('.theme-toggle-btn')) {
+            updateToggleButtons(getPreferredTheme());
+            return;
+          }
+          const headerActions = document.querySelector('.header .header-actions');
+          if (headerActions) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.id = 'themeToggleBtn';
+            btn.className = 'theme-toggle-btn';
+            btn.addEventListener('click', window.toggleDarkMode);
+            headerActions.appendChild(btn);
+            updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
+          }
+        }
+        applyTheme(getPreferredTheme(), false);
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', mountToggle);
+        } else {
+          mountToggle();
+        }
+      })();
+

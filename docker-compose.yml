@@ -11,9 +11,9 @@ services:
     environment:
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_USER=ticket_app
-      - DB_PASSWORD=TicketApp123!
-      - DB_NAME=tiquetera_db
+      - DB_USER=${DB_USER:-ticket_app}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-tiquetera_db}
     volumes:
       - .:/app
       - /app/node_modules
@@ -22,16 +22,18 @@ services:
   db:
     image: postgres:16-alpine
     restart: "no"
+    env_file:
+      - .env
     environment:
-      POSTGRES_USER: ticket_app
-      POSTGRES_PASSWORD: TicketApp123!
-      POSTGRES_DB: tiquetera_db
+      POSTGRES_USER: ${DB_USER:-ticket_app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME:-tiquetera_db}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ticket_app -d tiquetera_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-ticket_app} -d ${DB_NAME:-tiquetera_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -46,11 +48,13 @@ services:
       - db:db
     volumes:
       - ./backups:/backups
+    env_file:
+      - .env
     environment:
       - POSTGRES_HOST=db
-      - POSTGRES_DB=tiquetera_db
-      - POSTGRES_USER=ticket_app
-      - POSTGRES_PASSWORD=TicketApp123!
+      - POSTGRES_DB=${DB_NAME:-tiquetera_db}
+      - POSTGRES_USER=${DB_USER:-ticket_app}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
       - SCHEDULE=@every 6h00m
       - BACKUP_KEEP_DAYS=7
       - BACKUP_KEEP_WEEKS=4

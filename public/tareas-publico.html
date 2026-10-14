@@ -10,7 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/mantenimiento.css?v=2.7">
+    <link rel="stylesheet" href="/css/mantenimiento.css?v=4.0">
+    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
     <style>
         :root {
             --brand-primary: #008B8B;
@@ -19,7 +20,7 @@
             --bg-page: #F4F7F9;
             --bg-card: #FFFFFF;
             --text-main: #1F2937;
-            --text-muted: #6B7280;
+            --text-muted: #4B5563;
             --border-color: #E5E7EB;
         }
 
@@ -177,6 +178,9 @@
             </div>
         </div>
         <div class="nav-actions">
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode()" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+                <span aria-hidden="true">🌙</span>
+            </button>
             <button class="btn-action" onclick="exportTasksToCSV()" title="Descargar datos en CSV">
                 📊 Descargar CSV
             </button>
@@ -210,23 +214,23 @@
         <div class="kpi-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
             <div class="kpi-card kpi-total" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E5E7EB; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div style="font-size: 2rem; font-weight: 800; color: #1F2937;" id="kpiTotal">0</div>
-                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Total Tareas</div>
+                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Total Tareas</div>
             </div>
             <div class="kpi-card kpi-pending" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #FDE68A; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div style="font-size: 2rem; font-weight: 800; color: #D97706;" id="kpiPending">0</div>
-                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Pendientes</div>
+                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Pendientes</div>
             </div>
             <div class="kpi-card kpi-in-progress" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BAE6FD; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div style="font-size: 2rem; font-weight: 800; color: #0284C7;" id="kpiInProgress">0</div>
-                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">En Progreso</div>
+                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">En Progreso</div>
             </div>
             <div class="kpi-card kpi-completed" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BBF7D0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div style="font-size: 2rem; font-weight: 800; color: #16A34A;" id="kpiCompleted">0</div>
-                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Completadas</div>
+                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Completadas</div>
             </div>
             <div class="kpi-card kpi-recurring" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E9D5FF; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
                 <div style="font-size: 2rem; font-weight: 800; color: #7C3AED;" id="kpiRecurring">0</div>
-                <div style="font-size: 0.85rem; color: #6B7280; font-weight: 600;">Rutinas Activas</div>
+                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Rutinas Activas</div>
             </div>
         </div>
 
@@ -237,8 +241,8 @@
                 <div class="calendar-nav-left">
                     <button class="btn-cal-today" onclick="calendarGoToday()">Hoy</button>
                     <div class="calendar-nav-arrows">
-                        <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior">◀</button>
-                        <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente">▶</button>
+                        <button class="btn-cal-arrow" onclick="calendarPrev()" title="Anterior" aria-label="Período anterior">◀</button>
+                        <button class="btn-cal-arrow" onclick="calendarNext()" title="Siguiente" aria-label="Período siguiente">▶</button>
                     </div>
                     <span class="calendar-current-title" id="calendarCurrentTitle">Mes Año</span>
                 </div>
@@ -258,7 +262,7 @@
                 <div class="tasks-search-box">
                     <span class="tasks-search-icon">🔍</span>
                     <input type="text" id="taskSearchInput" class="task-search-field" placeholder="Buscar tareas..." oninput="applyFilters()">
-                    <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; applyFilters();">&times;</button>
+                    <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; applyFilters();" aria-label="Limpiar búsqueda">&times;</button>
                 </div>
 
                 <div class="tasks-filters-group">
@@ -331,11 +335,11 @@
     </main>
 
     <!-- Modal de Detalles de Tarea Pública (Sólo Lectura) -->
-    <div class="task-modal-overlay" id="taskDetailModalDialog" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
+    <div class="task-modal-overlay" id="taskDetailModalDialog" role="dialog" aria-modal="true" aria-labelledby="taskDetailModalHeaderTitle" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
         <div class="task-modal-card" style="max-width: 650px;">
             <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
                 <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
-                <button type="button" onclick="closeTaskDetailModal()" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div style="padding: 20px;" id="taskDetailBody">
                 <!-- Contenido generado por JS -->
@@ -351,7 +355,7 @@
                     <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="dayTasksModalTitle">📅 Tareas del Día</h3>
                     <span id="dayTasksModalBadge" class="day-tasks-count-badge">0 tareas</span>
                 </div>
-                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #9CA3AF; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
             </div>
             <div style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;" id="dayTasksListBody">
                 <!-- Se llena dinámicamente con openDayTasksModal() -->
@@ -367,7 +371,7 @@
         <p>&copy; <span id="currentYear"></span> Sistema de Gestión - Imagen Diagnóstica. Todos los derechos reservados.</p>
     </footer>
 
-    <script src="/js/tareas-publico.js?v=2.9"></script>
+    <script src="/js/tareas-publico.js?v=4.0"></script>
 </body>
 
 </html>

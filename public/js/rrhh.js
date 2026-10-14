@@ -32,7 +32,11 @@
                             return;
                         }
                         currentUser = data.user;
-                        document.getElementById('userName').textContent = currentUser.name;
+                        if (window.updateNavbarUserName) {
+                            window.updateNavbarUserName(currentUser.name);
+                        } else {
+                            document.getElementById('userName').textContent = currentUser.name;
+                        }
                         hideLogin();
                         loadMyTickets();
                         startAutoRefresh();
@@ -61,7 +65,9 @@
             isLoading = true;
 
             if (!silentRefresh) {
-                document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #28a745;"><div style="display: inline-block; width: 40px; height: 40px; border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; animation: spin 1s linear infinite;"></div><p style="margin-top: 1rem;">Cargando tickets...</p></div>';
+                document.getElementById('ticketsList').innerHTML = window.renderSkeletonTicketGrid
+                    ? window.renderSkeletonTicketGrid(4)
+                    : '<div class="loading-state-box"><div class="loading-spinner"></div><p>Cargando tickets...</p></div>';
             }
 
             fetch(`/api/tickets/assigned/${currentUser.id}`, {
@@ -575,9 +581,7 @@ function applyFilters() {
                 <div style="margin-top: 30px;">
                     <h3 style="color: #2c3e50; border-bottom: 2px solid #e1e8ed; padding-bottom: 10px; margin-bottom: 20px;">📋 Historial</h3>
                     <div id="commentsList" class="timeline">
-                            <div style="text-align:center; padding:2rem; color:#6c757d;">
-                            Cargando historial...
-                        </div>
+                        ${window.renderSkeletonDetails ? window.renderSkeletonDetails() : '<div class="loading-state-box">Cargando historial...</div>'}
                     </div>
                 </div>
             `;
@@ -643,7 +647,7 @@ function applyFilters() {
             const commentText = document.getElementById('commentText').value.trim();
 
             if (!commentText) {
-                alert('Por favor, escribe un comentario');
+                showNotification('Por favor, escribe un comentario', 'warning');
                 return;
             }
 

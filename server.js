@@ -134,17 +134,17 @@ const io = new Server(server, {
 const departmentConnections = new Map();
 const PORT = process.env.PORT || 3005;
 
-// Validar que JWT_SECRET esté definido o proveer fallback seguro para Serverless
+// Validar que JWT_SECRET esté definido en variables de entorno
 if (!process.env.JWT_SECRET) {
   if (isServerless) {
-    console.warn('⚠️ WARNING: JWT_SECRET no está configurado en Vercel. Usando clave de seguridad por defecto.');
+    console.error('❌ ERROR CRÍTICO: JWT_SECRET no está configurado en las variables de entorno de Vercel.');
   } else {
     console.error('❌ ERROR CRÍTICO: La variable de entorno JWT_SECRET no está definida.');
     console.error('   Agrega JWT_SECRET a tu archivo .env o variables de entorno del sistema.');
     process.exit(1);
   }
 }
-const JWT_SECRET = process.env.JWT_SECRET || 'gOHPWPWmn5wn4rRHSKBAQ7fwFFI3QJ21CvuhV3UM7M7ABgW78AYb6CsmEympi9/oP+iO4TnMs6XVX+7+N292xQ==';
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('base64');
 
 // Middleware
 app.use(cors({
@@ -218,9 +218,6 @@ function authenticateToken(req, res, next) {
   if (!token) {
     token = req.cookies.token;
   }
-  
-  console.log(`[AUTH DEBUG] URL: ${req.url} | Cookie: ${req.headers.cookie ? 'YES' : 'NO'} | Token found: ${!!token}`);
-  if (req.headers.cookie) console.log(`[AUTH DEBUG] Cookies: ${req.headers.cookie}`);
 
   if (!token) {
     return res.status(401).json({ error: 'Token no proporcionado' });
@@ -407,7 +404,26 @@ function canManageTickets(req, res, next) {
 }
 
 // PostgreSQL Database setup (compatible con Supabase, Transaction Pooler en puerto 6543 y PostgreSQL local)
-const dbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+const rawDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL;
+const dbUrl = (rawDbUrl && rawDbUrl.trim() !== '') ? rawDbUrl.trim() : null;
+
+// Validación preventiva de placeholders y esquemas inválidos en DATABASE_URL
+if (dbUrl) {
+  if (/\[.*(PASSWORD|PROJECT_REF|REGION).*\]/i.test(dbUrl) || dbUrl.includes('TU_PASSWORD')) {
+    console.error('❌ ERROR: Tu variable DATABASE_URL en .env contiene el texto de ejemplo ([TU_PASSWORD_DE_SUPABASE]).');
+    console.error('   👉 Debes reemplazar [TU_PASSWORD_DE_SUPABASE] por la contraseña real que configuraste en Supabase.');
+    console.error('   Si no recuerdas la contraseña, puedes restablecerla en 1 click en:');
+    console.error('   Supabase Dashboard -> Project Settings -> Database -> Database password -> Reset password');
+    process.exit(1);
+  }
+  if (dbUrl.startsWith('http://') || dbUrl.startsWith('https://')) {
+    console.error('❌ ERROR: Tu variable DATABASE_URL en .env está configurada con una URL HTTP/HTTPS (https://...).');
+    console.error('   Esa es la URL de la API web de Supabase (SUPABASE_URL). Para PostgreSQL debes usar la URI de conexión (postgresql://...).');
+    console.error('   👉 Formato requerido (Transaction Pooler):');
+    console.error('      DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[TU_PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true');
+    process.exit(1);
+  }
+}
 
 const poolConfig = dbUrl ? {
   connectionString: dbUrl,
@@ -460,6 +476,22 @@ function ensureDatabaseInitialized() {
 
 // En entornos de servidor dedicado/local, verificar e inicializar al arrancar
 if (!isServerless) {
+  if (dbUrl) {
+    try {
+      const parsed = new URL(dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://') ? dbUrl : `postgresql://${dbUrl}`);
+      console.log(`🔌 Conectando a PostgreSQL en Supabase (${parsed.host})...`);
+    } catch (e) {
+      console.log('🔌 Conectando a PostgreSQL mediante DATABASE_URL...');
+    }
+  } else if (process.env.DB_HOST) {
+    console.log(`🔌 Conectando a PostgreSQL local/Docker (${poolConfig.host}:${poolConfig.port})...`);
+  } else {
+    console.error('❌ ERROR: No se ha configurado la conexión a la base de datos.');
+    console.error('   👉 Agrega tu cadena de conexión de Supabase en DATABASE_URL dentro de tu archivo .env:');
+    console.error('      DATABASE_URL=postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true');
+    process.exit(1);
+  }
+
   pool.connect()
     .then(async (client) => {
       try {
@@ -472,7 +504,12 @@ if (!isServerless) {
     })
     .catch((err) => {
       console.error('❌ ERROR AL CONECTAR con PostgreSQL:', err.message);
-      console.error('   Verifica que PostgreSQL esté corriendo y las credenciales sean correctas.');
+      if (dbUrl) {
+        console.error('   Verifica que la cadena DATABASE_URL en tu .env sea válida y que Supabase esté activo.');
+      } else {
+        console.error('   Si deseas conectar a Supabase, define DATABASE_URL en tu archivo .env.');
+        console.error('   Si deseas conectar a Docker/PostgreSQL local, verifica que el contenedor esté corriendo.');
+      }
       process.exit(1);
     });
 } else {
@@ -481,39 +518,19 @@ if (!isServerless) {
 }
 
 
-// Endpoint de salud y diagnóstico (útil para verificar conexión a Supabase y entorno en Vercel)
+// Endpoint de salud básico (sin exponer metadatos internos, hosts ni stack traces)
 app.get('/api/health', async (req, res) => {
   try {
-    const hasDbUrl = !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL);
-    const hostInfo = dbUrl ? (dbUrl.split('@')[1] || '').split('/')[0] : (process.env.DB_HOST || 'none');
-    
-    const dbTest = await pool.query('SELECT NOW() AS now, current_database() AS db_name');
-    const userCount = await pool.query('SELECT COUNT(*) FROM users');
-    const ticketCount = await pool.query('SELECT COUNT(*) FROM tickets');
-    
+    const dbTest = await pool.query('SELECT NOW() AS now');
     res.json({
       status: 'ok',
-      isServerless,
-      hasDbUrl,
-      dbHost: hostInfo,
-      dbName: dbTest.rows[0].db_name,
-      time: dbTest.rows[0].now,
-      users: parseInt(userCount.rows[0].count, 10),
-      tickets: parseInt(ticketCount.rows[0].count, 10),
-      env: {
-        hasJwtSecret: !!process.env.JWT_SECRET,
-        hasVapid: !!(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
-        hasSmtp: !!process.env.SMTP_HOST
-      }
+      time: dbTest.rows[0].now
     });
   } catch (err) {
+    console.error('Error en /api/health:', err.message);
     res.status(500).json({
       status: 'error',
-      isServerless,
-      hasDbUrl: !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.SUPABASE_DB_URL),
-      error: err.message,
-      code: err.code,
-      stack: err.stack
+      error: 'Servicio de base de datos no disponible temporalmente'
     });
   }
 });
@@ -1883,6 +1900,9 @@ app.get('/api/tickets/department/:department', authenticateToken, canAccessDepar
   }
 });
 
+// Hash señuelo generado dinámicamente en memoria para mitigar ataques de timing en login
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 8);
+
 // Login endpoint con protección de rate limiting específica
 app.post('/api/login', loginLimiter, async (req, res) => {
   try {
@@ -1901,7 +1921,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
     // Mitigación de timing attack: siempre ejecutar bcrypt.compareSync
     const user = result.rows[0];
-    const passwordHash = user?.password || '$2a$08$Y.B8FjU4S94wPzJk1FqPoeH3JkGj8vJ3g9F8b5oH8n2x7wS7hWdIe';
+    const passwordHash = user?.password || DUMMY_PASSWORD_HASH;
     const isValidPassword = bcrypt.compareSync(password, passwordHash);
 
     // Validar que el usuario existe y la contraseña es correcta

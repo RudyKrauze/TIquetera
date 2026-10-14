@@ -399,7 +399,7 @@
     border: none;
     padding: 4px;
     cursor: pointer;
-    color: #9CA3AF;
+    color: #4b5563;
     transition: color 0.2s ease;
     border-radius: 4px;
 }
@@ -512,7 +512,7 @@
 
 .notification-history-message {
     font-size: 0.9rem;
-    color: #6B7280;
+    color: #4b5563;
     margin: 0 0 8px 0;
 }
 
@@ -520,7 +520,7 @@
     display: flex;
     gap: 16px;
     font-size: 0.8rem;
-    color: #9CA3AF;
+    color: #4b5563;
 }
 
 .notification-history-meta span {

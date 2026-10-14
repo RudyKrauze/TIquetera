@@ -330,12 +330,10 @@ window.verifySession = function (allowedRoles, onSuccessCallback) {
             if (data.user && allowedRoles.includes(data.user.role)) {
                 window.currentUser = data.user;
 
-                // Actualizar nombres de usuario en headers comunes
-                const userElements = ['userName', 'currentUserName', 'headerUserName'];
-                userElements.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.textContent = window.currentUser.name;
-                });
+                // Actualizar nombres de usuario de forma unificada (#userName vs #currentUserName)
+                if (typeof window.updateNavbarUserName === 'function') {
+                    window.updateNavbarUserName(window.currentUser.name);
+                }
 
                 // Mostrar el documento
                 document.body.style.visibility = 'visible';
@@ -609,8 +607,10 @@ window.exportTicketsToCSV = function (tickets, fileName = 'tickets.csv') {
     if (!Array.isArray(tickets) || tickets.length === 0) {
         if (typeof window.showToast === 'function') {
             window.showToast('No hay tickets para exportar', 'warning');
-        } else {
-            alert('No hay tickets para exportar');
+        } else if (typeof window.showNotification === 'function') {
+            window.showNotification('No hay tickets para exportar', 'warning');
+        } else if (typeof showNotification === 'function') {
+            showNotification('No hay tickets para exportar', 'warning');
         }
         return;
     }
@@ -742,7 +742,7 @@ window.buildVerticalTicketCard = function (ticket) {
             <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
             <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
             <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             <div><strong>📅 Fecha:</strong> ${formattedDate}</div>
         </div>
     </div>
@@ -777,7 +777,7 @@ window.renderUniversalPagination = function (containerId, currentPage, totalItem
             Mostrando <strong>${startIdx} - ${endIdx}</strong> de <strong>${totalItems}</strong> tickets (Página ${currentPage} de ${totalPages})
         </div>
         <div class="pagination-controls">
-            <button class="btn-page" ${currentPage <= 1 ? 'disabled' : ''} onclick="${onPageChangeFnName}(${currentPage - 1})" title="Página anterior">
+            <button class="btn-page" ${currentPage <= 1 ? 'disabled' : ''} onclick="${onPageChangeFnName}(${currentPage - 1})" title="Página anterior" aria-label="Página anterior">
                 ◀ Anterior
             </button>
             <div class="page-numbers">
@@ -791,26 +791,26 @@ window.renderUniversalPagination = function (containerId, currentPage, totalItem
     }
 
     if (startPage > 1) {
-        paginationHtml += `<button class="page-num" onclick="${onPageChangeFnName}(1)">1</button>`;
-        if (startPage > 2) paginationHtml += `<span style="padding: 4px 2px; color: #9CA3AF;">...</span>`;
+        paginationHtml += `<button class="page-num" onclick="${onPageChangeFnName}(1)" aria-label="Ir a página 1">1</button>`;
+        if (startPage > 2) paginationHtml += `<span class="pagination-ellipsis" aria-hidden="true">...</span>`;
     }
 
     for (let p = startPage; p <= endPage; p++) {
         paginationHtml += `
-            <button class="page-num ${p === currentPage ? 'active' : ''}" onclick="${onPageChangeFnName}(${p})">
+            <button class="page-num ${p === currentPage ? 'active' : ''}" onclick="${onPageChangeFnName}(${p})" aria-label="Ir a página ${p}" ${p === currentPage ? 'aria-current="page"' : ''}>
                 ${p}
             </button>
         `;
     }
 
     if (endPage < totalPages) {
-        if (endPage < totalPages - 1) paginationHtml += `<span style="padding: 4px 2px; color: #9CA3AF;">...</span>`;
-        paginationHtml += `<button class="page-num" onclick="${onPageChangeFnName}(${totalPages})">${totalPages}</button>`;
+        if (endPage < totalPages - 1) paginationHtml += `<span class="pagination-ellipsis" aria-hidden="true">...</span>`;
+        paginationHtml += `<button class="page-num" onclick="${onPageChangeFnName}(${totalPages})" aria-label="Ir a página ${totalPages}">${totalPages}</button>`;
     }
 
     paginationHtml += `
             </div>
-            <button class="btn-page" ${currentPage >= totalPages ? 'disabled' : ''} onclick="${onPageChangeFnName}(${currentPage + 1})" title="Página siguiente">
+            <button class="btn-page" ${currentPage >= totalPages ? 'disabled' : ''} onclick="${onPageChangeFnName}(${currentPage + 1})" title="Página siguiente" aria-label="Página siguiente">
                 Siguiente ▶
             </button>
         </div>
@@ -859,7 +859,7 @@ window.buildKanbanCard = function (ticket, isReadOnly = false) {
             <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
             <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
             <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+            <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
         </div>
     </div>
     `;
@@ -870,7 +870,7 @@ window.renderKanbanBoard = function (containerId, tickets, columnPages, onColumn
     if (!container) return;
 
     if (!tickets || tickets.length === 0) {
-        container.innerHTML = '<div style="padding: 2.5rem; text-align: center; color: #6c757d; background: white; border-radius: 8px; border: 1px solid #e2e8f0; width: 100%;">No hay tickets para mostrar con los filtros seleccionados</div>';
+        container.innerHTML = '<div class="empty-state-box">No hay tickets para mostrar con los filtros seleccionados</div>';
         return;
     }
 
@@ -898,9 +898,9 @@ window.renderKanbanBoard = function (containerId, tickets, columnPages, onColumn
 
         const paginationHtml = totalPages > 1 ? `
             <div class="kanban-column-pagination">
-                <button class="btn-col-page" ${page <= 1 ? 'disabled' : ''} onclick="event.stopPropagation(); ${onColumnPageChangeName}('${status}', ${page - 1})">◀ Anterior</button>
+                <button class="btn-col-page" ${page <= 1 ? 'disabled' : ''} onclick="event.stopPropagation(); ${onColumnPageChangeName}('${status}', ${page - 1})" aria-label="Página anterior en columna ${title}">◀ Anterior</button>
                 <span class="col-page-info">${page} / ${totalPages} (${totalItems})</span>
-                <button class="btn-col-page" ${page >= totalPages ? 'disabled' : ''} onclick="event.stopPropagation(); ${onColumnPageChangeName}('${status}', ${page + 1})">Siguiente ▶</button>
+                <button class="btn-col-page" ${page >= totalPages ? 'disabled' : ''} onclick="event.stopPropagation(); ${onColumnPageChangeName}('${status}', ${page + 1})" aria-label="Página siguiente en columna ${title}">Siguiente ▶</button>
             </div>
         ` : '';
 
@@ -956,28 +956,28 @@ window.buildGridTicketCard = function (ticket, isReadOnly = false) {
     if (!isReadOnly) {
         if (status === 'open') {
             quickButtons = `
-                <button type="button" class="btn-quick-action action-in-progress" title="Mover a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
+                <button type="button" class="btn-quick-action action-in-progress" title="Mover a En Progreso" aria-label="Mover a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
                     🔵 En Progreso
                 </button>
-                <button type="button" class="btn-quick-action action-closed" title="Mover a Cerrado" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
+                <button type="button" class="btn-quick-action action-closed" title="Mover a Cerrado" aria-label="Mover a Cerrado" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
                     🟢 Cerrar
                 </button>
             `;
         } else if (status === 'in-progress') {
             quickButtons = `
-                <button type="button" class="btn-quick-action action-open" title="Mover a Pendiente" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
+                <button type="button" class="btn-quick-action action-open" title="Mover a Pendiente" aria-label="Mover a Pendiente" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
                     🟡 Pendiente
                 </button>
-                <button type="button" class="btn-quick-action action-closed" title="Mover a Cerrado" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
+                <button type="button" class="btn-quick-action action-closed" title="Mover a Cerrado" aria-label="Mover a Cerrado" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
                     🟢 Cerrar
                 </button>
             `;
         } else if (status === 'closed') {
             quickButtons = `
-                <button type="button" class="btn-quick-action action-open" title="Reabrir Ticket" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
+                <button type="button" class="btn-quick-action action-open" title="Reabrir Ticket" aria-label="Reabrir Ticket" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
                     🟡 Reabrir
                 </button>
-                <button type="button" class="btn-quick-action action-in-progress" title="Mover a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
+                <button type="button" class="btn-quick-action action-in-progress" title="Mover a En Progreso" aria-label="Mover a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
                     🔵 En Progreso
                 </button>
             `;
@@ -1009,7 +1009,7 @@ window.buildGridTicketCard = function (ticket, isReadOnly = false) {
                 <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'Ciudad')}</div>
                 <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
                 <div title="${window.escapeHtml(ticket.created_by_name || 'Desconocido')}"><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
-                <div title="${window.escapeHtml(ticket.assigned_technician ? `${ticket.assigned_technician} (${ticket.assigned_to_name || ''})` : (ticket.assigned_to_name || 'Sin asignar'))}"><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span style="font-weight: 700; color: #1e293b; background: #e0f2fe; padding: 2px 6px; border-radius: 4px;">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+                <div title="${window.escapeHtml(ticket.assigned_technician ? `${ticket.assigned_technician} (${ticket.assigned_to_name || ''})` : (ticket.assigned_to_name || 'Sin asignar'))}"><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             </div>
 
             ${quickButtons ? `<div class="ticket-quick-actions">${quickButtons}</div>` : ''}
@@ -1053,19 +1053,19 @@ window.renderTabbedTicketView = function (containerId, filteredTickets, activeTa
     const pageTickets = tabTickets.slice(startIdx, endIdx);
 
     const tabsHtml = `
-        <div class="ticket-tabs-container">
-            <button type="button" class="ticket-tab ${currentTab === 'open' ? 'active' : ''}" data-status="open" onclick="${onTabChangeFnName}('open')">
-                <span>🟡</span>
+        <div class="ticket-tabs-container" role="tablist" aria-label="Filtrar tickets por estado">
+            <button type="button" role="tab" aria-selected="${currentTab === 'open'}" class="ticket-tab ${currentTab === 'open' ? 'active' : ''}" data-status="open" onclick="${onTabChangeFnName}('open')">
+                <span aria-hidden="true">🟡</span>
                 <span>Pendientes</span>
                 <span class="tab-badge">${openCount}</span>
             </button>
-            <button type="button" class="ticket-tab ${currentTab === 'in-progress' ? 'active' : ''}" data-status="in-progress" onclick="${onTabChangeFnName}('in-progress')">
-                <span>🔵</span>
+            <button type="button" role="tab" aria-selected="${currentTab === 'in-progress'}" class="ticket-tab ${currentTab === 'in-progress' ? 'active' : ''}" data-status="in-progress" onclick="${onTabChangeFnName}('in-progress')">
+                <span aria-hidden="true">🔵</span>
                 <span>En Progreso</span>
                 <span class="tab-badge">${inProgressCount}</span>
             </button>
-            <button type="button" class="ticket-tab ${currentTab === 'closed' ? 'active' : ''}" data-status="closed" onclick="${onTabChangeFnName}('closed')">
-                <span>🟢</span>
+            <button type="button" role="tab" aria-selected="${currentTab === 'closed'}" class="ticket-tab ${currentTab === 'closed' ? 'active' : ''}" data-status="closed" onclick="${onTabChangeFnName}('closed')">
+                <span aria-hidden="true">🟢</span>
                 <span>Cerrados</span>
                 <span class="tab-badge">${closedCount}</span>
             </button>
@@ -1076,10 +1076,10 @@ window.renderTabbedTicketView = function (containerId, filteredTickets, activeTa
     if (pageTickets.length === 0) {
         const tabLabel = currentTab === 'open' ? 'pendientes' : (currentTab === 'in-progress' ? 'en progreso' : 'cerrados');
         contentHtml = `
-            <div style="padding: 3rem 1.5rem; text-align: center; color: #64748b; background: white; border-radius: 10px; border: 1px dashed #cbd5e1; margin-bottom: 1.5rem;">
-                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📭</div>
-                <h3 style="font-size: 1.1rem; color: #1e293b; margin-bottom: 0.25rem;">No hay tickets ${tabLabel}</h3>
-                <p style="font-size: 0.88rem;">No se encontraron tickets con los filtros y búsqueda actuales.</p>
+            <div class="empty-state-box">
+                <div class="empty-icon" aria-hidden="true">📭</div>
+                <h3>No hay tickets ${tabLabel}</h3>
+                <p>No se encontraron tickets con los filtros y búsqueda actuales.</p>
             </div>
         `;
     } else {
@@ -1122,10 +1122,10 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             window.showToast(successMessage, 'success');
         } else if (typeof window.showSuccess === 'function') {
             window.showSuccess(successMessage);
+        } else if (typeof window.showNotification === 'function') {
+            window.showNotification(successMessage, 'success');
         } else if (typeof showNotification === 'function') {
-            showNotification(`✅ ${successMessage}`, 'success');
-        } else {
-            alert(successMessage);
+            showNotification(successMessage, 'success');
         }
     }
 
@@ -1682,9 +1682,689 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             unlock,
             reset,
             sync,
-            isLocked: () => _isLocked
+            isLocked: () => _isLocked,
+            getVisibleModals
         };
     })();
+
+    // ==========================================
+    // GESTIÓN DE ACCESIBILIDAD Y TECLADO EN MODALES (WCAG 2.1 AA)
+    // ==========================================
+    let _lastActiveElementBeforeModal = null;
+
+    function getVisibleModals() {
+        const modalSelectors = [
+            '#coreUniversalLightbox',
+            '.confirm-dialog-overlay',
+            '#confirmActionModal',
+            '#shareTasksModalDialog',
+            '#shareReportModal',
+            '#taskDetailModalDialog',
+            '#taskModalDialog',
+            '#dayTasksModalDialog',
+            '#ticketModal',
+            '#userModal',
+            '#resetPasswordModal',
+            '#loginModal',
+            '#trackingModal',
+            '.task-modal-overlay',
+            '.ticket-detail-modal',
+            '.modal-overlay',
+            '.modal'
+        ];
+        const elements = document.querySelectorAll(modalSelectors.join(','));
+        const visible = [];
+        for (const el of elements) {
+            if (el.id === 'coreUniversalLightbox') {
+                if (el.style && el.style.display === 'flex') visible.push(el);
+                continue;
+            }
+            if (el.style && (el.style.display === 'flex' || el.style.display === 'block' || el.style.display === 'grid')) {
+                visible.push(el);
+                continue;
+            }
+            if (el.classList.contains('active') || el.classList.contains('show')) {
+                visible.push(el);
+                continue;
+            }
+            if (el.offsetParent !== null) {
+                const s = window.getComputedStyle(el);
+                if (s.display !== 'none' && s.visibility !== 'hidden' && s.opacity !== '0' && el.offsetHeight > 0) {
+                    visible.push(el);
+                }
+            }
+        }
+        return visible;
+    }
+
+    function trapFocusInModal(modal, event) {
+        if (!modal) return;
+        const focusableSelectors = [
+            'a[href]',
+            'button:not([disabled])',
+            'textarea:not([disabled])',
+            'input:not([disabled]):not([type="hidden"])',
+            'select:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])'
+        ];
+        const focusables = Array.from(modal.querySelectorAll(focusableSelectors.join(',')))
+            .filter(el => {
+                return el.offsetParent !== null && !el.hasAttribute('disabled') && window.getComputedStyle(el).visibility !== 'hidden';
+            });
+
+        if (focusables.length === 0) return;
+
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+
+        if (event.shiftKey) {
+            if (document.activeElement === first || !modal.contains(document.activeElement)) {
+                event.preventDefault();
+                last.focus();
+            }
+        } else {
+            if (document.activeElement === last || !modal.contains(document.activeElement)) {
+                event.preventDefault();
+                first.focus();
+            }
+        }
+    }
+
+    function closeTopmostModal() {
+        if (window.activeConfirmDialog) {
+            window.closeConfirmDialog();
+            return true;
+        }
+
+        const lightbox = document.getElementById('coreUniversalLightbox');
+        if (lightbox && lightbox.style.display === 'flex') {
+            if (typeof window.closeLightbox === 'function') {
+                window.closeLightbox();
+                return true;
+            }
+        }
+
+        const visibleModals = getVisibleModals();
+        if (visibleModals.length === 0) return false;
+
+        const topModal = visibleModals[visibleModals.length - 1];
+
+        // 1. Intentar clic en botón de cierre explícito dentro del modal
+        const closeBtn = topModal.querySelector('.close-modal, .modal-close, .btn-close, [data-modal-close], button[aria-label*="Cerrar" i]');
+        if (closeBtn && typeof closeBtn.click === 'function') {
+            closeBtn.click();
+            return true;
+        }
+
+        // 2. Funciones globales asociadas al ID del modal
+        const closeFnMap = {
+            'ticketModal': 'closeTicketModal',
+            'taskModalDialog': 'closeTaskModal',
+            'dayTasksModalDialog': 'closeDayTasksModal',
+            'taskDetailModalDialog': 'closeTaskDetailModal',
+            'shareTasksModalDialog': 'closeShareTasksModal',
+            'shareReportModal': 'closeShareModal',
+            'userModal': 'closeUserModal',
+            'resetPasswordModal': 'closeResetPasswordModal',
+            'confirmActionModal': 'closeConfirmActionModal',
+            'trackingModal': 'closeTrackingModal',
+            'loginModal': 'hideLogin'
+        };
+
+        if (topModal.id && closeFnMap[topModal.id] && typeof window[closeFnMap[topModal.id]] === 'function') {
+            window[closeFnMap[topModal.id]]();
+            return true;
+        }
+
+        // 3. Fallback de cierre directo
+        topModal.style.display = 'none';
+        if (window.ModalScrollLock) window.ModalScrollLock.unlock();
+        return true;
+    }
+
+    // Listener global de teclado para Escape y Focus Trap
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (closeTopmostModal()) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        } else if (e.key === 'Tab') {
+            const visibleModals = getVisibleModals();
+            if (visibleModals.length > 0) {
+                const topModal = visibleModals[visibleModals.length - 1];
+                trapFocusInModal(topModal, e);
+            }
+        }
+    });
+
+    // Guardar elemento activo antes de abrir modales para restaurarlo al cerrar
+    document.addEventListener('focusin', () => {
+        const visibleModals = getVisibleModals();
+        if (visibleModals.length === 0 && document.activeElement && document.activeElement !== document.body) {
+            _lastActiveElementBeforeModal = document.activeElement;
+        }
+    });
+
+    // Exponer restaurador de foco
+    window.restoreFocusAfterModal = function () {
+        if (_lastActiveElementBeforeModal && typeof _lastActiveElementBeforeModal.focus === 'function') {
+            try {
+                _lastActiveElementBeforeModal.focus();
+            } catch (e) { }
+            _lastActiveElementBeforeModal = null;
+        }
+    };
+
+    // ==========================================
+    // SISTEMA UNIFICADO DE NOTIFICACIONES TOAST (A11Y)
+    // ==========================================
+    window.showNotification = function (message, type = 'info', duration = 3500) {
+        if (!message) return;
+
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toastContainer';
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+        }
+
+        const safeType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+        const toast = document.createElement('div');
+        toast.className = `toast toast-${safeType}`;
+        toast.setAttribute('role', safeType === 'error' || safeType === 'warning' ? 'alert' : 'status');
+        toast.setAttribute('aria-live', 'polite');
+
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+
+        const iconSpan = document.createElement('span');
+        iconSpan.style.marginRight = '6px';
+        iconSpan.textContent = icons[safeType] || 'ℹ️';
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'toast-content';
+        contentDiv.textContent = message;
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'toast-close-btn';
+        closeBtn.setAttribute('aria-label', 'Cerrar notificación');
+        closeBtn.innerHTML = '&times;';
+
+        const dismissToast = () => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(24px)';
+            setTimeout(() => {
+                if (toast.parentNode) toast.remove();
+            }, 220);
+        };
+
+        closeBtn.onclick = dismissToast;
+
+        toast.appendChild(iconSpan);
+        toast.appendChild(contentDiv);
+        toast.appendChild(closeBtn);
+
+        // Limitar a máximo 4 toasts visibles simultáneos
+        while (container.children.length >= 4) {
+            container.removeChild(container.firstChild);
+        }
+
+        container.appendChild(toast);
+
+        if (duration > 0) {
+            setTimeout(dismissToast, duration);
+        }
+    };
+
+    // Alias global para compatibilidad con código existente
+    window.showToast = window.showNotification;
+
+    // ==========================================
+    // MODAL DE CONFIRMACIÓN UNIVERSAL ACCESIBLE
+    // ==========================================
+    window.activeConfirmDialog = null;
+
+    window.closeConfirmDialog = function () {
+        if (window.activeConfirmDialog && window.activeConfirmDialog.overlay) {
+            const overlay = window.activeConfirmDialog.overlay;
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+            }, 180);
+            if (window.ModalScrollLock) window.ModalScrollLock.unlock();
+            window.restoreFocusAfterModal();
+        }
+        window.activeConfirmDialog = null;
+    };
+
+    window.openConfirmDialog = function (options) {
+        const opts = options || {};
+        const title = opts.title || 'Confirmar acción';
+        const message = opts.message || '¿Estás seguro de continuar?';
+        const confirmLabel = opts.confirmLabel || 'Confirmar';
+        const cancelLabel = opts.cancelLabel || 'Cancelar';
+        const isDanger = opts.isDanger !== false;
+
+        window.closeConfirmDialog();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'confirm-dialog-overlay';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'confirm-dialog';
+        dialog.setAttribute('role', 'dialog');
+        dialog.setAttribute('aria-modal', 'true');
+        dialog.setAttribute('aria-labelledby', 'coreConfirmDialogTitle');
+        dialog.setAttribute('aria-describedby', 'coreConfirmDialogMsg');
+
+        const titleEl = document.createElement('div');
+        titleEl.id = 'coreConfirmDialogTitle';
+        titleEl.className = 'confirm-dialog-title';
+        titleEl.innerHTML = `<span>${isDanger ? '⚠️' : 'ℹ️'}</span><span>${window.escapeHtml ? window.escapeHtml(title) : title}</span>`;
+
+        const messageEl = document.createElement('div');
+        messageEl.id = 'coreConfirmDialogMsg';
+        messageEl.className = 'confirm-dialog-message';
+        messageEl.textContent = message;
+
+        const actions = document.createElement('div');
+        actions.className = 'confirm-dialog-actions';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.type = 'button';
+        cancelBtn.className = 'btn btn-outline';
+        cancelBtn.style.cssText = 'padding: 8px 16px; border-radius: 6px; cursor: pointer;';
+        cancelBtn.textContent = cancelLabel;
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
+        confirmBtn.className = isDanger ? 'btn btn-danger' : 'btn btn-primary';
+        confirmBtn.style.cssText = 'padding: 8px 16px; border-radius: 6px; cursor: pointer;';
+        confirmBtn.textContent = confirmLabel;
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(confirmBtn);
+
+        dialog.appendChild(titleEl);
+        dialog.appendChild(messageEl);
+        dialog.appendChild(actions);
+        overlay.appendChild(dialog);
+
+        const onConfirm = () => {
+            window.closeConfirmDialog();
+            if (typeof opts.onConfirm === 'function') {
+                opts.onConfirm();
+            }
+        };
+
+        const onCancel = () => {
+            window.closeConfirmDialog();
+            if (typeof opts.onCancel === 'function') {
+                opts.onCancel();
+            }
+        };
+
+        cancelBtn.addEventListener('click', onCancel);
+        confirmBtn.addEventListener('click', onConfirm);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) onCancel();
+        });
+
+        document.body.appendChild(overlay);
+        if (window.ModalScrollLock) window.ModalScrollLock.lock();
+
+        window.activeConfirmDialog = { overlay, onConfirm, onCancel };
+
+        setTimeout(() => {
+            (cancelBtn || confirmBtn).focus();
+        }, 50);
+    };
+
+    window.showConfirmDialog = function (options) {
+        return new Promise((resolve) => {
+            window.openConfirmDialog({
+                ...options,
+                onConfirm: () => {
+                    if (options && typeof options.onConfirm === 'function') options.onConfirm();
+                    resolve(true);
+                },
+                onCancel: () => {
+                    if (options && typeof options.onCancel === 'function') options.onCancel();
+                    resolve(false);
+                }
+            });
+        });
+    };
+
+    // ==========================================
+    // 16. UNIFICACIÓN DE SELECTOR DE USUARIO EN NAVBAR (Fase 3)
+    // ==========================================
+    /**
+     * Actualiza el nombre del usuario en cualquier variante de cabecera (#userName, #currentUserName, #headerUserName)
+     * evitando sobreescribir campos <input id="userName"> en modales de gestión de usuarios.
+     * @param {string} name
+     */
+    window.updateNavbarUserName = function (name) {
+        if (!name) return;
+        const selectors = [
+            '#currentUserName',
+            '#headerUserName',
+            '.navbar #userName',
+            '.user-info #userName',
+            'span#userName',
+            '[data-user-display]'
+        ];
+        selectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                if (el && el.tagName !== 'INPUT' && el.tagName !== 'TEXTAREA' && el.tagName !== 'SELECT') {
+                    el.textContent = name;
+                }
+            });
+        });
+    };
+
+    // ==========================================
+    // 17. SISTEMA UNIVERSAL DE SKELETON LOADERS (Fase 2)
+    // ==========================================
+    /**
+     * Genera una grilla de tarjetas skeleton para estados de carga de tickets.
+     * @param {number} [count=6]
+     * @returns {string}
+     */
+    window.renderSkeletonTicketGrid = function (count = 6) {
+        const cards = Array.from({ length: count }).map(() => `
+            <div class="skeleton-card" aria-hidden="true">
+                <div>
+                    <div class="skeleton skeleton-title"></div>
+                    <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+                        <span class="skeleton skeleton-badge"></span>
+                        <span class="skeleton skeleton-badge" style="width: 58px;"></span>
+                    </div>
+                    <div class="skeleton skeleton-line"></div>
+                    <div class="skeleton skeleton-line medium"></div>
+                </div>
+                <div style="padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                    <div class="skeleton skeleton-line short"></div>
+                    <div class="skeleton skeleton-line medium" style="margin-bottom: 0;"></div>
+                </div>
+            </div>
+        `).join('');
+
+        return `
+            <div class="tickets-grid-3x5" role="status" aria-busy="true" aria-label="Cargando tickets...">
+                <span class="visually-hidden">Cargando tickets...</span>
+                ${cards}
+            </div>
+        `;
+    };
+
+    /**
+     * Genera filas skeleton para tablas de datos (usuarios, reportes, enlaces compartidos).
+     * @param {number} [cols=6]
+     * @param {number} [rows=4]
+     * @returns {string}
+     */
+    window.renderSkeletonTableRows = function (cols = 6, rows = 4) {
+        return Array.from({ length: rows }).map(() => {
+            const cells = Array.from({ length: cols }).map((_, i) => `
+                <td>
+                    <div class="skeleton skeleton-line ${i === 0 ? 'medium' : (i === cols - 1 ? 'short' : '')}" style="margin-bottom: 0;"></div>
+                </td>
+            `).join('');
+            return `<tr aria-hidden="true">${cells}</tr>`;
+        }).join('');
+    };
+
+    /**
+     * Genera bloques skeleton para detalles o historial dentro de un modal.
+     * @returns {string}
+     */
+    window.renderSkeletonDetails = function () {
+        return `
+            <div role="status" aria-busy="true" aria-label="Cargando detalles..." style="padding: 12px 0;">
+                <span class="visually-hidden">Cargando detalles...</span>
+                <div class="skeleton skeleton-title" style="width: 55%; margin-bottom: 14px;"></div>
+                <div class="skeleton skeleton-line"></div>
+                <div class="skeleton skeleton-line medium"></div>
+                <div class="skeleton skeleton-line short" style="margin-bottom: 16px;"></div>
+                <div class="skeleton skeleton-line"></div>
+                <div class="skeleton skeleton-line medium"></div>
+            </div>
+        `;
+    };
+
+    // ==========================================
+    // 18. SINCRONIZADOR AUTOMÁTICO DE TABLAS RESPONSIVAS (Fase 4)
+    // ==========================================
+    /**
+     * Sincroniza automáticamente los encabezados <th> de cualquier tabla hacia el atributo data-label
+     * de cada celda <td> para que en pantallas móviles (<768px) se rendericen como tarjetas clave-valor.
+     * @param {ParentNode} [root=document]
+     */
+    window.syncResponsiveTables = function (root = document) {
+        if (!root || typeof root.querySelectorAll !== 'function') return;
+        const tables = root.querySelectorAll('table');
+        tables.forEach(table => {
+            if (!table.classList.contains('responsive-table')) {
+                table.classList.add('responsive-table');
+            }
+            const headers = Array.from(table.querySelectorAll('thead th')).map(th => (th.textContent || '').trim());
+            if (headers.length === 0) return;
+
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                cells.forEach((td, idx) => {
+                    if (td.hasAttribute('colspan')) return;
+                    if (!td.getAttribute('data-label') && headers[idx]) {
+                        td.setAttribute('data-label', headers[idx]);
+                    }
+                });
+            });
+        });
+    };
+
+    let _tableSyncScheduled = false;
+    function scheduleTableSync() {
+        if (_tableSyncScheduled) return;
+        _tableSyncScheduled = true;
+        requestAnimationFrame(() => {
+            _tableSyncScheduled = false;
+            window.syncResponsiveTables(document);
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            window.syncResponsiveTables(document);
+            if (window.MutationObserver && document.body) {
+                const observer = new MutationObserver((mutations) => {
+                    for (const m of mutations) {
+                        if (m.type === 'childList' && m.addedNodes.length > 0) {
+                            scheduleTableSync();
+                            break;
+                        }
+                    }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            }
+        });
+    } else {
+        window.syncResponsiveTables(document);
+        if (window.MutationObserver && document.body) {
+            const observer = new MutationObserver((mutations) => {
+                for (const m of mutations) {
+                    if (m.type === 'childList' && m.addedNodes.length > 0) {
+                        scheduleTableSync();
+                        break;
+                    }
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+        }
+    }
 })();
+
+// ==========================================
+// 19. GESTOR GLOBAL DE MODO OSCURO (ThemeManager)
+// ==========================================
+(function () {
+    const STORAGE_KEY = 'ticket_theme';
+
+    function getStoredTheme() {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved === 'dark' || saved === 'light') return saved;
+        } catch (_) {}
+        return null;
+    }
+
+    function getPreferredTheme() {
+        const stored = getStoredTheme();
+        if (stored) return stored;
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            return 'dark';
+        }
+        return 'light';
+    }
+
+    function syncChartColors(isDark) {
+        if (!window.Chart || !window.Chart.instances) return;
+        const textColor = isDark ? '#cbd5e1' : '#4b5563';
+        const gridColor = isDark ? 'rgba(148, 163, 184, 0.14)' : 'rgba(0, 0, 0, 0.06)';
+        try {
+            Object.values(window.Chart.instances).forEach(chart => {
+                if (!chart || !chart.options) return;
+                if (chart.options.scales) {
+                    Object.values(chart.options.scales).forEach(scale => {
+                        if (scale.ticks) scale.ticks.color = textColor;
+                        if (scale.grid) scale.grid.color = gridColor;
+                    });
+                }
+                if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                    chart.options.plugins.legend.labels.color = textColor;
+                }
+                chart.update('none');
+            });
+        } catch (_) {}
+    }
+
+    function updateToggleButtons(theme) {
+        const isDark = theme === 'dark';
+        const label = isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+        const icon = isDark ? '☀️' : '🌙';
+        document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            btn.innerHTML = `<span aria-hidden="true">${icon}</span>`;
+            btn.setAttribute('aria-label', label);
+            btn.setAttribute('title', label);
+            btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+        });
+    }
+
+    function applyTheme(theme, persist = false) {
+        const normalized = theme === 'dark' ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', normalized);
+        if (document.body) {
+            document.body.classList.toggle('dark-mode', normalized === 'dark');
+        }
+        if (persist) {
+            try {
+                localStorage.setItem(STORAGE_KEY, normalized);
+            } catch (_) {}
+        }
+        updateToggleButtons(normalized);
+        syncChartColors(normalized === 'dark');
+        window.dispatchEvent(new CustomEvent('themechange', { detail: { theme: normalized } }));
+    }
+
+    function mountToggleButton() {
+        if (document.querySelector('.theme-toggle-btn')) {
+            updateToggleButtons(getPreferredTheme());
+            return;
+        }
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'themeToggleBtn';
+        btn.className = 'theme-toggle-btn';
+        btn.addEventListener('click', () => window.ThemeManager.toggle());
+
+        const userInfo = document.querySelector('.navbar .user-info');
+        const navbarActions = document.querySelector('.navbar .navbar-actions');
+        const publicNavActions = document.querySelector('.public-navbar .nav-actions');
+        const headerActions = document.querySelector('.header .header-actions');
+
+        if (userInfo) {
+            const anchor = userInfo.querySelector('.notification-wrapper') || userInfo.querySelector('.logout-btn');
+            if (anchor) {
+                userInfo.insertBefore(btn, anchor);
+            } else {
+                userInfo.appendChild(btn);
+            }
+        } else if (navbarActions) {
+            navbarActions.insertBefore(btn, navbarActions.firstChild);
+        } else if (publicNavActions) {
+            publicNavActions.insertBefore(btn, publicNavActions.firstChild);
+        } else if (headerActions) {
+            headerActions.appendChild(btn);
+        }
+
+        updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
+    }
+
+    window.ThemeManager = {
+        getTheme() {
+            return document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+        },
+        setTheme(theme) {
+            applyTheme(theme, true);
+        },
+        toggle() {
+            const next = this.getTheme() === 'dark' ? 'light' : 'dark';
+            applyTheme(next, true);
+            return next;
+        },
+        mount: mountToggleButton
+    };
+
+    window.toggleDarkMode = function () {
+        return window.ThemeManager.toggle();
+    };
+
+    // Aplicar de inmediato antes del primer renderizado para evitar parpadeos (FOUC)
+    applyTheme(getPreferredTheme(), false);
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            applyTheme(getPreferredTheme(), false);
+            mountToggleButton();
+        });
+    } else {
+        applyTheme(getPreferredTheme(), false);
+        mountToggleButton();
+    }
+
+    // Escuchar cambios del sistema operativo si el usuario no fijó preferencia manual
+    if (window.matchMedia) {
+        try {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (!getStoredTheme()) {
+                    applyTheme(e.matches ? 'dark' : 'light', false);
+                }
+            });
+        } catch (_) {}
+    }
+})();
+
+
+
 
 
