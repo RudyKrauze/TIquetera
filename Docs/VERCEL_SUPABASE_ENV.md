@@ -19,10 +19,10 @@ ALLOWED_ORIGINS=https://tu-app-tiquetera.vercel.app
 # ==========================================
 # SEGURIDAD (JWT Y CREDENCIALES DE ADMIN)
 # ==========================================
-# Reemplazar con una clave aleatoria de 64 o 128 caracteres
-JWT_SECRET=gOHPWPWmn5wn4rRHSKBAQ7fwFFI3QJ21CvuhV3UM7M7ABgW78AYb6CsmEympi9/oP+iO4TnMs6XVX+7+N292xQ==
-ADMIN_EMAIL=admin@tiquetera.com
-ADMIN_PASSWORD=admin123
+# Reemplazar con una clave aleatoria de 64 o 128 caracteres (node -e "console.log(require('crypto').randomBytes(64).toString('base64'))")
+JWT_SECRET=<TU_JWT_SECRET_ALEATORIO_AQUI>
+ADMIN_EMAIL=admin@tu-dominio.com
+ADMIN_PASSWORD=<TU_PASSWORD_ADMIN_SEGURO_AQUI>
 
 # ==========================================
 # BASE DE DATOS (SUPABASE TRANSACTION POOLER)
@@ -35,8 +35,8 @@ DB_POOL_MAX=5
 # ==========================================
 # NOTIFICACIONES PUSH (VAPID KEYS)
 # ==========================================
-VAPID_PUBLIC_KEY=BIIEIYnOFClKHR4iTGOH0h-Wxzpz7_8ErCrg_lhtrdGtwco-GNnEGlyiwESVpQjinZhvqiRstswKob5J0RRQjZI
-VAPID_PRIVATE_KEY=gEU58CmXpcm_FW2Z2M8WhqTHKv3RdQVK3EPfPsfnAog
+VAPID_PUBLIC_KEY=<TU_VAPID_PUBLIC_KEY_AQUI>
+VAPID_PRIVATE_KEY=<TU_VAPID_PRIVATE_KEY_AQUI>
 VAPID_SUBJECT=mailto:soporte@tu-dominio.com
 
 # ==========================================
@@ -45,7 +45,7 @@ VAPID_SUBJECT=mailto:soporte@tu-dominio.com
 SMTP_HOST=mail.tu-dominio.com
 SMTP_PORT=587
 SMTP_USER=notificaciones@tu-dominio.com
-SMTP_PASS=TuPasswordSMTP123!
+SMTP_PASS=<TU_PASSWORD_SMTP_AQUI>
 EMAIL_FROM="Sistema de Tickets <noreply@tu-dominio.com>"
 ```
 

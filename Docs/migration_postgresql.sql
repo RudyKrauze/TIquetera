@@ -85,7 +85,5 @@ CREATE TRIGGER update_tickets_updated_at
 -- - support: Gestión de tickets, puede ser asignado
 -- - facturacion, rrhh, contact: Roles departamentales con acceso a sus tickets
 
--- Nota: Los usuarios por defecto se crearán automáticamente al iniciar el servidor
--- si no existen en la tabla system_config
--- Usuario administrador: admin@tiquetera.com / admin123
--- Usuario gerencia: gerencia@tiquetera.com / gerencia123
+-- Nota: Los usuarios iniciales se crearán automáticamente al iniciar el servidor (db_init.js)
+-- utilizando las contraseñas configuradas en las variables de entorno (.env).

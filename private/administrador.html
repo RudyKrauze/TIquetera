@@ -17,6 +17,7 @@
   </head>
 
   <body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
     <div class="navbar">
       <div class="navbar-brand">
         <a
@@ -133,7 +134,7 @@
       </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="main-content" tabindex="-1">
       <div class="stats-grid" id="statsGrid">
         <!-- Stats will be populated by JavaScript -->
       </div>
@@ -161,7 +162,8 @@
                 onchange="applyFilters()"
               >
                 <option value="">⚠️ Todas las prioridades</option>
-                <option value="high">🔴 Alta</option>
+                <option value="urgent">🔴 Urgente</option>
+                <option value="high">🟠 Alta</option>
                 <option value="medium">🟡 Media</option>
                 <option value="low">🟢 Baja</option>
               </select>

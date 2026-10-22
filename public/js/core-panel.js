@@ -2368,3 +2368,425 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
 
 
 
+
+// ==========================================================================
+// 20. CONTRATO SDD v2.0 — ACCESIBILIDAD WCAG 2.2 AA, ESTADOS Y COMPONENTES
+// ==========================================================================
+(function () {
+    /**
+     * Etiqueta visual semántica unificada para prioridades (incluyendo Urgente vs Alta).
+     * @param {string} priority
+     * @returns {string}
+     */
+    window.formatPriorityLabel = function (priority) {
+        switch ((priority || 'medium').toLowerCase()) {
+            case 'urgent': return '🔴 Urgente';
+            case 'high': return '🟠 Alta';
+            case 'medium': return '🟡 Media';
+            case 'low': return '🟢 Baja';
+            default: return '🟡 Media';
+        }
+    };
+
+    /**
+     * Manejador de teclado accesible (Enter / Space) para abrir el detalle de un ticket.
+     * @param {KeyboardEvent} event
+     * @param {number|string} ticketId
+     */
+    window.handleCardTriggerKeydown = function (event, ticketId) {
+        if (!event) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            event.stopPropagation();
+            if (typeof showTicketDetails === 'function') {
+                showTicketDetails(ticketId);
+            } else if (typeof window.showTicketDetails === 'function') {
+                window.showTicketDetails(ticketId);
+            }
+        }
+    };
+
+    /**
+     * Anunciador global aria-live="polite" para cambios dinámicos de filtros y paginación.
+     * @param {string} message
+     */
+    window.announceA11yStatus = function (message) {
+        if (!message || !document.body) return;
+        let announcer = document.getElementById('a11yStatusAnnouncer');
+        if (!announcer) {
+            announcer = document.createElement('div');
+            announcer.id = 'a11yStatusAnnouncer';
+            announcer.className = 'visually-hidden';
+            announcer.setAttribute('aria-live', 'polite');
+            announcer.setAttribute('aria-atomic', 'true');
+            document.body.appendChild(announcer);
+        }
+        announcer.textContent = '';
+        requestAnimationFrame(() => {
+            announcer.textContent = message;
+        });
+    };
+
+    /**
+     * Detecta si existen filtros activos de búsqueda, prioridad, sede o fechas en la vista actual.
+     * @returns {boolean}
+     */
+    window.hasActiveTicketFilters = function () {
+        const ids = ['searchInput', 'priorityFilter', 'startDateFilter', 'endDateFilter', 'sedeFilter', 'departmentFilter'];
+        return ids.some(id => {
+            const el = document.getElementById(id);
+            return el && typeof el.value === 'string' && el.value.trim() !== '' && el.value !== 'all';
+        });
+    };
+
+    /**
+     * Restablece todos los filtros activos de tickets y refresca la vista (CTA Empty State).
+     */
+    window.resetAllTicketFilters = function () {
+        const ids = ['searchInput', 'priorityFilter', 'startDateFilter', 'endDateFilter', 'sedeFilter', 'departmentFilter'];
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (el.tagName === 'SELECT') {
+                const hasEmpty = Array.from(el.options).some(o => o.value === '');
+                el.value = hasEmpty ? '' : el.options[0]?.value || '';
+            } else {
+                el.value = '';
+                el.removeAttribute('min');
+            }
+        });
+        if (typeof applyFilters === 'function') {
+            applyFilters();
+        } else if (typeof window.applyFilters === 'function') {
+            window.applyFilters();
+        }
+        window.announceA11yStatus('Filtros restablecidos. Mostrando todos los tickets.');
+    };
+
+    /**
+     * Genera tarjetas skeleton para la fila de KPIs (#statsGrid) evitando Layout Shift (CLS).
+     * @param {number} [count=4]
+     * @returns {string}
+     */
+    window.renderSkeletonStats = function (count = 4) {
+        return Array.from({ length: count }).map(() => `
+            <div class="skeleton-stat-card" aria-hidden="true">
+                <div class="skeleton skeleton-title" style="width: 45%; height: 28px; margin-bottom: 4px;"></div>
+                <div class="skeleton skeleton-line short" style="width: 68%; height: 14px; margin-bottom: 0;"></div>
+            </div>
+        `).join('');
+    };
+
+    /**
+     * Validador de formularios accesible (WCAG 3.3.1 / 3.3.2).
+     */
+    window.A11yFormValidator = {
+        setFieldError(inputEl, errorEl, message) {
+            if (!inputEl) return;
+            inputEl.classList.add('invalid');
+            inputEl.classList.remove('valid');
+            inputEl.setAttribute('aria-invalid', 'true');
+            if (errorEl) {
+                if (errorEl.id) {
+                    inputEl.setAttribute('aria-describedby', errorEl.id);
+                }
+                if (message) errorEl.textContent = message;
+                errorEl.setAttribute('role', 'alert');
+                errorEl.classList.add('show');
+            }
+        },
+        clearFieldError(inputEl, errorEl, markValid = true) {
+            if (!inputEl) return;
+            inputEl.classList.remove('invalid');
+            if (markValid && inputEl.value && inputEl.value.trim()) {
+                inputEl.classList.add('valid');
+            }
+            inputEl.setAttribute('aria-invalid', 'false');
+            if (errorEl) {
+                errorEl.classList.remove('show');
+            }
+        }
+    };
+
+    // Sobrescribir constructores de tarjetas con soporte para prioridad 'urgent' y WCAG 4.1.2
+    window.buildVerticalTicketCard = function (ticket) {
+        const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
+        const priority = (ticket.priority || 'medium').toLowerCase();
+        const priorityPill = window.formatPriorityLabel(priority);
+        const statusText = window.getStatusText ? window.getStatusText(ticket.status) : ticket.status;
+        const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
+        const relativeTime = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : '';
+        const formattedDate = window.formatDate ? window.formatDate(ticket.created_at) : '';
+
+        return `
+        <div class="ticket-item ticket-card-vertical priority-${priority}"
+             onclick="showTicketDetails(${ticket.id})"
+             onkeydown="window.handleCardTriggerKeydown(event, ${ticket.id})"
+             tabindex="0"
+             role="button"
+             aria-label="Ver detalles del ticket ${window.escapeHtml(trackingId)}: ${window.escapeHtml(ticket.title)} (${statusText}, prioridad ${window.getPriorityText(priority)})">
+            <div class="ticket-header">
+                <div class="ticket-title">${window.escapeHtml(ticket.title)}</div>
+                <div class="ticket-meta">
+                    <span class="ticket-status status-${ticket.status}">${statusText}</span>
+                    <span class="ticket-priority-pill priority-pill-${priority}">${priorityPill}</span>
+                    ${isNew ? '<span class="badge-new">✨ NUEVO</span>' : ''}
+                    <span class="ticket-tracking-chip">🔍 ${window.escapeHtml(trackingId)}</span>
+                    <span class="ticket-meta-time">${relativeTime}</span>
+                </div>
+            </div>
+            ${ticket.description ? `<div class="ticket-description">${window.escapeHtml(ticket.description).substring(0, 140)}${ticket.description.length > 140 ? '...' : ''}</div>` : ''}
+            <div class="ticket-info">
+                <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
+                <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
+                <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
+                <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+                <div><strong>📅 Fecha:</strong> ${formattedDate}</div>
+            </div>
+        </div>
+        `;
+    };
+
+    window.buildKanbanCard = function (ticket, isReadOnly = false) {
+        const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
+        const priority = (ticket.priority || 'medium').toLowerCase();
+        const statusText = window.getStatusText ? window.getStatusText(ticket.status) : ticket.status;
+        const priorityPill = window.formatPriorityLabel(priority);
+        const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
+        const timeAgo = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : '';
+
+        return `
+        <div class='ticket-item kanban-card priority-${priority}'
+             onclick='showTicketDetails(${ticket.id})'
+             draggable='${!isReadOnly}'
+             data-ticket-id='${ticket.id}'
+             data-status='${ticket.status}'
+             tabindex="0"
+             role="button"
+             aria-label="Ticket ${window.escapeHtml(trackingId)} - ${statusText} - Prioridad ${window.getPriorityText(priority)}"
+             onkeydown='if(typeof handleTicketKeydown === "function") handleTicketKeydown(event, ${ticket.id}, "${ticket.status}"); else window.handleCardTriggerKeydown(event, ${ticket.id});'
+             oncontextmenu='${isReadOnly ? "event.preventDefault();" : `openTicketContextMenu(event, ${ticket.id}, "${ticket.status}")`}'
+             ondragstart='${isReadOnly ? "event.preventDefault();" : "handleKanbanDragStart(event)"}'
+             ondragend='handleKanbanDragEnd(event)'>
+            <div class="ticket-header">
+                <div class="ticket-title">${window.escapeHtml(ticket.title)}</div>
+                <div class="ticket-meta">
+                    <span class="ticket-status status-${ticket.status}">${statusText}</span>
+                    <span class="ticket-priority-pill priority-pill-${priority}">${priorityPill}</span>
+                    ${isNew ? '<span class="badge-new">✨ NUEVO</span>' : ''}
+                    <span class="ticket-tracking-chip">🔍 ${window.escapeHtml(trackingId)}</span>
+                    <span class="ticket-meta-time">${timeAgo}</span>
+                </div>
+            </div>
+            ${ticket.description ? `<div class="ticket-description">${window.escapeHtml(ticket.description).substring(0, 95)}${ticket.description.length > 95 ? '...' : ''}</div>` : ''}
+            <div class="ticket-info">
+                <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'No especificada')}</div>
+                <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
+                <div><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
+                <div><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+            </div>
+        </div>
+        `;
+    };
+
+    window.buildGridTicketCard = function (ticket, isReadOnly = false) {
+        const trackingId = ticket.tracking_id || `TKT-${String(ticket.id).padStart(5, '0')}`;
+        const status = ticket.status || 'open';
+        const priority = (ticket.priority || 'medium').toLowerCase();
+        const statusText = window.getStatusText ? window.getStatusText(status) : status;
+        const priorityPill = window.formatPriorityLabel(priority);
+        const isNew = (ticket.status === 'open' && window.isNewTicket) ? window.isNewTicket(ticket.created_at) : false;
+        const timeAgo = window.formatRelativeTime ? window.formatRelativeTime(ticket.created_at) : '';
+
+        let quickButtons = '';
+        if (!isReadOnly) {
+            if (status === 'open') {
+                quickButtons = `
+                    <button type="button" class="btn-quick-action action-in-progress" title="Mover ticket ${window.escapeHtml(trackingId)} a En Progreso" aria-label="Mover ticket ${window.escapeHtml(trackingId)} a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
+                        🔵 En Progreso
+                    </button>
+                    <button type="button" class="btn-quick-action action-closed" title="Cerrar ticket ${window.escapeHtml(trackingId)}" aria-label="Cerrar ticket ${window.escapeHtml(trackingId)}" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
+                        🟢 Cerrar
+                    </button>
+                `;
+            } else if (status === 'in-progress') {
+                quickButtons = `
+                    <button type="button" class="btn-quick-action action-open" title="Mover ticket ${window.escapeHtml(trackingId)} a Pendiente" aria-label="Mover ticket ${window.escapeHtml(trackingId)} a Pendiente" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
+                        🟡 Pendiente
+                    </button>
+                    <button type="button" class="btn-quick-action action-closed" title="Cerrar ticket ${window.escapeHtml(trackingId)}" aria-label="Cerrar ticket ${window.escapeHtml(trackingId)}" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'closed');">
+                        🟢 Cerrar
+                    </button>
+                `;
+            } else if (status === 'closed') {
+                quickButtons = `
+                    <button type="button" class="btn-quick-action action-open" title="Reabrir ticket ${window.escapeHtml(trackingId)}" aria-label="Reabrir ticket ${window.escapeHtml(trackingId)}" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'open');">
+                        🟡 Reabrir
+                    </button>
+                    <button type="button" class="btn-quick-action action-in-progress" title="Mover ticket ${window.escapeHtml(trackingId)} a En Progreso" aria-label="Mover ticket ${window.escapeHtml(trackingId)} a En Progreso" onclick="event.stopPropagation(); window.triggerTicketStatusChange(${ticket.id}, 'in-progress');">
+                        🔵 En Progreso
+                    </button>
+                `;
+            }
+        }
+
+        // Uso de <article> con .ticket-card-trigger hermano de .ticket-quick-actions (cumple WCAG 4.1.2)
+        return `
+        <article class="ticket-item ticket-grid-card priority-${priority}"
+                 onclick="showTicketDetails(${ticket.id})">
+            <div class="ticket-card-trigger"
+                 tabindex="0"
+                 role="button"
+                 aria-label="Ver detalles del ticket ${window.escapeHtml(trackingId)}: ${window.escapeHtml(ticket.title)} (${statusText}, prioridad ${window.getPriorityText(priority)})"
+                 onkeydown="window.handleCardTriggerKeydown(event, ${ticket.id})">
+                <div class="ticket-header">
+                    <div class="ticket-title" title="${window.escapeHtml(ticket.title)}">${window.escapeHtml(ticket.title)}</div>
+                </div>
+                <div class="ticket-meta">
+                    <span class="ticket-status status-${ticket.status}">${statusText}</span>
+                    <span class="ticket-priority-pill priority-pill-${priority}">${priorityPill}</span>
+                    ${isNew ? '<span class="badge-new">✨ NUEVO</span>' : ''}
+                    <span class="ticket-tracking-chip">🔍 ${window.escapeHtml(trackingId)}</span>
+                    <span class="ticket-meta-time">${timeAgo}</span>
+                </div>
+                ${ticket.description ? `<div class="ticket-description" title="${window.escapeHtml(ticket.description)}">${window.escapeHtml(ticket.description)}</div>` : ''}
+            </div>
+
+            <div>
+                <div class="ticket-info">
+                    <div><strong>📍 Sede:</strong> ${window.escapeHtml(ticket.sede || 'Ciudad')}</div>
+                    <div><strong>📁 Depto:</strong> ${window.escapeHtml(ticket.department || 'General')}</div>
+                    <div title="${window.escapeHtml(ticket.created_by_name || 'Desconocido')}"><strong>👤 Solicitante:</strong> ${window.escapeHtml(ticket.created_by_name || 'Desconocido')}</div>
+                    <div title="${window.escapeHtml(ticket.assigned_technician ? `${ticket.assigned_technician} (${ticket.assigned_to_name || ''})` : (ticket.assigned_to_name || 'Sin asignar'))}"><strong>🛠️ Asignado:</strong> ${ticket.assigned_technician ? `<span class="assigned-tech-badge">👤 ${window.escapeHtml(ticket.assigned_technician)}</span>` : window.escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
+                </div>
+
+                ${quickButtons ? `<div class="ticket-quick-actions">${quickButtons}</div>` : ''}
+            </div>
+        </article>
+        `;
+    };
+
+    window.renderTabbedTicketView = function (containerId, filteredTickets, activeTab, tabPages, onTabChangeFnName = 'switchTicketTab', onPageChangeFnName = 'changeTabPage', isReadOnly = false) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const allTicketsList = Array.isArray(filteredTickets) ? filteredTickets : [];
+
+        const openCount = allTicketsList.filter(t => t.status === 'open').length;
+        const inProgressCount = allTicketsList.filter(t => t.status === 'in-progress').length;
+        const closedCount = allTicketsList.filter(t => t.status === 'closed').length;
+
+        const currentTab = activeTab || 'open';
+        const tabTickets = allTicketsList.filter(t => t.status === currentTab);
+
+        const itemsPerPage = window.ITEMS_PER_GRID_PAGE || 15;
+        const totalItems = tabTickets.length;
+        const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+        let currentPage = tabPages && tabPages[currentTab] ? tabPages[currentTab] : 1;
+        if (currentPage > totalPages) currentPage = totalPages;
+        if (currentPage < 1) currentPage = 1;
+        if (tabPages) tabPages[currentTab] = currentPage;
+
+        const startIdx = (currentPage - 1) * itemsPerPage;
+        const endIdx = startIdx + itemsPerPage;
+        const pageTickets = tabTickets.slice(startIdx, endIdx);
+
+        const tabsHtml = `
+            <div class="ticket-tabs-container" role="tablist" aria-label="Filtrar tickets por estado">
+                <button type="button" role="tab" aria-selected="${currentTab === 'open'}" class="ticket-tab ${currentTab === 'open' ? 'active' : ''}" data-status="open" onclick="${onTabChangeFnName}('open')">
+                    <span aria-hidden="true">🟡</span>
+                    <span>Pendientes</span>
+                    <span class="tab-badge">${openCount}</span>
+                </button>
+                <button type="button" role="tab" aria-selected="${currentTab === 'in-progress'}" class="ticket-tab ${currentTab === 'in-progress' ? 'active' : ''}" data-status="in-progress" onclick="${onTabChangeFnName}('in-progress')">
+                    <span aria-hidden="true">🔵</span>
+                    <span>En Progreso</span>
+                    <span class="tab-badge">${inProgressCount}</span>
+                </button>
+                <button type="button" role="tab" aria-selected="${currentTab === 'closed'}" class="ticket-tab ${currentTab === 'closed' ? 'active' : ''}" data-status="closed" onclick="${onTabChangeFnName}('closed')">
+                    <span aria-hidden="true">🟢</span>
+                    <span>Cerrados</span>
+                    <span class="tab-badge">${closedCount}</span>
+                </button>
+            </div>
+        `;
+
+        const tabLabel = currentTab === 'open' ? 'pendientes' : (currentTab === 'in-progress' ? 'en progreso' : 'cerrados');
+        let contentHtml = '';
+        if (pageTickets.length === 0) {
+            const hasFilters = window.hasActiveTicketFilters();
+            contentHtml = `
+                <div class="empty-state-box" role="status">
+                    <div class="empty-icon" aria-hidden="true">${hasFilters ? '🔍' : '📭'}</div>
+                    <h3>No hay tickets ${tabLabel}</h3>
+                    <p>${hasFilters ? 'No se encontraron tickets que coincidan con los filtros o búsqueda aplicados.' : 'Actualmente no existen tickets registrados en este estado.'}</p>
+                    ${hasFilters ? `<button type="button" class="btn btn-outline btn-sm empty-state-cta" onclick="window.resetAllTicketFilters()">🔄 Limpiar filtros activos</button>` : ''}
+                </div>
+            `;
+        } else {
+            contentHtml = `
+                <div class="tickets-grid-3x5">
+                    ${pageTickets.map(t => window.buildGridTicketCard(t, isReadOnly)).join('')}
+                </div>
+            `;
+        }
+
+        container.innerHTML = tabsHtml + contentHtml;
+
+        const pagContainer = document.getElementById('paginationContainer');
+        if (pagContainer) {
+            if (totalItems > 0) {
+                window.renderUniversalPagination('paginationContainer', currentPage, totalItems, itemsPerPage, onPageChangeFnName);
+            } else {
+                pagContainer.style.display = 'none';
+            }
+        }
+
+        window.announceA11yStatus(`Mostrando ${pageTickets.length} de ${totalItems} tickets ${tabLabel}. Página ${currentPage} de ${totalPages}.`);
+    };
+
+    // Navegación por flechas (ArrowLeft / ArrowRight) para cualquier contenedor role="tablist"
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+        const target = e.target;
+        if (!target || target.getAttribute('role') !== 'tab') return;
+        const tablist = target.closest('[role="tablist"]');
+        if (!tablist) return;
+
+        const tabs = Array.from(tablist.querySelectorAll('[role="tab"]:not([disabled])'));
+        if (tabs.length <= 1) return;
+
+        const idx = tabs.indexOf(target);
+        if (idx === -1) return;
+
+        e.preventDefault();
+        const nextIdx = e.key === 'ArrowRight'
+            ? (idx + 1) % tabs.length
+            : (idx - 1 + tabs.length) % tabs.length;
+
+        const nextTab = tabs[nextIdx];
+        if (nextTab) {
+            nextTab.focus();
+            nextTab.click();
+        }
+    });
+
+    // Inicializar Skeletons automáticamente en #statsGrid y #ticketsList si están vacíos al arrancar
+    function mountInitialSkeletons() {
+        const statsGrid = document.getElementById('statsGrid');
+        if (statsGrid && statsGrid.children.length === 0) {
+            statsGrid.innerHTML = window.renderSkeletonStats(4);
+        }
+        const ticketsList = document.getElementById('ticketsList');
+        if (ticketsList && ticketsList.children.length === 0) {
+            ticketsList.innerHTML = window.renderSkeletonTicketGrid(6);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', mountInitialSkeletons);
+    } else {
+        mountInitialSkeletons();
+    }
+})();

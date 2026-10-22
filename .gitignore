@@ -22,6 +22,10 @@ lerna-debug.log*
 *.dump
 *.sql.gz
 *.tar.gz
+*backup*.sql
+supabase_migration.sql
+Docs/backup_tiquetera.sql
+Docs/migrations/migration_backup.sql
 backups/*
 !backups/.gitkeep
 
@@ -56,7 +60,7 @@ desktop.ini
 *.swo
 *~
 
-# 8. Archivos temporales y caché
+# 8. Archivos temporales, túneles locales y caché
 *.tmp
 *.temp
 .cache/
@@ -64,9 +68,4 @@ desktop.ini
 scratch/
 coverage/
 .nyc_output/
-
-# 9. LOCAL
-README.md
-*docker
-*.js
-server.js
+config.yml

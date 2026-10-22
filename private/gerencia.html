@@ -16,7 +16,8 @@
     <link rel="stylesheet" href="/css/design-system.css?v=4.0">
 </head>
 
-<body style="visibility: hidden; opacity: 0;">
+<body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
     <div class="navbar">
         <div class="navbar-brand">
             <a href="/" style="display: flex; align-items: center; text-decoration: none;">
@@ -85,16 +86,16 @@
         </div>
     </div>
 
-    <div class="container">
+    <div class="container" id="main-content" tabindex="-1">
         <!-- Pestañas de Navegación -->
-        <div class="maint-tabs-container">
-            <button class="maint-tab-btn active" id="tabTicketsBtn" onclick="switchGerenciaTab('tickets')">
+        <div class="maint-tabs-container" role="tablist" aria-label="Vistas del panel de gerencia">
+            <button class="maint-tab-btn active" id="tabTicketsBtn" role="tab" aria-selected="true" onclick="switchGerenciaTab('tickets')">
                 🎫 Mis Tickets Asignados <span class="tab-badge" id="ticketsCountBadge">0</span>
             </button>
-            <button class="maint-tab-btn" id="tabTasksBtn" onclick="switchGerenciaTab('tasks')">
+            <button class="maint-tab-btn" id="tabTasksBtn" role="tab" aria-selected="false" onclick="switchGerenciaTab('tasks')">
                 📋 Tablero de Tareas & Calendario <span class="tab-badge" id="tasksCountBadge">0</span>
             </button>
-            <button class="maint-tab-btn" id="tabUsersBtn" onclick="switchGerenciaTab('users')">
+            <button class="maint-tab-btn" id="tabUsersBtn" role="tab" aria-selected="false" onclick="switchGerenciaTab('users')">
                 👥 Usuarios
             </button>
         </div>
@@ -112,12 +113,12 @@
                 <div class="header-actions">
                     <div class="filters">
                         <!-- Selector de ámbito de tickets -->
-                        <select id="scopeFilter" class="filter-select" onchange="changeTicketScope()" style="font-weight: 600; color: #1E293B; border-color: #CBD5E1;">
+                        <select id="scopeFilter" class="filter-select" aria-label="Ámbito de tickets" onchange="changeTicketScope()" style="font-weight: 600;">
                             <option value="assigned" selected>🎯 Mis Tickets (Gerencia)</option>
                             <option value="all">🌐 Todos los Tickets (Sistema)</option>
                         </select>
 
-                        <select id="priorityFilter" class="filter-select" onchange="applyFilters()">
+                        <select id="priorityFilter" class="filter-select" aria-label="Filtrar por prioridad" onchange="applyFilters()">
                             <option value="">⚠️ Todas las prioridades</option>
                             <option value="urgent">🔴 Urgente</option>
                             <option value="high">🟠 Alta</option>
@@ -126,11 +127,11 @@
                         </select>
                         <!-- Filtros de rango de fecha -->
                         <div class="date-filter-group">
-                            <input type="date" id="startDateFilter" class="date-input" 
+                            <input type="date" id="startDateFilter" class="date-input" aria-label="Fecha desde"
                                onchange="updateDateMin(); applyFilters();" 
                                placeholder="Desde">
-                            <span class="date-separator">→</span>
-                            <input type="date" id="endDateFilter" class="date-input" 
+                            <span class="date-separator" aria-hidden="true">→</span>
+                            <input type="date" id="endDateFilter" class="date-input" aria-label="Fecha hasta"
                                    onchange="applyFilters()" 
                                    placeholder="Hasta">
                             <button id="clearDatesBtn" class="btn-clear-dates" onclick="clearDateFilters()" 
@@ -138,7 +139,7 @@
                                 🗑️
                             </button>
                         </div>
-                        <select id="sortFilter" class="filter-select" onchange="applyFilters()">
+                        <select id="sortFilter" class="filter-select" aria-label="Ordenar tickets" onchange="applyFilters()">
                             <option value="date-desc">📅 Más recientes</option>
                             <option value="date-asc">📅 Más antiguos</option>
                             <option value="priority-desc">⚠️ Alta prioridad</option>
@@ -147,8 +148,8 @@
                     </div>
                 </div>
             </div>
-            <div class="search-container" style="padding: 1rem; background: #f8f9fa; border-bottom: 1px solid #e9ecef;">
-                <input type="text" id="searchInput" class="search-input"
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" aria-label="Buscar tickets"
                     placeholder="🔍 Buscar por título, tracking ID, descripción, solicitante...">
             </div>
 

@@ -15,10 +15,12 @@
         if (!email || !validateEmail(email)) {
           this.classList.add("invalid");
           this.classList.remove("valid");
+          this.setAttribute("aria-invalid", "true");
           emailError.classList.add("show");
         } else {
           this.classList.remove("invalid");
           this.classList.add("valid");
+          this.setAttribute("aria-invalid", "false");
           emailError.classList.remove("show");
         }
       });
@@ -28,6 +30,7 @@
           const email = this.value.trim();
           if (!email || validateEmail(email)) {
             this.classList.remove("invalid");
+            this.setAttribute("aria-invalid", "false");
             emailError.classList.remove("show");
             if (email) this.classList.add("valid");
           }
@@ -42,10 +45,12 @@
         if (!this.value.trim()) {
           this.classList.add("invalid");
           this.classList.remove("valid");
+          this.setAttribute("aria-invalid", "true");
           nameError.classList.add("show");
         } else {
           this.classList.remove("invalid");
           this.classList.add("valid");
+          this.setAttribute("aria-invalid", "false");
           nameError.classList.remove("show");
         }
       });
@@ -54,6 +59,7 @@
         if (this.value.trim()) {
           this.classList.remove("invalid");
           this.classList.add("valid");
+          this.setAttribute("aria-invalid", "false");
           nameError.classList.remove("show");
         }
       });
@@ -74,22 +80,23 @@
         titleCharCount.textContent = length;
         titleProgress.style.width = percentage + "%";
 
-        // Cambiar colores según proximidad al límite
+        // Cambiar colores mediante clases semánticas (sin estilos inline)
+        const counterWrapper = titleCharCount.closest(".compact-counter") || titleCharCount;
         titleProgress.classList.remove("warning", "danger");
+        counterWrapper.classList.remove("counter-warning", "counter-danger");
         if (percentage > 90) {
           titleProgress.classList.add("danger");
-          titleCharCount.style.color = "#dc3545";
+          counterWrapper.classList.add("counter-danger");
         } else if (percentage > 75) {
           titleProgress.classList.add("warning");
-          titleCharCount.style.color = "#ffc107";
-        } else {
-          titleCharCount.style.color = "#6c757d";
+          counterWrapper.classList.add("counter-warning");
         }
 
         // Validar campo
         if (this.value.trim()) {
           this.classList.remove("invalid");
           this.classList.add("valid");
+          this.setAttribute("aria-invalid", "false");
           titleError.classList.remove("show");
         }
       });
@@ -98,6 +105,7 @@
         if (!this.value.trim()) {
           this.classList.add("invalid");
           this.classList.remove("valid");
+          this.setAttribute("aria-invalid", "true");
           titleError.classList.add("show");
         }
       });
@@ -116,22 +124,23 @@
         charCount.textContent = length;
         descProgress.style.width = percentage + "%";
 
-        // Cambiar colores según proximidad al límite
+        // Cambiar colores mediante clases semánticas (sin estilos inline)
+        const counterWrapper = charCount.closest(".compact-counter") || charCount;
         descProgress.classList.remove("warning", "danger");
+        counterWrapper.classList.remove("counter-warning", "counter-danger");
         if (percentage > 95) {
           descProgress.classList.add("danger");
-          charCount.style.color = "#dc3545";
+          counterWrapper.classList.add("counter-danger");
         } else if (percentage > 85) {
           descProgress.classList.add("warning");
-          charCount.style.color = "#ffc107";
-        } else {
-          charCount.style.color = "#6c757d";
+          counterWrapper.classList.add("counter-warning");
         }
 
         // Validar campo
         if (this.value.trim()) {
           this.classList.remove("invalid");
           this.classList.add("valid");
+          this.setAttribute("aria-invalid", "false");
           descriptionError.classList.remove("show");
         }
       });
@@ -140,6 +149,7 @@
         if (!this.value.trim()) {
           this.classList.add("invalid");
           this.classList.remove("valid");
+          this.setAttribute("aria-invalid", "true");
           descriptionError.classList.add("show");
         }
       });

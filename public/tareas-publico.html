@@ -168,6 +168,7 @@
 </head>
 
 <body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
     <!-- Navbar Pública -->
     <header class="public-navbar">
         <div class="navbar-brand">
@@ -191,7 +192,7 @@
     </header>
 
     <!-- Contenedor Principal -->
-    <main class="public-container">
+    <main class="public-container" id="main-content" tabindex="-1">
         <!-- Banner Informativo -->
         <div class="board-header-banner">
             <div class="board-title-box">
@@ -248,11 +249,11 @@
                 </div>
 
                 <div class="calendar-nav-right">
-                    <div class="calendar-view-switcher">
-                        <button class="btn-cal-view active" id="btnViewMonth" onclick="setCalendarView('month')">📅 Mes</button>
-                        <button class="btn-cal-view" id="btnViewWorkWeek" onclick="setCalendarView('workweek')">💼 Sem. Laboral</button>
-                        <button class="btn-cal-view" id="btnViewWeek" onclick="setCalendarView('week')">📆 Semana</button>
-                        <button class="btn-cal-view" id="btnViewAgenda" onclick="setCalendarView('agenda')">📋 Agenda</button>
+                    <div class="calendar-view-switcher" role="tablist" aria-label="Cambiar vista del calendario">
+                        <button class="btn-cal-view active" id="btnViewMonth" role="tab" aria-selected="true" onclick="setCalendarView('month')">📅 Mes</button>
+                        <button class="btn-cal-view" id="btnViewWorkWeek" role="tab" aria-selected="false" onclick="setCalendarView('workweek')">💼 Sem. Laboral</button>
+                        <button class="btn-cal-view" id="btnViewWeek" role="tab" aria-selected="false" onclick="setCalendarView('week')">📆 Semana</button>
+                        <button class="btn-cal-view" id="btnViewAgenda" role="tab" aria-selected="false" onclick="setCalendarView('agenda')">📋 Agenda</button>
                     </div>
                 </div>
             </div>
@@ -260,20 +261,20 @@
             <!-- Barra de Filtros -->
             <div class="tasks-toolbar">
                 <div class="tasks-search-box">
-                    <span class="tasks-search-icon">🔍</span>
-                    <input type="text" id="taskSearchInput" class="task-search-field" placeholder="Buscar tareas..." oninput="applyFilters()">
+                    <span class="tasks-search-icon" aria-hidden="true">🔍</span>
+                    <input type="text" id="taskSearchInput" class="task-search-field" aria-label="Buscar tareas" placeholder="Buscar tareas..." oninput="applyFilters()">
                     <button type="button" class="tasks-search-clear" onclick="document.getElementById('taskSearchInput').value=''; applyFilters();" aria-label="Limpiar búsqueda">&times;</button>
                 </div>
 
                 <div class="tasks-filters-group">
-                    <select id="taskStatusFilter" class="task-filter-select" onchange="applyFilters()">
+                    <select id="taskStatusFilter" class="task-filter-select" aria-label="Filtrar tareas por estado" onchange="applyFilters()">
                         <option value="">📊 Todos los estados</option>
                         <option value="pending">🟡 Pendientes</option>
                         <option value="in-progress">🔵 En Progreso</option>
                         <option value="completed">🟢 Completadas</option>
                     </select>
 
-                    <select id="taskPriorityFilter" class="task-filter-select" onchange="applyFilters()">
+                    <select id="taskPriorityFilter" class="task-filter-select" aria-label="Filtrar tareas por prioridad" onchange="applyFilters()">
                         <option value="">⚠️ Prioridad</option>
                         <option value="urgent">🔴 Urgente</option>
                         <option value="high">🟠 Alta</option>
@@ -281,7 +282,7 @@
                         <option value="low">🔵 Baja</option>
                     </select>
 
-                    <select id="taskCategoryFilter" class="task-filter-select" onchange="applyFilters()">
+                    <select id="taskCategoryFilter" class="task-filter-select" aria-label="Filtrar tareas por categoría" onchange="applyFilters()">
                         <option value="all">🏢 Categoría</option>
                         <option value="General">General</option>
                         <option value="Equipos Médicos">Equipos Médicos</option>
@@ -293,7 +294,7 @@
                         <option value="Servidores & Backups">Servidores & Backups</option>
                     </select>
 
-                    <select id="taskSedeFilter" class="task-filter-select" onchange="applyFilters()">
+                    <select id="taskSedeFilter" class="task-filter-select" aria-label="Filtrar tareas por sede" onchange="applyFilters()">
                         <option value="all">📍 Sede</option>
                         <option value="Ciudad">Ciudad</option>
                         <option value="Maipú">Maipú</option>
@@ -371,6 +372,7 @@
         <p>&copy; <span id="currentYear"></span> Sistema de Gestión - Imagen Diagnóstica. Todos los derechos reservados.</p>
     </footer>
 
+    <script src="/js/core-panel.js?v=4.0"></script>
     <script src="/js/tareas-publico.js?v=4.0"></script>
 </body>
 

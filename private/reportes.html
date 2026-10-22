@@ -31,6 +31,7 @@
 </head>
 
 <body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
     <!-- Navbar - Consistente con administrador.html -->
     <div class="navbar">
         <div class="navbar-brand">
@@ -103,7 +104,7 @@
     </div>
 
     <!-- Container - Consistente con administrador.html -->
-    <div class="container">
+    <div class="container" id="main-content" tabindex="-1">
 
         <!-- Header con controles -->
         <div class="reports-header">
@@ -111,8 +112,8 @@
 
             <div class="reports-controls">
                 <div class="control-group">
-                    <label class="control-label">Período</label>
-                    <select id="periodSelect" class="filter-select">
+                    <label for="periodSelect" class="control-label">Período</label>
+                    <select id="periodSelect" class="filter-select" aria-label="Seleccionar período de métricas">
                         <option value="1d">Últimas 24 horas</option>
                         <option value="7d">Últimos 7 días</option>
                         <option value="30d" selected>Últimos 30 días</option>
@@ -123,8 +124,8 @@
                 </div>
 
                 <div class="control-group">
-                    <label class="control-label">Departamento</label>
-                    <select id="departmentSelect" class="filter-select">
+                    <label for="departmentSelect" class="control-label">Departamento</label>
+                    <select id="departmentSelect" class="filter-select" aria-label="Seleccionar departamento">
                         <option value="all">Todos los departamentos</option>
                     </select>
                 </div>
@@ -193,7 +194,7 @@
                 </div>
                 <div class="chart-body">
                     <div class="chart-container">
-                        <canvas id="trendsChart"></canvas>
+                        <canvas id="trendsChart" role="img" aria-label="Gráfico de evolución y tendencia de tickets en el período seleccionado"></canvas>
                     </div>
                 </div>
             </div>

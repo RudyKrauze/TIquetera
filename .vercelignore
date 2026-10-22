@@ -10,11 +10,14 @@ node_modules
 .env.local
 .env.*.local
 
-# Respaldos y utilidades locales
+# Respaldos, volcados de BD y utilidades locales
 backups/
 scratch/
 scripts/
 Docs/
+supabase_migration.sql
+*.dump
+config.yml
 *.bat
 *.sh
 

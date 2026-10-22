@@ -93,18 +93,19 @@ Configura las siguientes variables en **Project Settings** -> **Environment Vari
 
 ## 4. Usuarios Iniciales por Defecto
 
-Una vez ejecutado el script en Supabase o inicializada la base de datos, los usuarios predeterminados son:
+Al inicializar la base de datos con `db_init.js`, los usuarios predeterminados se crean utilizando las contraseñas definidas en tus variables de entorno (o una clave criptográfica aleatoria si no se especifican):
 
-| Rol | Correo Electrónico | Contraseña por Defecto |
+| Rol | Correo Electrónico | Variable de Entorno para Contraseña |
 | :--- | :--- | :--- |
-| **Administrador** | `admin@tiquetera.com` | `admin123` |
-| **Sistemas / Soporte** | `soporte@tiquetera.com` | `support123` |
-| **Recursos Humanos** | `rrhh@tiquetera.com` | `rrhh123` |
-| **Mantenimiento** | `mantenimiento@tiquetera.com` | `mant123` |
-| **Compras e Insumos** | `compras@tiquetera.com` | `compras123` |
+| **Administrador** | `admin@tiquetera.com` | `ADMIN_PASSWORD` / `DEFAULT_ADMIN_PASSWORD` |
+| **Sistemas / Soporte** | `soporte@tiquetera.com` | `DEFAULT_SUPPORT_PASSWORD` |
+| **Recursos Humanos** | `rrhh@tiquetera.com` | `DEFAULT_RRHH_PASSWORD` |
+| **Mantenimiento** | `mantenimiento@tiquetera.com` | `DEFAULT_MANT_PASSWORD` |
+| **Compras e Insumos** | `compras@tiquetera.com` | `DEFAULT_COMPRAS_PASSWORD` |
+| **Gerencia** | `gerencia@tiquetera.com` | `DEFAULT_GERENCIA_PASSWORD` |
 
 > [!WARNING]
-> **Seguridad:** En el primer inicio de sesión en producción, cambia inmediatamente las contraseñas de todos los usuarios predeterminados desde el panel de administración.
+> **Seguridad:** Define contraseñas seguras en las variables de entorno de producción antes del primer despliegue.
 
 ---
 

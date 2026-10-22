@@ -116,8 +116,8 @@ Para que cualquier funcionalidad, corrección o mejora opere transparentemente e
    ```ini
    PORT=3005
    NODE_ENV=development
-   JWT_SECRET=tu_clave_secreta_jwt
-   ALLOWED_ORIGINS=http://localhost:3005,http://192.168.2.41:3005
+   JWT_SECRET=<tu_clave_secreta_jwt>
+   ALLOWED_ORIGINS=http://localhost:3005
    BASE_URL=http://localhost:3005
 
    # Conexión directa a PostgreSQL dentro de la red Docker
@@ -125,7 +125,7 @@ Para que cualquier funcionalidad, corrección o mejora opere transparentemente e
    DB_PORT=5432
    DB_NAME=tiquetera_db
    DB_USER=ticket_app
-   DB_PASSWORD=TicketApp123!
+   DB_PASSWORD=<tu_password_postgres_seguro>
    DB_SSL=false
    ```
 
@@ -150,8 +150,7 @@ Para que cualquier funcionalidad, corrección o mejora opere transparentemente e
 
 1. **Preparar Supabase**:
    - En el **SQL Editor** de Supabase:
-     - Si vas a **migrar los datos reales existentes en Docker**: ejecuta el archivo generado `supabase_migration.sql` (contiene las 12 tablas, secuencias, usuarios, tickets y tareas).
-     - Si vas a iniciar una **base de datos desde cero**: ejecuta el archivo `db_schema.sql`.
+     - Ejecuta el archivo `db_schema.sql` (o `supabase/schema.sql`) para inicializar la estructura de tablas e índices.
    - En **Storage**, crea un bucket público llamado `ticket-attachments` (con acceso público de lectura para que las imágenes se visualicen en los tickets).
    - En **Settings -> Database**, copia la Connection String en modo **Transaction Pooler** (puerto `6543`) con SSL habilitado.
 
@@ -164,7 +163,7 @@ Para que cualquier funcionalidad, corrección o mejora opere transparentemente e
    | `DB_SSL` | `true` |
    | `DB_POOL_MAX` | `5` *(Límite recomendado para Vercel Serverless)* |
    | `SUPABASE_URL` | `https://[REF].supabase.co` |
-   | `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOi...` *(Para gestionar Storage y permisos)* |
+   | `SUPABASE_SERVICE_ROLE_KEY` | `<tu_service_role_key>` *(Para gestionar Storage y permisos)* |
    | `JWT_SECRET` | Generado con `openssl rand -base64 64` |
    | `ALLOWED_ORIGINS` | `https://tu-dominio.vercel.app` |
    | `BASE_URL` | `https://tu-dominio.vercel.app` |
@@ -183,17 +182,18 @@ Para que cualquier funcionalidad, corrección o mejora opere transparentemente e
 
 ## 👥 Usuarios por Defecto (Semilla Inicial)
 
-Al inicializarse una base de datos limpia, `db_init.js` creará las siguientes cuentas administrativas básicas:
+Al inicializarse una base de datos limpia, `db_init.js` creará las cuentas iniciales leyendo sus contraseñas desde las variables de entorno (o generando una clave aleatoria criptográfica si no se definen):
 
-| Rol / Departamento | Correo Electrónico | Contraseña Predeterminada |
+| Rol / Departamento | Correo Electrónico (por defecto) | Variable de Contraseña en `.env` |
 | :--- | :--- | :--- |
-| **Administrador** | `admin@tiquetera.com` | `admin123` *(configurable vía `DEFAULT_ADMIN_PASSWORD`)* |
-| **Sistemas** | `soporte@tiquetera.com` | `support123` *(configurable vía `DEFAULT_SUPPORT_PASSWORD`)* |
-| **Recursos Humanos** | `rrhh@tiquetera.com` | `rrhh123` *(configurable vía `DEFAULT_RRHH_PASSWORD`)* |
-| **Mantenimiento** | `mantenimiento@tiquetera.com` | `mant123` *(configurable vía `DEFAULT_MANT_PASSWORD`)* |
-| **Compras e Insumos** | `compras@tiquetera.com` | `compras123` *(configurable vía `DEFAULT_COMPRAS_PASSWORD`)* |
+| **Administrador** | `admin@tiquetera.com` | `ADMIN_PASSWORD` / `DEFAULT_ADMIN_PASSWORD` |
+| **Sistemas** | `soporte@tiquetera.com` | `DEFAULT_SUPPORT_PASSWORD` |
+| **Recursos Humanos** | `rrhh@tiquetera.com` | `DEFAULT_RRHH_PASSWORD` |
+| **Mantenimiento** | `mantenimiento@tiquetera.com` | `DEFAULT_MANT_PASSWORD` |
+| **Compras e Insumos** | `compras@tiquetera.com` | `DEFAULT_COMPRAS_PASSWORD` |
+| **Gerencia** | `gerencia@tiquetera.com` | `DEFAULT_GERENCIA_PASSWORD` |
 
-> ⚠️ **Importante**: Cambia las contraseñas inmediatamente al desplegar en producción desde el panel de Administración.
+> ⚠️ **Importante**: Define contraseñas robustas en tu `.env` y cámbialas periódicamente desde el panel de Administración.
 
 ---
 

@@ -540,6 +540,7 @@
 </head>
 
 <body>
+    <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
     <div class="tracking-shell">
         <header class="tracking-header">
             <div class="tracking-eyebrow">Seguimiento público</div>
@@ -548,21 +549,22 @@
                 cualquier momento.</p>
             <div class="tracking-search-wrapper">
                 <input type="text" class="tracking-id-input" id="trackingInput" placeholder="TKT-XXXXX-XXXX"
-                    autocomplete="off">
+                    aria-label="Código de seguimiento del ticket" autocomplete="off">
                 <div class="tracking-actions">
                     <button class="search-tracking-btn" id="searchTrackingBtn">🔍 Buscar</button>
                 </div>
             </div>
         </header>
 
-        <section id="loadingMessage" class="state-card state-card--info">
+        <main id="main-content" tabindex="-1" style="display: flex; flex-direction: column; gap: 24px;">
+        <section id="loadingMessage" class="state-card state-card--info" role="status" aria-live="polite">
             <div class="state-chip">⏳</div>
             <h3>Recuperando información</h3>
             <p style="margin: 0;">Estamos cargando los detalles del ticket.</p>
             <div class="spinner" style="margin-top: 8px;"></div>
         </section>
 
-        <section id="errorMessage" class="state-card state-card--error" style="display: none;">
+        <section id="errorMessage" class="state-card state-card--error" role="alert" aria-live="assertive" style="display: none;">
             <div class="state-chip">⚠️</div>
             <h3>Ticket no encontrado</h3>
             <p id="errorText">No se encontró ningún ticket con este número de seguimiento.</p>
@@ -574,7 +576,7 @@
 
         <section id="ticketContent" style="display: none;">
             <div class="ticket-card">
-                <h2 id="ticketTitle" style="color: #2c3e50; margin-bottom: 15px;"></h2>
+                <h2 id="ticketTitle" style="color: var(--color-text-main, #0f172a); margin-bottom: 15px;"></h2>
                 <div style="margin: 15px 0;">
                     <span id="statusBadge" class="status-badge"></span>
                     <span id="priorityBadge" class="priority-badge"></span>
@@ -621,6 +623,7 @@
                 <a href="/" class="action-btn action-btn--ghost">📝 Crear otro ticket</a>
             </div>
         </section>
+        </main>
     </div>
 
     <!-- Track Lightbox Modal -->
@@ -702,7 +705,8 @@
             const priorityMap = {
                 'low': '🟢 Baja',
                 'medium': '🟡 Media',
-                'high': '🔴 Alta'
+                'high': '🟠 Alta',
+                'urgent': '🔴 Urgente'
             };
             return priorityMap[priority] || priority;
         }
@@ -928,6 +932,7 @@
         // Cargar ticket al cargar la página
         loadTicket(currentTrackingId);
     </script>
+    <script src="/js/core-panel.js?v=4.0"></script>
 </body>
 
 </html>
