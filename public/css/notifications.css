@@ -233,23 +233,27 @@
 
 .notification-message {
     font-size: 0.8rem;
-    color: #6B7280;
+    color: #475569;
     margin: 0;
     line-height: 1.4;
 }
 
 .notification-time {
-    font-size: 0.7rem;
-    color: #F59E0B !important;
+    font-size: 0.72rem;
+    color: #B45309 !important; /* 5.02:1 sobre #ffffff (WCAG AA) */
     margin-top: 4px;
-    font-weight: 600;
+    font-weight: 700;
+}
+
+html[data-theme="dark"] .notification-time {
+    color: #FBBF24 !important; /* 8.42:1 sobre #1e293b (WCAG AAA) */
 }
 
 /* Estado vacío */
 .notification-empty {
     padding: 40px 20px;
     text-align: center;
-    color: #6B7280;
+    color: #475569;
 }
 
 .notification-empty svg {

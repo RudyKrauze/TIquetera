@@ -1859,13 +1859,13 @@ function renderCalendarWeek() {
             return `
                 <div class="week-task-card ${priorityClass} ${isCompleted ? 'completed' : ''}"
                      onclick="openTaskDetailModal(${task.id})">
-                    <div style="font-weight: 600; font-size: 0.85rem; color: #1E293B; margin-bottom: 4px;">
+                    <div class="card-title" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">
                         ${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}
                     </div>
                     <div style="display: flex; gap: 4px; flex-wrap: wrap; font-size: 0.72rem;">
-                        <span style="background: #E2E8F0; padding: 1px 6px; border-radius: 4px;">${escapeHtml(task.category || 'General')}</span>
-                        ${task.assigned_technician ? `<span style="background: #EEF2FF; color: #4338CA; font-weight: 600; padding: 1px 6px; border-radius: 4px;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
-                        ${checkInfo ? `<span style="background: #FEF3C7; color: #92400E; padding: 1px 6px; border-radius: 4px;">${checkInfo}</span>` : ''}
+                        <span class="day-task-badge category">${escapeHtml(task.category || 'General')}</span>
+                        ${task.assigned_technician ? `<span class="day-task-badge tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                        ${checkInfo ? `<span class="day-task-badge checklist">${checkInfo}</span>` : ''}
                     </div>
                 </div>
             `;
@@ -1930,17 +1930,17 @@ function renderCalendarAgenda() {
                             <div class="agenda-task-item ${priorityClass} ${isCompleted ? 'completed' : ''}"
                                  onclick="openTaskDetailModal(${task.id})">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <span style="font-weight: 700; font-size: 0.95rem; color: #1E293B;">
+                                    <span class="agenda-item-title" style="font-weight: 700; font-size: 0.95rem;">
                                         ${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}
                                     </span>
                                     <span class="task-status-badge ${task.status}">${task.status === 'completed' ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente')}</span>
                                 </div>
-                                ${task.description ? `<p style="font-size: 0.82rem; color: #64748B; margin: 4px 0;">${escapeHtml(task.description)}</p>` : ''}
+                                ${task.description ? `<p class="agenda-item-desc" style="font-size: 0.82rem; margin: 4px 0;">${escapeHtml(task.description)}</p>` : ''}
                                 <div style="display: flex; gap: 8px; font-size: 0.75rem; margin-top: 6px; flex-wrap: wrap;">
-                                    <span class="badge">🏢 ${escapeHtml(task.category || 'General')}</span>
-                                    <span class="badge">📍 ${escapeHtml(task.sede || 'Todas')}</span>
-                                    ${task.assigned_technician ? `<span class="badge" style="background: #EEF2FF; color: #4338CA; font-weight: 600;">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
-                                    ${checkInfo ? `<span class="badge checklist">${checkInfo}</span>` : ''}
+                                    <span class="day-task-badge category">🏢 ${escapeHtml(task.category || 'General')}</span>
+                                    <span class="day-task-badge sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                                    ${task.assigned_technician ? `<span class="day-task-badge tech">👤 ${escapeHtml(task.assigned_technician)}</span>` : ''}
+                                    ${checkInfo ? `<span class="day-task-badge checklist">${checkInfo}</span>` : ''}
                                 </div>
                             </div>
                         `;
@@ -1980,16 +1980,15 @@ function openDayTasksModal(dateKey) {
 
                 return `
                     <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
-                         onclick="openTaskFromDayModal(${task.id})"
-                         style="padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0; margin-bottom: 8px; cursor: pointer; background: white;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                            <span style="font-weight: 700; color: #1E293B;">${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}</span>
+                         onclick="openTaskFromDayModal(${task.id})">
+                        <div class="day-task-item-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                            <span class="day-task-item-title" style="font-weight: 700;">${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}</span>
                             <span class="day-task-status-pill ${task.status}">${task.status === 'completed' ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente')}</span>
                         </div>
-                        <div style="display: flex; gap: 6px; font-size: 0.75rem; flex-wrap: wrap;">
-                            <span style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">🏷️ ${escapeHtml(task.category || 'General')}</span>
-                            <span style="background: #F1F5F9; padding: 2px 6px; border-radius: 4px;">📍 ${escapeHtml(task.sede || 'Todas')}</span>
-                            ${checkInfo ? `<span style="background: #FEF3C7; color: #92400E; padding: 2px 6px; border-radius: 4px;">${checkInfo}</span>` : ''}
+                        <div class="day-task-item-details" style="display: flex; gap: 6px; font-size: 0.75rem; flex-wrap: wrap;">
+                            <span class="day-task-badge category">🏷️ ${escapeHtml(task.category || 'General')}</span>
+                            <span class="day-task-badge sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
+                            ${checkInfo ? `<span class="day-task-badge checklist">${checkInfo}</span>` : ''}
                         </div>
                     </div>
                 `;
@@ -2144,9 +2143,9 @@ function renderChecklistBuilderList() {
 
     if (emptyMsg) emptyMsg.style.display = 'none';
     listEl.innerHTML = taskChecklistBuilderItems.map((item, idx) => `
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; margin-bottom: 6px;">
-            <span style="font-size: 0.88rem; color: #1E293B;">${escapeHtml(item.text)}</span>
-            <button type="button" onclick="removeChecklistItemBuilder(${idx})" aria-label="Eliminar paso" style="background: none; border: none; color: #EF4444; font-weight: 700; cursor: pointer;">&times;</button>
+        <div class="checklist-builder-item">
+            <span class="chk-item-text">${escapeHtml(item.text)}</span>
+            <button type="button" class="btn-remove-chk" onclick="removeChecklistItemBuilder(${idx})" aria-label="Eliminar paso">&times;</button>
         </div>
     `).join('');
 }
@@ -2229,54 +2228,54 @@ function openTaskDetailModal(taskId) {
     body.innerHTML = `
         <div style="margin-bottom: 16px;">
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px;">
-                <span class="badge priority-${task.priority || 'medium'}">Prioridad: ${task.priority || 'Media'}</span>
-                <span class="badge">Categoría: ${escapeHtml(task.category || 'General')}</span>
-                <span class="badge">Sede: ${escapeHtml(task.sede || 'Todas')}</span>
-                <span class="badge" style="background: #EEF2FF; color: #4338CA; font-weight: 700;">👤 Asignado: ${escapeHtml(task.assigned_technician || 'Sin asignar')}</span>
-                ${task.due_date ? `<span class="badge">📅 Vence: ${task.due_date.substring(0, 10)}</span>` : ''}
-                ${task.is_recurring ? '<span class="badge">🔁 Rutina Recurrente</span>' : ''}
+                <span class="task-badge badge-priority-${task.priority || 'medium'}">Prioridad: ${task.priority || 'Media'}</span>
+                <span class="task-badge badge-category">Categoría: ${escapeHtml(task.category || 'General')}</span>
+                <span class="task-badge badge-sede">Sede: ${escapeHtml(task.sede || 'Todas')}</span>
+                <span class="day-task-badge tech">👤 Asignado: ${escapeHtml(task.assigned_technician || 'Sin asignar')}</span>
+                ${task.due_date ? `<span class="task-badge badge-category">📅 Vence: ${task.due_date.substring(0, 10)}</span>` : ''}
+                ${task.is_recurring ? '<span class="day-task-badge recurring">🔁 Rutina Recurrente</span>' : ''}
             </div>
 
-            ${task.description ? `<p style="font-size: 0.95rem; color: #334155; line-height: 1.6; background: #F8FAFC; padding: 12px; border-radius: 8px; border: 1px solid #E2E8F0;">${escapeHtml(task.description)}</p>` : ''}
+            ${task.description ? `<div class="task-detail-desc-box">${escapeHtml(task.description)}</div>` : ''}
         </div>
 
         <div style="margin-bottom: 20px;">
-            <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #334155; margin-bottom: 6px;">Estado de la Tarea:</label>
-            <div style="display: flex; gap: 10px;">
-                <button type="button" onclick="changeTaskStatus(${task.id}, 'pending')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'pending' ? '#FEF3C7' : 'white'}; font-weight: ${task.status === 'pending' ? '700' : '400'};">🟡 Pendiente</button>
-                <button type="button" onclick="changeTaskStatus(${task.id}, 'in-progress')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'in-progress' ? '#E0F2FE' : 'white'}; font-weight: ${task.status === 'in-progress' ? '700' : '400'};">🔵 En Progreso</button>
-                <button type="button" onclick="changeTaskStatus(${task.id}, 'completed')" style="padding: 6px 12px; border-radius: 6px; border: 1px solid #CBD5E1; cursor: pointer; background: ${task.status === 'completed' ? '#DCFCE7' : 'white'}; font-weight: ${task.status === 'completed' ? '700' : '400'};">🟢 Completada</button>
+            <label class="task-form-label" style="margin-bottom: 8px;">Estado de la Tarea:</label>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button type="button" class="day-task-status-pill pending" onclick="changeTaskStatus(${task.id}, 'pending')" style="padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: ${task.status === 'pending' ? '800' : '600'}; opacity: ${task.status === 'pending' ? '1' : '0.7'};">🟡 Pendiente</button>
+                <button type="button" class="day-task-status-pill in-progress" onclick="changeTaskStatus(${task.id}, 'in-progress')" style="padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: ${task.status === 'in-progress' ? '800' : '600'}; opacity: ${task.status === 'in-progress' ? '1' : '0.7'};">🔵 En Progreso</button>
+                <button type="button" class="day-task-status-pill completed" onclick="changeTaskStatus(${task.id}, 'completed')" style="padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: ${task.status === 'completed' ? '800' : '600'}; opacity: ${task.status === 'completed' ? '1' : '0.7'};">🟢 Completada</button>
             </div>
         </div>
 
         ${checklist.length > 0 ? `
-            <div style="margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <label style="font-size: 0.85rem; font-weight: 700; color: #334155;">Checklist (${completedItems}/${totalItems} completados - ${percent}%):</label>
+            <div class="task-detail-checklist-box">
+                <div class="task-detail-checklist-header">
+                    <span>Checklist (${completedItems}/${totalItems} completados - ${percent}%):</span>
                 </div>
-                <div style="background: #E2E8F0; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                <div class="task-detail-progress-track">
                     <div style="background: #10B981; width: ${percent}%; height: 100%; transition: width 0.3s ease;"></div>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${checklist.map(item => `
-                        <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #1E293B; cursor: pointer;">
+                        <label class="task-detail-checklist-item ${item.done ? 'is-done' : ''}">
                             <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${task.id}, '${item.id}', this.checked)" style="width: 18px; height: 18px; accent-color: #10B981;">
-                            <span class="${item.done ? 'checklist-item-done' : 'checklist-item-text'}">${escapeHtml(item.text)}</span>
+                            <span class="chk-detail-text">${escapeHtml(item.text)}</span>
                         </label>
                     `).join('')}
                 </div>
             </div>
         ` : ''}
 
-        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E2E8F0; padding-top: 16px; margin-top: 16px;">
-            <button type="button" onclick="deleteTask(${task.id})" style="padding: 8px 14px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+        <div class="task-detail-footer">
+            <button type="button" onclick="deleteTask(${task.id})" style="padding: 8px 14px; background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; border-radius: 6px; font-weight: 700; cursor: pointer;">
                 🗑️ Eliminar Tarea
             </button>
             <div style="display: flex; gap: 8px;">
-                <button type="button" onclick="closeTaskDetailModal(); openTaskModal(allGerenciaTasks.find(t => t.id === ${task.id}))" style="padding: 8px 14px; background: #E2E8F0; color: #1E293B; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                <button type="button" class="btn-modal-cancel" onclick="closeTaskDetailModal(); openTaskModal(allGerenciaTasks.find(t => t.id === ${task.id}))" style="padding: 8px 14px;">
                     ✏️ Editar
                 </button>
-                <button type="button" onclick="closeTaskDetailModal()" style="padding: 8px 14px; background: #4F46E5; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                <button type="button" class="btn-modal-save btn-modal-save--indigo" onclick="closeTaskDetailModal()" style="padding: 8px 16px;">
                     Listo
                 </button>
             </div>

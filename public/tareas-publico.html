@@ -213,30 +213,30 @@
 
         <!-- Tarjetas KPI -->
         <div class="kpi-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
-            <div class="kpi-card kpi-total" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E5E7EB; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 2rem; font-weight: 800; color: #1F2937;" id="kpiTotal">0</div>
-                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Total Tareas</div>
+            <div class="kpi-card kpi-total stat-card">
+                <div class="stat-number stat-number--total" style="font-size: 2rem; font-weight: 800;" id="kpiTotal">0</div>
+                <div class="stat-label" style="font-size: 0.85rem; font-weight: 600;">Total Tareas</div>
             </div>
-            <div class="kpi-card kpi-pending" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #FDE68A; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 2rem; font-weight: 800; color: #D97706;" id="kpiPending">0</div>
-                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Pendientes</div>
+            <div class="kpi-card kpi-pending stat-card">
+                <div class="stat-number stat-number--pending" style="font-size: 2rem; font-weight: 800;" id="kpiPending">0</div>
+                <div class="stat-label" style="font-size: 0.85rem; font-weight: 600;">Pendientes</div>
             </div>
-            <div class="kpi-card kpi-in-progress" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BAE6FD; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 2rem; font-weight: 800; color: #0284C7;" id="kpiInProgress">0</div>
-                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">En Progreso</div>
+            <div class="kpi-card kpi-in-progress stat-card">
+                <div class="stat-number stat-number--progress" style="font-size: 2rem; font-weight: 800;" id="kpiInProgress">0</div>
+                <div class="stat-label" style="font-size: 0.85rem; font-weight: 600;">En Progreso</div>
             </div>
-            <div class="kpi-card kpi-completed" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #BBF7D0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 2rem; font-weight: 800; color: #16A34A;" id="kpiCompleted">0</div>
-                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Completadas</div>
+            <div class="kpi-card kpi-completed stat-card">
+                <div class="stat-number stat-number--completed" style="font-size: 2rem; font-weight: 800;" id="kpiCompleted">0</div>
+                <div class="stat-label" style="font-size: 0.85rem; font-weight: 600;">Completadas</div>
             </div>
-            <div class="kpi-card kpi-recurring" style="background: white; border-radius: 10px; padding: 1.2rem; border: 1px solid #E9D5FF; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
-                <div style="font-size: 2rem; font-weight: 800; color: #7C3AED;" id="kpiRecurring">0</div>
-                <div style="font-size: 0.85rem; color: #4B5563; font-weight: 600;">Rutinas Activas</div>
+            <div class="kpi-card kpi-recurring stat-card">
+                <div class="stat-number stat-number--recurring" style="font-size: 2rem; font-weight: 800;" id="kpiRecurring">0</div>
+                <div class="stat-label" style="font-size: 0.85rem; font-weight: 600;">Rutinas Activas</div>
             </div>
         </div>
 
         <!-- Contenedor del Calendario -->
-        <div class="calendar-wrapper" style="background: white; border-radius: 12px; border: 1px solid #E5E7EB; box-shadow: 0 2px 10px rgba(0,0,0,0.05); padding: 1.5rem; margin-bottom: 2rem;">
+        <div class="calendar-wrapper tasks-board-section" style="padding: 1.5rem; margin-bottom: 2rem;">
             <!-- Barra de Navegación del Calendario -->
             <div class="calendar-nav-bar">
                 <div class="calendar-nav-left">
@@ -338,9 +338,9 @@
     <!-- Modal de Detalles de Tarea Pública (Sólo Lectura) -->
     <div class="task-modal-overlay" id="taskDetailModalDialog" role="dialog" aria-modal="true" aria-labelledby="taskDetailModalHeaderTitle" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
         <div class="task-modal-card" style="max-width: 650px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
-                <button type="button" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
+            <div class="task-modal-header">
+                <h3 class="task-modal-title" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
+                <button type="button" class="modal-close-btn" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea">×</button>
             </div>
             <div style="padding: 20px;" id="taskDetailBody">
                 <!-- Contenido generado por JS -->
@@ -351,18 +351,18 @@
     <!-- Modal de Tareas del Día (Público - Sólo Lectura) -->
     <div class="task-modal-overlay" id="dayTasksModalDialog" role="dialog" aria-modal="true" aria-labelledby="dayTasksModalTitle" style="display: none;" onclick="if(event.target===this) closeDayTasksModal();">
         <div class="task-modal-card" style="max-width: 600px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+            <div class="task-modal-header">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="dayTasksModalTitle">📅 Tareas del Día</h3>
+                    <h3 class="task-modal-title" id="dayTasksModalTitle">📅 Tareas del Día</h3>
                     <span id="dayTasksModalBadge" class="day-tasks-count-badge">0 tareas</span>
                 </div>
-                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" class="modal-close-btn" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día">×</button>
             </div>
             <div style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;" id="dayTasksListBody">
                 <!-- Se llena dinámicamente con openDayTasksModal() -->
             </div>
-            <div style="display: flex; justify-content: flex-end; align-items: center; padding: 14px 20px; border-top: 1px solid #E5E7EB; background: #F9FAFB; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
-                <button type="button" class="btn btn-secondary btn-sm" onclick="closeDayTasksModal()" style="padding: 8px 16px; background: #E2E8F0; color: #334155; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cerrar</button>
+            <div class="day-tasks-modal-footer" style="justify-content: flex-end;">
+                <button type="button" class="btn-modal-cancel" onclick="closeDayTasksModal()">Cerrar</button>
             </div>
         </div>
     </div>

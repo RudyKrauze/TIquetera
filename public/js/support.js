@@ -2218,7 +2218,8 @@ function renderRecurrenceDayPills() {
     if (summary) {
         if (selectedRecurrenceDays.length === 0) {
             summary.textContent = '⚠️ Selecciona al menos un día (ej. Martes y Viernes)';
-            summary.style.color = '#DC2626';
+            summary.classList.add('is-empty');
+            summary.style.color = '';
         } else {
             const sorted = [...selectedRecurrenceDays].sort((a, b) => {
                 const orderA = a === 0 ? 7 : a;
@@ -2227,7 +2228,8 @@ function renderRecurrenceDayPills() {
             });
             const names = sorted.map(d => dayNames[d]);
             summary.textContent = `Se repetirá cada semana los días: ${names.join(', ')}`;
-            summary.style.color = '#7E22CE';
+            summary.classList.remove('is-empty');
+            summary.style.color = '';
         }
     }
 
@@ -2443,66 +2445,66 @@ function openTaskDetailModal(taskId) {
 
     body.innerHTML = `
         <div style="margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
+            <span class="task-badge badge-category">
                 🏢 ${escapeHtml(task.category || 'General')}
             </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
+            <span class="task-badge badge-sede">
                 📍 ${escapeHtml(task.sede || 'Todas')}
             </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #F3F4F6; color: #374151;">
+            <span class="task-badge badge-priority-${task.priority || 'medium'}">
                 ${priorityBadge}
             </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: ${task.status === 'completed' ? '#D1FAE5' : (task.status === 'in-progress' ? '#E0F2FE' : '#FEF3C7')}; color: ${task.status === 'completed' ? '#065F46' : (task.status === 'in-progress' ? '#0369A1' : '#92400E')};">
+            <span class="day-task-status-pill ${task.status || 'pending'}">
                 ${statusBadge}
             </span>
-            <span style="font-size: 0.8rem; font-weight: 700; padding: 4px 10px; border-radius: 20px; background: #EFF6FF; color: #1E40AF; border: 1px solid #DBEAFE;">
+            <span class="day-task-badge tech">
                 👤 Asignado: ${escapeHtml(task.assigned_technician || 'Sin asignar')}
             </span>
             ${task.due_date ? `
-                <span style="font-size: 0.8rem; font-weight: 600; color: #6B7280; margin-left: auto;">
+                <span class="task-detail-meta-value" style="font-size: 0.8rem; font-weight: 600; margin-left: auto;">
                     📅 Vence: <strong>${task.due_date.substring(0, 10)}</strong>
                 </span>
             ` : ''}
         </div>
 
         ${task.description ? `
-            <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.92rem; color: #374151; line-height: 1.5;">
+            <div class="task-detail-desc-box">
                 ${escapeHtml(task.description).replace(/\n/g, '<br>')}
             </div>
         ` : ''}
 
         ${task.is_recurring ? `
-            <div style="background: #F3E8FF; border: 1px solid #E9D5FF; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 0.86rem; color: #6B21A8;">
-                🔁 <strong>Rutina Recurrente Activa:</strong> Frecuencia <em>${formatRecurrenceLabel(task.recurrence_interval)}</em>. Al marcar el 100% de los pasos, se programará la siguiente fecha de forma automática.
+            <div class="task-recurrence-box" style="padding: 10px 14px; margin-bottom: 16px; font-size: 0.86rem;">
+                <span class="task-recurrence-help" style="margin-top: 0;">🔁 <strong>Rutina Recurrente Activa:</strong> Frecuencia <em>${formatRecurrenceLabel(task.recurrence_interval)}</em>. Al marcar el 100% de los pasos, se programará la siguiente fecha de forma automática.</span>
             </div>
         ` : ''}
 
         <!-- Checklist Interactivo -->
-        <div style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin: 0;">
+        <div class="task-detail-checklist-box">
+            <div class="task-detail-checklist-header">
+                <h4 class="task-modal-title" style="font-size: 0.95rem;">
                     📝 Lista de Verificación (${metrics.completed}/${metrics.total})
                 </h4>
-                <span style="font-size: 0.82rem; font-weight: 700; color: ${progressPercent === 100 ? '#10B981' : '#0284C7'};">
+                <span class="${progressPercent === 100 ? 'stat-number--completed' : 'stat-number--progress'}" style="font-size: 0.82rem; font-weight: 700;">
                     ${progressPercent}% completado
                 </span>
             </div>
 
             <!-- Barra de Progreso -->
-            <div style="width: 100%; height: 8px; background: #E5E7EB; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+            <div class="task-detail-progress-track">
                 <div style="width: ${progressPercent}%; height: 100%; background: ${progressPercent === 100 ? '#10B981' : '#008B8B'}; transition: width 0.3s ease;"></div>
             </div>
 
             ${checklist.length === 0 ? `
-                <div class="empty-inline-msg" style="padding: 16px; background: #F9FAFB; border-radius: 8px;">
+                <div class="empty-inline-msg" style="padding: 14px; border-radius: 8px;">
                     Esta tarea no tiene pasos de verificación definidos.
                 </div>
             ` : `
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                     ${checklist.map((item, idx) => `
-                        <label style="display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; background: ${item.done ? '#F0FDF4' : '#FFFFFF'}; border: 1px solid ${item.done ? '#BBF7D0' : '#E5E7EB'}; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <label class="task-detail-checklist-item ${item.done ? 'is-done' : ''}">
                             <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItemInDetail(${task.id}, '${item.id || idx}', this.checked)" style="accent-color: #10B981; width: 18px; height: 18px; margin-top: 2px; cursor: pointer;">
-                            <span style="font-size: 0.92rem; color: ${item.done ? '#15803D' : '#1F2937'}; ${item.done ? 'text-decoration: line-through;' : ''} flex: 1;">
+                            <span class="chk-detail-text">
                                 ${escapeHtml(item.text || item)}
                             </span>
                         </label>
@@ -2512,21 +2514,21 @@ function openTaskDetailModal(taskId) {
         </div>
 
         <!-- Botones de Acción -->
-        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #E5E7EB; padding-top: 16px;">
-            <div style="display: flex; gap: 8px;">
-                <button type="button" onclick="confirmDeleteTask(${task.id}, '${escapeHtml(task.title).replace(/'/g, "\\'")}')" style="padding: 8px 14px; background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 6px;">
+        <div class="task-detail-footer">
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" onclick="confirmDeleteTask(${task.id}, '${escapeHtml(task.title).replace(/'/g, "\\'")}')" style="padding: 8px 14px; background: #FEE2E2; color: #B91C1C; border: 1px solid #FCA5A5; border-radius: 6px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 6px;">
                     🗑️ Eliminar Tarea
                 </button>
-                <button id="btnToggleStatusDetail-${task.id}" type="button" onclick="handleToggleStatusFromDetail(${task.id}, '${task.status}', this)" style="padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid #CBD5E1; background: ${task.status === 'completed' ? '#FEF3C7' : '#DCFCE7'}; color: ${task.status === 'completed' ? '#B45309' : '#15803D'}; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
+                <button id="btnToggleStatusDetail-${task.id}" type="button" onclick="handleToggleStatusFromDetail(${task.id}, '${task.status}', this)" style="padding: 8px 14px; border-radius: 6px; font-size: 0.85rem; font-weight: 700; cursor: pointer; border: 1px solid ${task.status === 'completed' ? '#FDE68A' : '#86EFAC'}; background: ${task.status === 'completed' ? '#FEF3C7' : '#DCFCE7'}; color: ${task.status === 'completed' ? '#92400E' : '#14532D'}; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
                     ${task.status === 'completed' ? '↩️ Reabrir Tarea' : '✅ Marcar Completada'}
                 </button>
             </div>
 
             <div style="display: flex; gap: 10px;">
-                <button type="button" onclick="editTaskFromDetail(${task.id})" style="padding: 8px 16px; background: #E0F2FE; color: #0284C7; border: 1px solid #BAE6FD; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                <button type="button" onclick="editTaskFromDetail(${task.id})" style="padding: 8px 16px; background: #E0F2FE; color: #0369A1; border: 1px solid #7DD3FC; border-radius: 6px; font-weight: 700; cursor: pointer;">
                     ✏️ Editar
                 </button>
-                <button type="button" onclick="closeTaskDetailModal()" style="padding: 8px 18px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                <button type="button" class="btn-modal-save" onclick="closeTaskDetailModal()">
                     Listo
                 </button>
             </div>

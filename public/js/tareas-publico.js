@@ -625,19 +625,19 @@
         let checklistHtml = '';
         if (checklist.length > 0) {
             checklistHtml = `
-                <div style="background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <strong style="font-size: 0.9rem; color: #374151;">📝 Checklist de Verificación (${metrics.completed}/${metrics.total})</strong>
-                        <span style="font-size: 0.82rem; font-weight: 700; color: ${percent === 100 ? '#10B981' : '#008B8B'};">${percent}%</span>
+                <div class="task-detail-checklist-box">
+                    <div class="task-detail-checklist-header">
+                        <strong>📝 Checklist de Verificación (${metrics.completed}/${metrics.total})</strong>
+                        <span class="${percent === 100 ? 'stat-number--completed' : 'stat-number--total'}" style="font-size: 0.82rem; font-weight: 700;">${percent}%</span>
                     </div>
-                    <div style="width: 100%; height: 7px; background: #E5E7EB; border-radius: 4px; overflow: hidden; margin-bottom: 12px;">
+                    <div class="task-detail-progress-track">
                         <div style="width: ${percent}%; height: 100%; background: ${percent === 100 ? '#10B981' : '#008B8B'};"></div>
                     </div>
                     <div style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto;">
                         ${checklist.map(item => `
-                            <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; background: white; border: 1px solid #E5E7EB;">
+                            <div class="task-detail-checklist-item ${item.done ? 'is-done' : ''}" style="cursor: default;">
                                 <span>${item.done ? '✅' : '⬜'}</span>
-                                <span style="font-size: 0.88rem; color: ${item.done ? '#4B5563' : '#1F2937'}; ${item.done ? 'text-decoration: line-through;' : ''}">${escapeHtml(item.text)}</span>
+                                <span class="chk-detail-text">${escapeHtml(item.text)}</span>
                             </div>
                         `).join('')}
                     </div>
@@ -647,35 +647,35 @@
 
         body.innerHTML = `
             <div style="margin-bottom: 14px;">
-                <h2 style="font-size: 1.35rem; font-weight: 700; color: #111827; margin: 0 0 8px 0; line-height: 1.3;">
+                <h2 class="task-detail-title">
                     ${task.is_recurring ? '🔁 ' : ''}${escapeHtml(task.title)}
                 </h2>
                 <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">
-                    <span class="task-badge" style="background:${isCompleted ? '#DCFCE7' : (task.status === 'in-progress' ? '#E0F2FE' : '#FEF3C7')}; color:${isCompleted ? '#15803D' : (task.status === 'in-progress' ? '#0369A1' : '#B45309')}; font-weight:700;">${statusBadge}</span>
+                    <span class="day-task-status-pill ${isCompleted ? 'completed' : (task.status === 'in-progress' ? 'in-progress' : 'pending')}">${statusBadge}</span>
                     <span class="task-badge badge-priority-${task.priority || 'medium'}">${priorityBadge}</span>
                     <span class="task-badge badge-category">🏢 ${escapeHtml(task.category || 'General')}</span>
                     <span class="task-badge badge-sede">📍 ${escapeHtml(task.sede || 'Todas')}</span>
-                    ${task.is_recurring ? '<span class="task-badge badge-recurrence">🔁 Recurrente</span>' : '<span class="task-badge" style="background:#F3F4F6; color:#6B7280;">📌 Única</span>'}
+                    ${task.is_recurring ? '<span class="task-badge badge-recurrence">🔁 Recurrente</span>' : '<span class="task-badge badge-category">📌 Única</span>'}
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 0.85rem; color: #475569;">
-                <div><strong>📅 Fecha Programada:</strong> <span style="color: #1E293B; font-weight: 600;">${formattedDate}</span></div>
-                <div><strong>👤 Asignado a:</strong> <span style="color: #1E293B; font-weight: 600;">${escapeHtml(task.assigned_technician || 'Sin asignar')}</span></div>
-                <div><strong>✍️ Creada por:</strong> <span style="color: #1E293B; font-weight: 600;">${escapeHtml(task.created_by_name || 'Personal')}</span></div>
+            <div class="task-detail-meta-grid">
+                <div><strong>📅 Fecha Programada:</strong> <span class="task-detail-meta-value">${formattedDate}</span></div>
+                <div><strong>👤 Asignado a:</strong> <span class="task-detail-meta-value">${escapeHtml(task.assigned_technician || 'Sin asignar')}</span></div>
+                <div><strong>✍️ Creada por:</strong> <span class="task-detail-meta-value">${escapeHtml(task.created_by_name || 'Personal')}</span></div>
             </div>
 
             ${task.description ? `
                 <div style="margin-bottom: 16px;">
-                    <strong style="display: block; font-size: 0.86rem; color: #374151; margin-bottom: 4px;">📄 Descripción / Instrucciones:</strong>
-                    <div style="background: white; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px 12px; font-size: 0.88rem; color: #4B5563; line-height: 1.5; white-space: pre-wrap;">${escapeHtml(task.description)}</div>
+                    <strong class="task-form-label" style="font-size: 0.86rem; margin-bottom: 6px;">📄 Descripción / Instrucciones:</strong>
+                    <div class="task-detail-desc-box">${escapeHtml(task.description)}</div>
                 </div>
             ` : ''}
 
             ${checklistHtml}
 
-            <div style="display: flex; justify-content: flex-end; border-top: 1px solid #E5E7EB; padding-top: 14px;">
-                <button type="button" onclick="closeTaskDetailModal()" style="padding: 8px 18px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+            <div class="task-detail-footer" style="justify-content: flex-end;">
+                <button type="button" class="btn-modal-save" onclick="closeTaskDetailModal()">
                     Cerrar
                 </button>
             </div>

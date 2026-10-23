@@ -159,23 +159,23 @@
             <!-- KPIs de Tareas -->
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-number" id="taskKpiTotal" style="color: #008B8B;">0</div>
+                    <div class="stat-number stat-number--total" id="taskKpiTotal">0</div>
                     <div class="stat-label">Total Tareas</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="taskKpiPending" style="color: #F59E0B;">0</div>
+                    <div class="stat-number stat-number--pending" id="taskKpiPending">0</div>
                     <div class="stat-label">Pendientes</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="taskKpiInProgress" style="color: #0284C7;">0</div>
+                    <div class="stat-number stat-number--progress" id="taskKpiInProgress">0</div>
                     <div class="stat-label">En Progreso</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="taskKpiCompleted" style="color: #10B981;">0</div>
+                    <div class="stat-number stat-number--completed" id="taskKpiCompleted">0</div>
                     <div class="stat-label">Completadas</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number" id="taskKpiRecurring" style="color: #7E22CE;">0</div>
+                    <div class="stat-number stat-number--recurring" id="taskKpiRecurring">0</div>
                     <div class="stat-label">Recurrentes Activas</div>
                 </div>
             </div>
@@ -200,14 +200,14 @@
                             <button class="btn-cal-view" id="btnViewWeek" onclick="setCalendarView('week')">📆 Semana</button>
                             <button class="btn-cal-view" id="btnViewAgenda" onclick="setCalendarView('agenda')">📋 Agenda</button>
                         </div>
-                        <button class="btn-cal-view" onclick="openShareTasksModal()" title="Generar enlace público compartible" style="background: white; border: 1px solid #CBD5E1; color: #008B8B; font-weight: 600;">
+                        <button class="btn-cal-view btn-toolbar-share" onclick="openShareTasksModal()" title="Generar enlace público compartible">
                             🔗 Compartir
                         </button>
-                        <button class="btn-cal-view" onclick="exportTasksToCSV()" title="Exportar tareas filtradas a CSV" style="background: white; border: 1px solid #CBD5E1; color: #10B981; font-weight: 600;">
+                        <button class="btn-cal-view btn-toolbar-csv" onclick="exportTasksToCSV()" title="Exportar tareas filtradas a CSV">
                             📊 CSV
                         </button>
                         <button class="btn-new-task" onclick="openTaskModal()">
-                            ➕ Nueva Tarea
+                            <span aria-hidden="true" style="font-weight: 800; font-size: 1.05rem; line-height: 1;">+</span> Nueva Tarea
                         </button>
                     </div>
                 </div>
@@ -314,27 +314,27 @@
     <!-- Modal de Creación / Edición de Tarea de Soporte -->
     <div id="taskModalDialog" class="task-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle" style="display: none;">
         <div class="task-modal-card">
-            <div style="padding: 1.25rem 1.5rem; background: #F9FAFB; border-bottom: 1px solid #E5E7EB; display: flex; justify-content: space-between; align-items: center;">
-                <h3 id="taskModalTitle" style="font-size: 1.15rem; font-weight: 700; color: #111827;">➕ Nueva Tarea de Soporte Técnico</h3>
-                <button type="button" onclick="closeTaskModal()" aria-label="Cerrar modal de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer;">&times;</button>
+            <div class="task-modal-header">
+                <h3 id="taskModalTitle" class="task-modal-title">+ Nueva Tarea de Soporte Técnico</h3>
+                <button type="button" class="modal-close-btn" onclick="closeTaskModal()" aria-label="Cerrar modal de tarea">&times;</button>
             </div>
             
             <form id="taskFormElement" onsubmit="handleSaveTask(event)" style="padding: 1.5rem;">
                 <input type="hidden" id="taskIdInput">
 
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Título de la Tarea *</label>
+                    <label class="task-form-label" for="taskTitleInput">Título de la Tarea *</label>
                     <input type="text" id="taskTitleInput" required class="share-input" placeholder="Ej: Backup mensual de servidor NAS y bases de datos">
                 </div>
 
                 <div style="margin-bottom: 12px;">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Descripción / Instrucciones</label>
+                    <label class="task-form-label" for="taskDescInput">Descripción / Instrucciones</label>
                     <textarea id="taskDescInput" class="share-input" rows="2" placeholder="Detalles de la tarea, requerimientos técnicos, accesos necesarios..."></textarea>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div>
-                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Categoría / Especialidad</label>
+                        <label class="task-form-label" for="taskCategoryInput">Categoría / Especialidad</label>
                         <select id="taskCategoryInput" class="share-input">
                             <option value="General">General</option>
                             <option value="Hardware & PCs">Hardware & PCs</option>
@@ -347,7 +347,7 @@
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Prioridad</label>
+                        <label class="task-form-label" for="taskPriorityInput">Prioridad</label>
                         <select id="taskPriorityInput" class="share-input">
                             <option value="medium" selected>🟡 Media</option>
                             <option value="low">🔵 Baja</option>
@@ -359,7 +359,7 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
                     <div>
-                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Sede</label>
+                        <label class="task-form-label" for="taskSedeInput">Sede</label>
                         <select id="taskSedeInput" class="share-input">
                             <option value="Todas" selected>Todas las sedes</option>
                             <option value="Ciudad">Ciudad</option>
@@ -368,7 +368,7 @@
                         </select>
                     </div>
                     <div>
-                        <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Asignado a</label>
+                        <label class="task-form-label" for="taskAssignedToInput">Asignado a</label>
                         <select id="taskAssignedToInput" class="share-input">
                             <option value="">Sin asignar</option>
                             <option value="Rodolfo">Rodolfo</option>
@@ -378,21 +378,21 @@
                 </div>
 
                 <div style="margin-bottom: 14px;">
-                    <label style="display: block; font-size: 0.85rem; font-weight: 600; color: #374151; margin-bottom: 4px;">Fecha Límite / Vencimiento</label>
+                    <label class="task-form-label" for="taskDueDateInput">Fecha Límite / Vencimiento</label>
                     <input type="date" id="taskDueDateInput" class="share-input">
                 </div>
 
                 <!-- Recurrencia -->
-                <div style="background: #F3E8FF; border: 1px solid #E9D5FF; border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                        <label style="font-weight: 700; font-size: 0.88rem; color: #6B21A8; display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <div class="task-recurrence-box">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+                        <label class="task-recurrence-label" for="taskIsRecurringInput">
                             <input type="checkbox" id="taskIsRecurringInput" onchange="toggleRecurrenceOptions(this.checked)" style="accent-color: #7E22CE; width: 16px; height: 16px;">
                             🔁 Tarea Recurrente (Rutina Periódica)
                         </label>
                     </div>
-                    <div id="recurrenceOptionsDiv" style="display: none;">
-                        <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #6B21A8; margin-bottom: 4px;">Frecuencia de Repetición</label>
-                        <select id="taskRecurrenceIntervalInput" class="share-input" style="background: white;" onchange="handleRecurrenceIntervalChange(this.value)">
+                    <div id="recurrenceOptionsDiv" style="display: none; margin-top: 8px;">
+                        <label class="task-recurrence-sublabel" for="taskRecurrenceIntervalInput">Frecuencia de Repetición</label>
+                        <select id="taskRecurrenceIntervalInput" class="share-input" onchange="handleRecurrenceIntervalChange(this.value)">
                             <option value="daily">📅 Diaria (Cada día)</option>
                             <option value="workweek">💼 Semana laboral (Lunes a Viernes)</option>
                             <option value="weekly" selected>📅 Semanal (Cada 7 días)</option>
@@ -402,9 +402,9 @@
                         </select>
 
                         <!-- Campo personalizado de días de la semana -->
-                        <div id="recurrenceCustomDaysDiv" style="display: none; margin-top: 10px; padding: 10px; background: rgba(255, 255, 255, 0.75); border: 1px dashed #C084FC; border-radius: 8px;">
+                        <div id="recurrenceCustomDaysDiv" class="recurrence-custom-days-box" style="display: none;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; flex-wrap: wrap; gap: 4px;">
-                                <label style="font-size: 0.8rem; font-weight: 700; color: #6B21A8; margin: 0;">
+                                <label class="task-recurrence-sublabel" style="margin: 0;">
                                     🗓️ Selecciona los días en que debe repetirse:
                                 </label>
                                 <div style="display: flex; gap: 4px;">
@@ -422,12 +422,12 @@
                                 <button type="button" class="day-pill-btn" data-day="6" onclick="toggleRecurrenceDay(6)">Sáb</button>
                                 <button type="button" class="day-pill-btn" data-day="0" onclick="toggleRecurrenceDay(0)">Dom</button>
                             </div>
-                            <div id="customDaysSelectionSummary" style="margin-top: 6px; font-size: 0.76rem; color: #7E22CE; font-weight: 600;">
+                            <div id="customDaysSelectionSummary" class="recurrence-days-summary">
                                 Selecciona los días (ej: Martes y Viernes)
                             </div>
                         </div>
 
-                        <small style="display: block; color: #7E22CE; margin-top: 6px; font-size: 0.78rem;">
+                        <small class="task-recurrence-help">
                             Al completar la tarea, el sistema generará automáticamente la siguiente para la fecha correspondiente con el checklist limpio.
                         </small>
                     </div>
@@ -435,29 +435,29 @@
 
                 <!-- Constructor de Checklist -->
                 <div style="margin-bottom: 1.25rem;">
-                    <label style="display: block; font-size: 0.88rem; font-weight: 700; color: #1F2937; margin-bottom: 6px;">
+                    <label class="task-form-label" for="newChecklistItemInput" style="font-size: 0.88rem; font-weight: 700; margin-bottom: 6px;">
                         📝 Lista de Verificación (Checklist de Pasos)
                     </label>
                     <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                         <input type="text" id="newChecklistItemInput" class="share-input" placeholder="Escribe un ítem o paso a verificar y presiona Enter..." onkeydown="if(event.key==='Enter'){event.preventDefault(); addChecklistItemBuilder();}">
-                        <button type="button" onclick="addChecklistItemBuilder()" style="padding: 8px 14px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; white-space: nowrap;">
-                            ➕ Agregar
+                        <button type="button" class="btn-checklist-add" onclick="addChecklistItemBuilder()">
+                            <span aria-hidden="true" style="font-weight: 800; font-size: 1rem;">+</span> Agregar
                         </button>
                     </div>
 
                     <div id="checklistBuilderContainer" class="checklist-builder-box">
-                        <div id="emptyChecklistMsg" style="text-align: center; color: #4B5563; font-size: 0.82rem; padding: 6px;">
+                        <div id="emptyChecklistMsg" class="empty-checklist-msg">
                             No hay ítems agregados aún. Agrega los pasos a verificar.
                         </div>
                         <div id="checklistBuilderList"></div>
                     </div>
                 </div>
 
-                <div style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #E5E7EB; padding-top: 12px;">
-                    <button type="button" onclick="closeTaskModal()" style="padding: 10px 16px; background: #E5E7EB; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                <div class="task-modal-footer">
+                    <button type="button" class="btn-modal-cancel" onclick="closeTaskModal()">
                         Cancelar
                     </button>
-                    <button type="submit" style="padding: 10px 20px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 700; cursor: pointer;">
+                    <button type="submit" class="btn-modal-save">
                         💾 Guardar Tarea
                     </button>
                 </div>
@@ -468,9 +468,9 @@
     <!-- Modal de Detalles de Tarea de Soporte -->
     <div class="task-modal-overlay" id="taskDetailModalDialog" role="dialog" aria-modal="true" aria-labelledby="taskDetailModalHeaderTitle" style="display: none;" onclick="if(event.target===this) closeTaskDetailModal();">
         <div class="task-modal-card" style="max-width: 650px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
-                <button type="button" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
+            <div class="task-modal-header">
+                <h3 class="task-modal-title" id="taskDetailModalHeaderTitle">📋 Detalle de la Tarea</h3>
+                <button type="button" class="modal-close-btn" onclick="closeTaskDetailModal()" aria-label="Cerrar detalle de tarea">×</button>
             </div>
             <div style="padding: 20px;" id="taskDetailBody">
                 <!-- Se llena dinámicamente con openTaskDetailModal() -->
@@ -481,22 +481,22 @@
     <!-- Modal de Tareas del Día -->
     <div class="task-modal-overlay" id="dayTasksModalDialog" role="dialog" aria-modal="true" aria-labelledby="dayTasksModalTitle" style="display: none;" onclick="if(event.target===this) closeDayTasksModal();">
         <div class="task-modal-card" style="max-width: 600px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
+            <div class="task-modal-header">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;" id="dayTasksModalTitle">📅 Tareas del Día</h3>
+                    <h3 class="task-modal-title" id="dayTasksModalTitle">📅 Tareas del Día</h3>
                     <span id="dayTasksModalBadge" class="day-tasks-count-badge">0 tareas</span>
                 </div>
-                <button type="button" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
+                <button type="button" class="modal-close-btn" onclick="closeDayTasksModal()" aria-label="Cerrar modal de tareas del día">×</button>
             </div>
             <div style="padding: 18px 20px; max-height: 60vh; overflow-y: auto;" id="dayTasksListBody">
                 <!-- Se llena dinámicamente con openDayTasksModal() -->
             </div>
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-top: 1px solid #E5E7EB; background: #F9FAFB; border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;">
+            <div class="day-tasks-modal-footer">
                 <button type="button" class="btn btn-primary btn-sm" id="dayTasksAddBtn" onclick="handleDayTasksAddClick()" style="display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; background: #008B8B; color: #FFF; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                     Nueva Tarea para este día
                 </button>
-                <button type="button" class="btn btn-secondary btn-sm" onclick="closeDayTasksModal()" style="padding: 8px 16px; background: #E2E8F0; color: #334155; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">Cerrar</button>
+                <button type="button" class="btn-modal-cancel" onclick="closeDayTasksModal()">Cerrar</button>
             </div>
         </div>
     </div>
@@ -505,10 +505,10 @@
     <div class="task-modal-overlay" id="confirmActionModal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="display: none; z-index: 10005;" onclick="if(event.target===this) closeConfirmModal();">
         <div class="task-modal-card" style="max-width: 440px; text-align: center; padding: 26px 22px;">
             <div style="font-size: 3.2rem; margin-bottom: 12px; line-height: 1;" id="confirmIcon">⚠️</div>
-            <h3 style="font-size: 1.22rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;" id="confirmTitle">¿Confirmar Acción?</h3>
-            <p style="font-size: 0.92rem; color: #4B5563; line-height: 1.5; margin-bottom: 22px;" id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
+            <h3 class="task-modal-title" style="font-size: 1.22rem; margin-bottom: 8px;" id="confirmTitle">¿Confirmar Acción?</h3>
+            <p class="confirm-modal-message" id="confirmMessage">¿Estás seguro de realizar esta acción?</p>
             <div style="display: flex; gap: 10px; justify-content: center;">
-                <button type="button" onclick="closeConfirmModal()" style="padding: 10px 18px; border: 1.5px solid #D1D5DB; background: #FFFFFF; color: #374151; border-radius: 8px; font-weight: 600; cursor: pointer; flex: 1;">
+                <button type="button" class="btn-modal-cancel" onclick="closeConfirmModal()" style="flex: 1;">
                     Cancelar
                 </button>
                 <button type="button" id="confirmActionButton" style="padding: 10px 20px; background: #DC2626; color: #FFFFFF; border: none; border-radius: 8px; font-weight: 700; cursor: pointer; flex: 1; transition: opacity 0.2s;">
@@ -558,23 +558,23 @@
     <!-- Modal Compartir Tablero de Tareas -->
     <div class="task-modal-overlay" id="shareTasksModalDialog" role="dialog" aria-modal="true" style="display: none;" onclick="if(event.target===this) closeShareTasksModal();">
         <div class="task-modal-card" style="max-width: 680px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #E5E7EB;">
-                <h3 style="font-size: 1.15rem; font-weight: 700; color: #1F2937; margin: 0;">🔗 Compartir Tablero de Tareas</h3>
-                <button type="button" onclick="closeShareTasksModal()" aria-label="Cerrar compartir tablero de tareas" style="background: none; border: none; font-size: 1.5rem; color: #4B5563; cursor: pointer; line-height: 1;">×</button>
+            <div class="task-modal-header">
+                <h3 class="task-modal-title">🔗 Compartir Tablero de Tareas</h3>
+                <button type="button" class="modal-close-btn" onclick="closeShareTasksModal()" aria-label="Cerrar compartir tablero de tareas">×</button>
             </div>
             <div style="padding: 20px;">
-                <p style="font-size: 0.88rem; color: #4B5563; margin-bottom: 14px;">
+                <p class="modal-description-text" style="font-size: 0.88rem; margin-bottom: 14px;">
                     Genera un enlace público protegido para que directivos, auditores o miembros del equipo puedan consultar el estado del tablero de tareas y rutinas de soporte en tiempo real sin requerir inicio de sesión.
                 </p>
 
-                <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 14px;">
+                <div class="share-config-box">
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Título personalizado (opcional)</label>
+                            <label class="task-form-label" for="shareTaskTitleInput" style="font-size: 0.8rem;">Título personalizado (opcional)</label>
                             <input type="text" id="shareTaskTitleInput" class="share-input" placeholder="Ej: Tablero de Tareas de Soporte">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Período de tareas a incluir</label>
+                            <label class="task-form-label" for="shareTaskPeriodSelect" style="font-size: 0.8rem;">Período de tareas a incluir</label>
                             <select id="shareTaskPeriodSelect" class="share-input" onchange="toggleTaskShareCustomDates()">
                                 <option value="7d" selected>Últimos 7 días (hasta hoy)</option>
                                 <option value="30d">Últimos 30 días (hasta hoy)</option>
@@ -602,7 +602,7 @@
                         <div class="custom-date-fields-grid">
                             <div class="custom-date-field-group">
                                 <label for="shareTaskStartDateInput">
-                                    <span style="color: #008B8B; font-size: 0.9rem;">📅</span> Fecha Desde:
+                                    <span style="font-size: 0.9rem;">📅</span> Fecha Desde:
                                 </label>
                                 <div class="custom-date-input-wrapper">
                                     <input type="date" id="shareTaskStartDateInput" class="share-input" onchange="updateTaskShareCustomDateSummary()">
@@ -610,7 +610,7 @@
                             </div>
                             <div class="custom-date-field-group">
                                 <label for="shareTaskEndDateInput">
-                                    <span style="color: #008B8B; font-size: 0.9rem;">📅</span> Fecha Hasta:
+                                    <span style="font-size: 0.9rem;">📅</span> Fecha Hasta:
                                 </label>
                                 <div class="custom-date-input-wrapper">
                                     <input type="date" id="shareTaskEndDateInput" class="share-input" onchange="updateTaskShareCustomDateSummary()">
@@ -619,12 +619,12 @@
                         </div>
                         <div id="taskShareCustomDateSummary" class="custom-date-range-summary">
                             <span id="taskShareCustomDateSummaryText">📅 Selecciona las fechas de inicio y fin</span>
-                            <span id="taskShareCustomDateDaysBadge" style="background: #E6FCF5; color: #008B8B; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;"></span>
+                            <span id="taskShareCustomDateDaysBadge" class="custom-date-days-badge"></span>
                         </div>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Vigencia del enlace</label>
+                            <label class="task-form-label" for="shareTaskExpirationSelect" style="font-size: 0.8rem;">Vigencia del enlace</label>
                             <select id="shareTaskExpirationSelect" class="share-input">
                                 <option value="7" selected>Válido por 7 días</option>
                                 <option value="14">Válido por 14 días (2 semanas)</option>
@@ -634,7 +634,7 @@
                             </select>
                         </div>
                         <div style="display: flex; flex-direction: column; justify-content: flex-end;">
-                            <small id="shareTaskPeriodHelpText" style="color: #008B8B; font-weight: 600; font-size: 0.78rem; line-height: 1.3;">
+                            <small id="shareTaskPeriodHelpText" class="share-period-help-text">
                                 🔒 Corte de fecha: Solo incluye tareas hasta hoy, evitando computar rutinas futuras como pendientes.
                             </small>
                         </div>
@@ -646,24 +646,24 @@
                 </div>
 
                 <!-- Resultado de enlace generado -->
-                <div id="newTaskShareResult" style="display: none; margin-bottom: 14px; padding: 12px; background: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 8px;">
+                <div id="newTaskShareResult" class="task-share-result-box" style="display: none;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <strong style="color: #065F46; font-size: 0.85rem;">✅ ¡Enlace público generado con éxito!</strong>
+                        <strong class="task-share-result-title">✅ ¡Enlace público generado con éxito!</strong>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="generatedTaskShareUrl" readonly class="share-input" style="background: white; font-size: 0.82rem; padding: 6px 10px; height: 38px; min-height: 38px;" />
+                        <input type="text" id="generatedTaskShareUrl" readonly class="share-input" style="font-size: 0.82rem; padding: 6px 10px; height: 38px; min-height: 38px;" />
                         <button type="button" onclick="copyTaskShareUrlToClipboard()" style="padding: 6px 12px; background: #008B8B; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; white-space: nowrap; height: 38px;">📋 Copiar</button>
-                        <a id="openTaskShareUrlBtn" href="#" target="_blank" style="padding: 6px 12px; background: #E0F2FE; color: #0369A1; border: 1px solid #BAE6FD; border-radius: 6px; font-weight: 600; text-decoration: none; white-space: nowrap; height: 38px; display: inline-flex; align-items: center;">↗️ Abrir</a>
+                        <a id="openTaskShareUrlBtn" href="#" target="_blank" class="btn-share-open-link">↗️ Abrir</a>
                     </div>
                 </div>
 
                 <!-- Historial de enlaces activos -->
                 <div>
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin-bottom: 8px;">Enlaces Activos Creados</h4>
-                    <div id="sharedTaskLinksContainer" style="max-height: 180px; overflow-y: auto; border: 1px solid #E5E7EB; border-radius: 6px;">
+                    <h4 class="task-modal-subtitle">Enlaces Activos Creados</h4>
+                    <div id="sharedTaskLinksContainer" class="shared-links-container">
                         <table class="shared-links-table responsive-table" style="width: 100%; border-collapse: collapse; font-size: 0.82rem;">
                             <thead>
-                                <tr style="background: #F8FAFC; text-align: left; border-bottom: 1px solid #E2E8F0;">
+                                <tr class="shared-links-thead-row">
                                     <th style="padding: 8px 10px;">Título</th>
                                     <th style="padding: 8px 10px;">Período</th>
                                     <th style="padding: 8px 10px;">Vencimiento</th>
