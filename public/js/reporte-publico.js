@@ -283,6 +283,8 @@ function renderDeptChart(deptList) {
         '#1098AD'
     ];
 
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
     deptChartInstance = new Chart(ctx, {
         type: 'doughnut',
         data: {
@@ -291,7 +293,7 @@ function renderDeptChart(deptList) {
                 data: totals,
                 backgroundColor: colors.slice(0, labels.length),
                 borderWidth: 2,
-                borderColor: '#FFFFFF'
+                borderColor: isDark ? '#1e293b' : '#FFFFFF'
             }]
         },
         options: {
@@ -301,6 +303,7 @@ function renderDeptChart(deptList) {
                 legend: {
                     position: 'bottom',
                     labels: {
+                        color: isDark ? '#cbd5e1' : '#334155',
                         boxWidth: 12,
                         font: { family: 'Montserrat', size: 11, weight: '500' }
                     }
@@ -314,7 +317,7 @@ function renderDeptChart(deptList) {
 function renderDepartmentTable(deptList) {
     const tbody = document.getElementById('reportTableBody');
     if (!deptList || deptList.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #4B5563; padding: 2rem;">No hay datos registrados en este período.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted, #4B5563); padding: 2rem;">No hay datos registrados en este período.</td></tr>';
         return;
     }
 
@@ -330,7 +333,7 @@ function renderDepartmentTable(deptList) {
                 <td data-label="% Eficiencia">
                     <div style="display: flex; justify-content: space-between; font-size: 0.82rem; font-weight: 600; margin-bottom: 2px;">
                         <span>${rate}%</span>
-                        <span style="color: #4B5563;">${d.closed}/${d.total} resueltos</span>
+                        <span style="color: var(--text-muted, #4B5563);">${d.closed}/${d.total} resueltos</span>
                     </div>
                     <div class="progress-bar-container">
                         <div class="progress-bar" style="width: ${Math.min(100, rate)}%; background-color: ${rate >= 70 ? '#2F9E44' : rate >= 40 ? '#F59F00' : '#E03131'};"></div>
@@ -436,7 +439,12 @@ window.copyPublicReportUrl = copyPublicReportUrl;
         updateToggleButtons(normalized);
         syncCharts(normalized === 'dark');
     }
-    window.toggleDarkMode = function () {
+    window.toggleDarkMode = function (triggerEvent) {
+        if (window.ThemeManager && typeof window.ThemeManager.toggle === 'function') {
+            const next = window.ThemeManager.toggle(triggerEvent);
+            syncCharts(next === 'dark');
+            return next;
+        }
         const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
         const next = current === 'dark' ? 'light' : 'dark';
         applyTheme(next, true);

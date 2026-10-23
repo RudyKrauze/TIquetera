@@ -976,7 +976,8 @@ function openShareModal() {
         if (!preview) {
             preview = document.createElement('small');
             preview.id = 'sharePeriodRangePreview';
-            preview.style.cssText = 'color: #008B8B; font-weight: 600; display: block; margin-top: 4px; font-size: 0.8rem;';
+            preview.className = 'share-period-help-text';
+            preview.style.cssText = 'display: block; margin-top: 5px; font-size: 0.78rem; font-weight: 600;';
             sharePeriodSelect.parentNode.appendChild(preview);
         }
         preview.textContent = `📅 Rango: ${getDateRangeString(sharePeriodSelect.value)}`;
@@ -1162,17 +1163,23 @@ async function loadSharedLinksHistory() {
             const periodLabel = item.period === '7d' ? 'Semanal' : (item.period === '30d' ? 'Mensual' : (item.period === '1d' ? 'Diario' : item.period));
 
             return `
-                <tr id="shared-row-${item.token}">
-                    <td data-label="Título / Alcance" class="table-cell-title">
+                <tr id="shared-row-${item.token}" class="shared-links-row">
+                    <td data-label="Título / Alcance" class="table-cell-title share-col-title">
                         <strong>${escapeHtml(item.title)}</strong> ${statusLabel}<br>
                         <span class="table-cell-sub">${periodLabel} | ${item.department === 'all' ? 'Todos' : escapeHtml(item.department)}</span>
                     </td>
-                    <td data-label="Expira" class="table-cell-meta">${expiresText}</td>
+                    <td data-label="Expira" class="table-cell-meta share-col-exp">
+                        <span class="share-table-badge ${isExpired ? 'share-badge-expired' : 'share-badge-active'}">
+                            ${isExpired ? '⚠️ ' : '⏳ '}${expiresText}
+                        </span>
+                    </td>
                     <td data-label="Vistas" class="table-cell-center">${item.views_count || 0}</td>
-                    <td data-label="Acciones" class="table-cell-actions">
-                        <button onclick="copySpecificShareUrl('${item.url}', this)" class="btn-icon" style="background: #E5E7EB;" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
-                        <a href="${item.url}" target="_blank" class="btn-icon" style="background: #E5E7EB; color: #1F2937; text-decoration: none;" title="Abrir reporte" aria-label="Abrir reporte">↗️</a>
-                        <button onclick="deleteSharedLink('${item.token}')" class="btn-icon" style="background: #FEE2E2; color: #DC2626;" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
+                    <td data-label="Acciones" class="table-cell-actions share-col-actions">
+                        <div class="share-actions-group">
+                            <button type="button" onclick="copySpecificShareUrl('${item.url}', this)" class="btn-icon share-action-btn share-action-copy" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
+                            <a href="${item.url}" target="_blank" class="btn-icon share-action-btn share-action-open" title="Abrir reporte" aria-label="Abrir reporte">↗️</a>
+                            <button type="button" onclick="deleteSharedLink('${item.token}')" class="btn-icon share-action-btn share-action-delete" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
+                        </div>
                     </td>
                 </tr>
             `;

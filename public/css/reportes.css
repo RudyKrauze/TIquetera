@@ -363,8 +363,20 @@
     font-size: 0.88rem;
     font-family: inherit;
     color: #1E293B;
-    background: #FFFFFF;
+    background-color: #FFFFFF;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+select.share-input {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23475569' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px 16px;
+    padding-right: 34px;
+    cursor: pointer;
 }
 
 .share-input:focus {
@@ -1047,11 +1059,11 @@
         font-size: 0.82rem;
     }
 
-    /* Botones de acción en cuadrícula 2x2 */
+    /* Botones de acción en fila de 3 columnas */
     .action-buttons {
         width: 100%;
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 8px;
     }
 

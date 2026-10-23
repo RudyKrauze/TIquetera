@@ -9,7 +9,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
     <style>
         :root {
             --brand-primary: #008B8B;
@@ -537,6 +536,7 @@
             cursor: zoom-out;
         }
     </style>
+    <link rel="stylesheet" href="/css/design-system.css?v=4.5">
 </head>
 
 <body>
@@ -920,9 +920,13 @@
                 btn.type = 'button';
                 btn.id = 'themeToggleBtn';
                 btn.className = 'theme-toggle-btn';
-                btn.addEventListener('click', () => {
-                    const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
-                    applyTheme(current === 'dark' ? 'light' : 'dark', true);
+                btn.addEventListener('click', (e) => {
+                    if (typeof window.toggleDarkMode === 'function') {
+                        window.toggleDarkMode(e);
+                    } else {
+                        const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
+                        applyTheme(current === 'dark' ? 'light' : 'dark', true);
+                    }
                 });
                 actionsBox.appendChild(btn);
             }
@@ -932,7 +936,7 @@
         // Cargar ticket al cargar la página
         loadTicket(currentTrackingId);
     </script>
-    <script src="/js/core-panel.js?v=4.0"></script>
+    <script src="/js/core-panel.js?v=4.5"></script>
 </body>
 
 </html>

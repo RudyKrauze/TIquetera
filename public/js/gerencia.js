@@ -671,7 +671,7 @@ function showTicketDetails(ticketId) {
 
         <div class="detail-row" style="margin-bottom: 15px;">
             <div class="detail-label" style="font-size: 0.85em; color: #6c757d; font-weight: 600; margin-bottom: 5px;">📝 Descripción</div>
-            <div class="detail-value" style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 8px;">${escapeHtml(ticket.description)}</div>
+            <div class="detail-value detail-description-box">${escapeHtml(ticket.description)}</div>
         </div>
 
         <div class="detail-row" style="margin-bottom: 15px;">
@@ -686,11 +686,11 @@ function showTicketDetails(ticketId) {
 
         <!-- Estado y Prioridad (Grid) -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label" style="margin-bottom: 8px;">📊 Estado</div>
                 <span class="ticket-status status-${ticket.status}">${getStatusText(ticket.status)}</span>
             </div>
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label" style="margin-bottom: 8px;">⚠️ Prioridad</div>
                 <span class="ticket-priority-pill priority-pill-${ticket.priority}">
                     ${ticket.priority === 'high' ? '🔴 Alta' : ticket.priority === 'medium' ? '🟡 Media' : '🟢 Baja'}
@@ -700,11 +700,11 @@ function showTicketDetails(ticketId) {
 
         <!-- Info Grid -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label">🏢 Departamento</div>
                 <div class="detail-value">${escapeHtml(ticket.department || 'General')}</div>
             </div>
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label">👤 Creado por</div>
                 <div class="detail-value">
                     ${escapeHtml(ticket.created_by_name || 'Anónimo')}<br>
@@ -714,11 +714,11 @@ function showTicketDetails(ticketId) {
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label">🔧 Área / Usuario Asignado</div>
                 <div class="detail-value" id="ticketAssignedTo-${ticket.id}">${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}</div>
             </div>
-            <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+            <div class="detail-row detail-card">
                 <div class="detail-label" style="margin-bottom: 6px;">👤 Personal Asignado</div>
                 <select id="ticketTechnicianSelect-${ticket.id}" 
                         data-current-technician="${escapeHtml(ticket.assigned_technician || '')}"
@@ -733,7 +733,7 @@ function showTicketDetails(ticketId) {
             </div>
         </div>
 
-        <div class="detail-row" style="margin: 0 0 15px 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+        <div class="detail-row detail-card" style="margin-bottom: 15px;">
             <div class="detail-label">📅 Fecha de Creación</div>
             <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
         </div>
@@ -2535,14 +2535,15 @@ async function loadActiveTaskShareLinks() {
         container.innerHTML = links.map(l => {
             const shareUrl = `${baseUrl}/tareas/publico/${l.token}`;
             return `
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: white; border: 1px solid #E2E8F0; border-radius: 6px; margin-bottom: 6px;">
+                <div class="share-link-item" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: white; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 8px; gap: 10px;">
                     <div>
                         <div style="font-weight: 600; font-size: 0.85rem; color: #1E293B;">${escapeHtml(l.title || 'Tablero Compartido')}</div>
-                        <div style="font-size: 0.75rem; color: #64748B;">Período: ${l.period} | Creado: ${l.created_at ? l.created_at.substring(0, 10) : ''}</div>
+                        <div style="font-size: 0.75rem; color: #64748B;">Período: ${escapeHtml(l.period)} | Creado: ${l.created_at ? l.created_at.substring(0, 10) : ''}</div>
                     </div>
-                    <div style="display: flex; gap: 6px;">
-                        <button type="button" onclick="copyToClipboard('${shareUrl}')" aria-label="Copiar enlace" style="padding: 4px 8px; background: #E2E8F0; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">📋 Copiar</button>
-                        <button type="button" onclick="deleteTaskShareLink('${l.token}')" aria-label="Eliminar enlace" style="padding: 4px 8px; background: #FEE2E2; color: #DC2626; border: none; border-radius: 4px; font-size: 0.78rem; cursor: pointer;">🗑️</button>
+                    <div class="share-actions-group">
+                        <button type="button" onclick="copyToClipboard('${shareUrl}')" class="btn-icon share-action-btn share-action-copy" title="Copiar enlace" aria-label="Copiar enlace">📋</button>
+                        <a href="${shareUrl}" target="_blank" class="btn-icon share-action-btn share-action-open" title="Abrir enlace" aria-label="Abrir enlace">↗️</a>
+                        <button type="button" onclick="deleteTaskShareLink('${l.token}')" class="btn-icon share-action-btn share-action-delete" title="Eliminar enlace" aria-label="Eliminar enlace">🗑️</button>
                     </div>
                 </div>
             `;

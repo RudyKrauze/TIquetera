@@ -725,11 +725,35 @@ a:focus-visible,
   border: none;
   background: transparent;
   padding: 4px 6px;
-  max-width: 130px;
+  max-width: 145px;
   font-size: 0.9em;
   color: #374151;
   font-weight: 500;
   cursor: pointer;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 4px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23008B8B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 16px 16px;
+  filter: none !important;
+  opacity: 1;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+.date-input::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(0, 139, 139, 0.14);
+  transform: scale(1.08);
 }
 
 .date-input:focus:not(:focus-visible) {
@@ -2009,6 +2033,112 @@ a:focus-visible,
   transform: translateY(0) scale(0.96);
 }
 
+.theme-toggle-btn span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.theme-toggle-btn.is-toggling span {
+  animation: themeIconSpin 0.52s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes themeIconSpin {
+  0% {
+    transform: rotate(-110deg) scale(0.5);
+    opacity: 0.4;
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* =======================================================
+   VIEW TRANSITIONS API — EFECTO CIRCULAR (CLIP-PATH REVEAL)
+   Inspirado en VitePress / Telegram / Ant Design v5
+   ======================================================= */
+@keyframes themeCircleReveal {
+  from {
+    clip-path: circle(0px at var(--vt-x, 92vw) var(--vt-y, 36px));
+  }
+  to {
+    clip-path: circle(var(--vt-r, 150vmax) at var(--vt-x, 92vw) var(--vt-y, 36px));
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 999999;
+  animation: themeCircleReveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Fallback de transición suave para navegadores sin View Transitions API */
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning .main-container,
+html.theme-transitioning .tracking-shell,
+html.theme-transitioning .navbar,
+html.theme-transitioning .public-navbar,
+html.theme-transitioning .header,
+html.theme-transitioning .tracking-header,
+html.theme-transitioning .header-tracking-group,
+html.theme-transitioning .header-tracking-input,
+html.theme-transitioning .tracking-id-input,
+html.theme-transitioning .stat-card,
+html.theme-transitioning .kpi-card,
+html.theme-transitioning .tickets-section,
+html.theme-transitioning .users-section,
+html.theme-transitioning .tasks-board-section,
+html.theme-transitioning .calendar-wrapper,
+html.theme-transitioning .chart-card,
+html.theme-transitioning .table-card,
+html.theme-transitioning .report-header-card,
+html.theme-transitioning .board-header-card,
+html.theme-transitioning .board-header-banner,
+html.theme-transitioning .notifications-card,
+html.theme-transitioning .main-form-card,
+html.theme-transitioning .state-card,
+html.theme-transitioning .ticket-card,
+html.theme-transitioning .info-item,
+html.theme-transitioning .description-box,
+html.theme-transitioning .attachments-container,
+html.theme-transitioning .timeline-content,
+html.theme-transitioning .file-upload-box,
+html.theme-transitioning .ticket-grid-card,
+html.theme-transitioning .kanban-card,
+html.theme-transitioning .kanban-column,
+html.theme-transitioning .section-header,
+html.theme-transitioning .search-container,
+html.theme-transitioning .tasks-toolbar,
+html.theme-transitioning .pagination-container,
+html.theme-transitioning .modal-content,
+html.theme-transitioning .task-modal-card,
+html.theme-transitioning .modal-card,
+html.theme-transitioning .login-modal,
+html.theme-transitioning .calendar-day-cell,
+html.theme-transitioning input,
+html.theme-transitioning select,
+html.theme-transitioning textarea {
+  transition:
+    background-color 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.38s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
 /* Variante del botón cuando se ubica sobre encabezados claros (index.html / track.html) */
 .header .theme-toggle-btn,
 .tracking-header .theme-toggle-btn {
@@ -2129,6 +2259,23 @@ html[data-theme="dark"] .header .theme-toggle-btn:hover,
 html[data-theme="dark"] .tracking-header .theme-toggle-btn:hover {
   background: #475569;
   border-color: #64748b;
+}
+
+html[data-theme="dark"] .header-tracking-group {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .header-tracking-group:focus-within {
+  background: #0f172a !important;
+  border-color: #14b8a6 !important;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25) !important;
+}
+
+html[data-theme="dark"] .header-tracking-input {
+  background: transparent !important;
+  border: none !important;
+  color: #f8fafc !important;
 }
 
 /* 3. Tarjetas Principales, KPIs y Secciones */
@@ -2287,20 +2434,58 @@ html[data-theme="dark"] textarea::placeholder {
   opacity: 1 !important;
 }
 
-/* Invertir icono nativo de calendario/reloj en inputs de fecha en Modo Oscuro (WCAG 1.4.11 >= 3:1) */
+/* Icono de calendario/reloj en inputs de fecha en Modo Oscuro (WCAG 1.4.11 >= 3:1)
+   Nota: Con color-scheme: dark activo, usar filter: invert() invertía el icono blanco nativo a negro.
+   Por ello se inyecta un SVG explícito #2dd4bf con filter: none !important. */
+html[data-theme="dark"] input[type="date"],
+html[data-theme="dark"] input[type="datetime-local"],
+html[data-theme="dark"] input[type="time"],
+html[data-theme="dark"] .date-input {
+  color-scheme: dark !important;
+}
+
 html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
 html[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
-html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator,
+html[data-theme="dark"] .date-input::-webkit-calendar-picker-indicator,
 html[data-theme="dark"] .custom-date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.88) brightness(1.15) !important;
-  opacity: 0.9 !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='18' rx='2' ry='2'/%3E%3Cline x1='16' y1='2' x2='16' y2='6'/%3E%3Cline x1='8' y1='2' x2='8' y2='6'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 16px 16px !important;
+  filter: none !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
+}
+
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator:hover,
+html[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+html[data-theme="dark"] .date-input::-webkit-calendar-picker-indicator:hover,
+html[data-theme="dark"] .custom-date-input-wrapper input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  background-color: rgba(45, 212, 191, 0.2) !important;
+}
+
+html[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%232dd4bf' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 16px 16px !important;
+  filter: none !important;
+  opacity: 1 !important;
+  cursor: pointer !important;
 }
 
 html[data-theme="dark"] select.share-input,
 html[data-theme="dark"] select.task-input,
 html[data-theme="dark"] select.task-modal-select,
 html[data-theme="dark"] select.task-filter-select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
   background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%23cbd5e1' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.75' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 10px center !important;
+  background-size: 16px 16px !important;
+  padding-right: 34px !important;
 }
 
 html[data-theme="dark"] input:focus,
@@ -2310,10 +2495,18 @@ html[data-theme="dark"] textarea:focus {
   box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.25) !important;
 }
 
-html[data-theme="dark"] .input-readonly {
+html[data-theme="dark"] .input-readonly,
+html[data-theme="dark"] input[disabled],
+html[data-theme="dark"] select[disabled],
+html[data-theme="dark"] textarea[disabled] {
   background-color: #1e293b !important;
   color: #94a3b8 !important;
   border-color: #334155 !important;
+  cursor: not-allowed !important;
+}
+
+html[data-theme="dark"] #sharePeriodRangePreview {
+  color: #2dd4bf !important;
 }
 
 html[data-theme="dark"] .date-filter-group {
@@ -2825,15 +3018,21 @@ html[data-theme="dark"] .login-modal h2 {
   color: #f8fafc !important;
 }
 
-html[data-theme="dark"] .close-modal,
-html[data-theme="dark"] .modal-close {
+html[data-theme="dark"] .close-modal {
   color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .modal-close {
+  background: #273549 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #475569 !important;
 }
 
 html[data-theme="dark"] .close-modal:hover,
 html[data-theme="dark"] .modal-close:hover {
-  background: rgba(239, 68, 68, 0.2) !important;
-  color: #f87171 !important;
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
 }
 
 html[data-theme="dark"] .detail-row {
@@ -3297,6 +3496,9 @@ html[data-theme="dark"] .btn-toolbar-csv:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .task-modal-title {
@@ -4231,4 +4433,820 @@ html[data-theme="dark"] #taskDetailBody span[style*="color: #15803D"] {
 html[data-theme="dark"] #sharedTaskLinksTableBody tr {
   border-bottom-color: #334155 !important;
 }
+
+/* ==========================================================================
+   16. AUDITORÍA INTEGRAL DE MODO OSCURO Y CONTRASTE EN TODAS LAS SECCIONES
+   ========================================================================== */
+
+/* 16.1. Modal de Detalles de Ticket (.detail-row, .detail-value, .attachments-section, .comment-form) */
+.detail-card {
+  margin: 0;
+  padding: 15px;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.detail-description-box {
+  white-space: pre-wrap;
+  background: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  padding: 15px;
+  border-radius: 8px;
+  color: #1e293b;
+}
+
+html[data-theme="dark"] .detail-card,
+html[data-theme="dark"] .detail-row[style*="background"],
+html[data-theme="dark"] .modal-body div[style*="grid-template-columns"] > .detail-row,
+html[data-theme="dark"] .detail-description-box,
+html[data-theme="dark"] .detail-value[style*="background"] {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .detail-row .detail-label,
+html[data-theme="dark"] .detail-card .detail-label {
+  color: #94a3b8 !important;
+  font-weight: 600 !important;
+}
+
+html[data-theme="dark"] .detail-row .detail-value,
+html[data-theme="dark"] .detail-card .detail-value {
+  color: #f8fafc !important;
+}
+
+/* Valores destacados de Área Afectada, Sede y Asignado en Modo Oscuro */
+html[data-theme="dark"] .detail-value[style*="color: #d63384"] {
+  color: #f472b6 !important;
+}
+
+html[data-theme="dark"] .detail-value[style*="color: #0d6efd"] {
+  color: #60a5fa !important;
+}
+
+html[data-theme="dark"] .detail-row strong[style*="color: #008B8B"],
+html[data-theme="dark"] .detail-row strong[style*="color: #008b8b"] {
+  color: #2dd4bf !important;
+}
+
+html[data-theme="dark"] .detail-row strong[style*="color: #4F46E5"] {
+  color: #818cf8 !important;
+}
+
+html[data-theme="dark"] .detail-row strong[style*="color: #7E22CE"] {
+  color: #c084fc !important;
+}
+
+html[data-theme="dark"] .detail-row small,
+html[data-theme="dark"] .detail-value span[style*="color: #6c757d"],
+html[data-theme="dark"] .detail-value span[style*="color: #64748B"] {
+  color: #94a3b8 !important;
+}
+
+/* Selects e inputs dentro de showTicketDetails */
+html[data-theme="dark"] .detail-row select,
+html[data-theme="dark"] .detail-row input {
+  background-color: #1e293b !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+/* Sección de Archivos Adjuntos (window.renderTicketAttachments y track.html) */
+.attachments-section {
+  background: #f8f9fa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  margin-top: 15px;
+}
+
+.attachments-section-title {
+  margin: 0 0 12px 0;
+  color: #2c3e50;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.attachment-thumb-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #dee2e6;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+  background: #e2e8f0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.06);
+}
+
+html[data-theme="dark"] .attachments-section,
+html[data-theme="dark"] .attachments-container {
+  background: #162032 !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] .attachments-section h4,
+html[data-theme="dark"] .attachments-section-title,
+html[data-theme="dark"] .attachments-title {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .attachment-thumb-wrapper,
+html[data-theme="dark"] .attachment-item {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+}
+
+html[data-theme="dark"] .attachment-thumb-wrapper:hover,
+html[data-theme="dark"] .attachment-item:hover {
+  border-color: #2dd4bf !important;
+}
+
+/* Formulario de Comentarios / Agregar Respuesta y Banners de Solo Lectura */
+html[data-theme="dark"] .comment-form {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .comment-form h4 {
+  color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] .comment-form textarea {
+  background: #0f172a !important;
+  border-color: #475569 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .modal-body div[style*="background: #e3f2fd"] {
+  background: rgba(14, 165, 233, 0.14) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  color: #e0f2fe !important;
+}
+
+html[data-theme="dark"] .modal-body div[style*="background: #e3f2fd"] p,
+html[data-theme="dark"] .modal-body div[style*="background: #e3f2fd"] strong {
+  color: #7dd3fc !important;
+}
+
+/* Encabezado de Historial y Comentarios / Línea de Tiempo */
+html[data-theme="dark"] .modal-body h3,
+html[data-theme="dark"] .section-title {
+  color: #f8fafc !important;
+  border-bottom-color: #334155 !important;
+}
+
+html[data-theme="dark"] .comment-body,
+html[data-theme="dark"] .timeline-content-wrapper,
+html[data-theme="dark"] .timeline-content,
+html[data-theme="dark"] .comment-item[style*="background"] {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] .comment-body[style*="#e7f5ff"],
+html[data-theme="dark"] .timeline-content-wrapper[style*="#e7f5ff"],
+html[data-theme="dark"] .comment-item--me .comment-body,
+html[data-theme="dark"] .timeline-item--me .timeline-content-wrapper {
+  background: rgba(14, 165, 233, 0.16) !important;
+  border: 1px solid rgba(56, 189, 248, 0.38) !important;
+}
+
+html[data-theme="dark"] .comment-avatar,
+html[data-theme="dark"] .timeline-avatar {
+  background: #273549 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #475569 !important;
+}
+
+html[data-theme="dark"] .comment-avatar[style*="#4dabf7"],
+html[data-theme="dark"] .timeline-avatar[style*="#4dabf7"],
+html[data-theme="dark"] .comment-item--me .comment-avatar,
+html[data-theme="dark"] .timeline-item--me .timeline-avatar {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .comment-author,
+html[data-theme="dark"] .timeline-user {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .comment-date,
+html[data-theme="dark"] .timeline-date,
+html[data-theme="dark"] .comment-meta {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .comment-text,
+html[data-theme="dark"] .timeline-content,
+html[data-theme="dark"] .comment-item div[style*="color:#1f2937"] {
+  color: #e2e8f0 !important;
+}
+
+html[data-theme="dark"] #commentsContainer div[style*="background:#f9fafb"],
+html[data-theme="dark"] #commentsContainer div[style*="background: #f9fafb"],
+html[data-theme="dark"] .timeline div[style*="background:#f9fafb"],
+html[data-theme="dark"] .empty-timeline,
+html[data-theme="dark"] .empty-comments-box {
+  background: #0f172a !important;
+  border: 1px solid #334155 !important;
+  color: #94a3b8 !important;
+}
+
+/* 16.2. Notificaciones Toasts y Página de Historial (/notificaciones) */
+html[data-theme="dark"] .notification-toast {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  border-left: 4px solid #14b8a6 !important;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.7) !important;
+}
+
+html[data-theme="dark"] .notification-toast-title {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .notification-toast-message {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .notification-toast-close {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .notification-toast-close:hover {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .page-title,
+html[data-theme="dark"] .notifications-page-header h1 {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .page-title svg {
+  color: #2dd4bf !important;
+}
+
+html[data-theme="dark"] .stats-bar {
+  background: #162032 !important;
+  border-bottom-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .stat-item strong {
+  color: #2dd4bf !important;
+}
+
+html[data-theme="dark"] .notification-history-card {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35) !important;
+}
+
+html[data-theme="dark"] .notification-history-item {
+  border-bottom-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] .notification-history-item:hover {
+  background: #273549 !important;
+}
+
+html[data-theme="dark"] .notification-history-item.unread {
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.16) 0%, #1e293b 100%) !important;
+}
+
+html[data-theme="dark"] .notification-history-title,
+html[data-theme="dark"] .empty-state h3,
+html[data-theme="dark"] .notification-history-empty h3 {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .notification-history-message,
+html[data-theme="dark"] .notification-history-meta,
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .notification-history-empty,
+html[data-theme="dark"] .pagination-info {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .status-badge.unread {
+  background: rgba(20, 184, 166, 0.2) !important;
+  color: #2dd4bf !important;
+  border: 1px solid rgba(20, 184, 166, 0.4) !important;
+}
+
+html[data-theme="dark"] .status-badge.read {
+  background: #334155 !important;
+  color: #cbd5e1 !important;
+  border: 1px solid #475569 !important;
+}
+
+/* 16.3. Insignias de Roles en Tabla de Usuarios (Admin & Gerencia) */
+html[data-theme="dark"] .role-badge.role-gerencia {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: #fbbf24 !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-administrador {
+  background: rgba(168, 85, 247, 0.18) !important;
+  color: #d8b4fe !important;
+  border-color: rgba(168, 85, 247, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-support {
+  background: rgba(16, 185, 129, 0.18) !important;
+  color: #6ee7b7 !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-facturacion {
+  background: rgba(249, 115, 22, 0.18) !important;
+  color: #fdba74 !important;
+  border-color: rgba(249, 115, 22, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-rrhh {
+  background: rgba(236, 72, 153, 0.18) !important;
+  color: #f9a8d4 !important;
+  border-color: rgba(236, 72, 153, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-contact {
+  background: rgba(14, 165, 233, 0.18) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-mantenimiento {
+  background: rgba(59, 130, 246, 0.18) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.4) !important;
+}
+
+html[data-theme="dark"] .role-badge.role-compras {
+  background: rgba(20, 184, 166, 0.18) !important;
+  color: #5eead4 !important;
+  border-color: rgba(20, 184, 166, 0.4) !important;
+}
+
+/* 16.4. Píldoras de Calendario en Gerencia (.calendar-task-pill) y Modales de Tareas */
+html[data-theme="dark"] .calendar-task-pill.priority-urgent {
+  background: rgba(220, 38, 38, 0.24) !important;
+  color: #fecaca !important;
+  border-left-color: #f87171 !important;
+}
+
+html[data-theme="dark"] .calendar-task-pill.priority-high {
+  background: rgba(234, 88, 12, 0.24) !important;
+  color: #fed7aa !important;
+  border-left-color: #fb923c !important;
+}
+
+html[data-theme="dark"] .calendar-task-pill.priority-medium {
+  background: rgba(217, 119, 6, 0.22) !important;
+  color: #fde68a !important;
+  border-left-color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] .calendar-task-pill.priority-low {
+  background: rgba(37, 99, 235, 0.24) !important;
+  color: #bfdbfe !important;
+  border-left-color: #60a5fa !important;
+}
+
+html[data-theme="dark"] .calendar-task-pill.completed {
+  background: rgba(22, 163, 74, 0.18) !important;
+  color: #86efac !important;
+  border-left-color: #4ade80 !important;
+}
+
+html[data-theme="dark"] #dayTasksModalBadge {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+}
+
+html[data-theme="dark"] #activeTaskShareLinksList > div {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] #activeTaskShareLinksList > div div[style*="color: #1E293B"] {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] #activeTaskShareLinksList > div div[style*="color: #64748B"] {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] #activeTaskShareLinksList button[style*="background: #E2E8F0"] {
+  background: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+html[data-theme="dark"] #activeTaskShareLinksList button[style*="background: #FEE2E2"] {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+}
+
+/* Tabla y Botones de Acción de Enlaces Compartidos (#sharedTaskLinksTableBody & #sharedLinksTableBody) */
+.shared-links-table th,
+.shared-links-table td {
+  vertical-align: middle !important;
+}
+
+.shared-links-thead-row th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f1f5f9;
+  white-space: nowrap;
+}
+
+html[data-theme="dark"] .shared-links-thead-row th {
+  background: #162032 !important;
+  color: #e2e8f0 !important;
+}
+
+.shared-links-row {
+  border-bottom: 1px solid #e2e8f0;
+  transition: background-color 0.15s ease;
+}
+
+html[data-theme="dark"] .shared-links-row {
+  border-bottom: 1px solid #334155 !important;
+}
+
+.share-col-title {
+  padding: 10px 12px !important;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.35;
+}
+
+html[data-theme="dark"] .share-col-title,
+html[data-theme="dark"] .share-col-title strong {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .table-cell-sub {
+  color: #94a3b8 !important;
+  font-size: 0.78rem;
+}
+
+.share-col-period,
+.share-col-exp {
+  padding: 10px 10px !important;
+  white-space: nowrap;
+}
+
+.share-col-actions {
+  padding: 10px 12px !important;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.share-table-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 6px;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.share-badge-period {
+  background: #f0fdf4;
+  color: #0f766e;
+  border: 1px solid #99f6e4;
+}
+
+.share-badge-active {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.share-badge-expired {
+  background: #fee2e2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+html[data-theme="dark"] .share-badge-period,
+html[data-theme="dark"] #sharedTaskLinksTableBody span[style*="background: #F0FDF4"],
+html[data-theme="dark"] #sharedTaskLinksTableBody span[style*="background: #E6FCF5"] {
+  background: rgba(20, 184, 166, 0.16) !important;
+  color: #5eead4 !important;
+  border: 1px solid rgba(45, 212, 191, 0.38) !important;
+}
+
+html[data-theme="dark"] .share-badge-active,
+html[data-theme="dark"] #sharedTaskLinksTableBody span[style*="background: #E0F2FE"] {
+  background: rgba(14, 165, 233, 0.18) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.38) !important;
+}
+
+html[data-theme="dark"] .share-badge-expired,
+html[data-theme="dark"] #sharedTaskLinksTableBody span[style*="background: #FEE2E2"] {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(248, 113, 113, 0.4) !important;
+}
+
+.share-actions-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.share-action-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.88rem !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.share-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.share-action-copy {
+  background: #f1f5f9 !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.share-action-copy:hover {
+  background: #e2e8f0 !important;
+  border-color: #94a3b8 !important;
+}
+
+.share-action-open {
+  background: #e0f2fe !important;
+  color: #0369a1 !important;
+  border: 1px solid #bae6fd !important;
+}
+
+.share-action-open:hover {
+  background: #bae6fd !important;
+  border-color: #7dd3fc !important;
+}
+
+.share-action-delete {
+  background: #fee2e2 !important;
+  color: #dc2626 !important;
+  border: 1px solid #fecaca !important;
+}
+
+.share-action-delete:hover {
+  background: #fecaca !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] .share-action-copy,
+html[data-theme="dark"] #sharedTaskLinksTableBody button[style*="background: #F1F5F9"] {
+  background: #273549 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #475569 !important;
+}
+
+html[data-theme="dark"] .share-action-copy:hover {
+  background: #334155 !important;
+  border-color: #64748b !important;
+}
+
+html[data-theme="dark"] .share-action-open,
+html[data-theme="dark"] #sharedTaskLinksTableBody a[style*="background: #E0F2FE"] {
+  background: rgba(14, 165, 233, 0.2) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.42) !important;
+}
+
+html[data-theme="dark"] .share-action-open:hover {
+  background: rgba(14, 165, 233, 0.32) !important;
+  border-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .share-action-delete,
+html[data-theme="dark"] #sharedTaskLinksTableBody button[style*="background: #FEE2E2"] {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(248, 113, 113, 0.42) !important;
+}
+
+html[data-theme="dark"] .share-action-delete:hover {
+  background: rgba(239, 68, 68, 0.32) !important;
+  border-color: #f87171 !important;
+}
+
+html[data-theme="dark"] #newShareResult {
+  background: rgba(6, 95, 70, 0.25) !important;
+  border-color: rgba(52, 211, 153, 0.4) !important;
+}
+
+html[data-theme="dark"] #newShareResult strong {
+  color: #6ee7b7 !important;
+}
+
+/* 16.5. Vistas Públicas (reporte-publico.html, tareas-publico.html, track.html, index.html) */
+html[data-theme="dark"] {
+  --bg-page: #0f172a;
+  --bg-card: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border-color: #334155;
+}
+
+html[data-theme="dark"] .badge-live,
+html[data-theme="dark"] #boardPeriodBadge {
+  background: rgba(20, 184, 166, 0.18) !important;
+  color: #5eead4 !important;
+  border-color: rgba(20, 184, 166, 0.4) !important;
+}
+
+html[data-theme="dark"] .badge-dept {
+  background: rgba(14, 165, 233, 0.18) !important;
+  color: #7dd3fc !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+}
+
+html[data-theme="dark"] .badge-public,
+html[data-theme="dark"] .kpi-badge.positive {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+html[data-theme="dark"] .kpi-badge.neutral {
+  background: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .kpi-badge.negative {
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #fca5a5 !important;
+}
+
+/* Track.html & Index.html */
+html[data-theme="dark"] .tracking-header,
+html[data-theme="dark"] .actions-row--floating {
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .tracking-header h1 {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .tracking-eyebrow,
+html[data-theme="dark"] .tracking-lead,
+html[data-theme="dark"] .tracking-modal-support {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .tracking-id-input,
+html[data-theme="dark"] .tracking-number {
+  background: #0f172a !important;
+  border-color: #2dd4bf !important;
+  color: #2dd4bf !important;
+}
+
+html[data-theme="dark"] .description-box {
+  background: #162032 !important;
+  color: #e2e8f0 !important;
+  border-left-color: #818cf8 !important;
+}
+
+html[data-theme="dark"] .action-btn--ghost {
+  background: #0f172a !important;
+  color: #2dd4bf !important;
+  border-color: #2dd4bf !important;
+}
+
+html[data-theme="dark"] .action-btn--ghost:hover {
+  background: #008b8b !important;
+  color: #ffffff !important;
+}
+
+html[data-theme="dark"] .tracking-instructions {
+  background: rgba(245, 158, 11, 0.12) !important;
+  border-left-color: #fbbf24 !important;
+  color: #fde68a !important;
+}
+
+html[data-theme="dark"] .tracking-instructions ul {
+  color: #fcd34d !important;
+}
+
+html[data-theme="dark"] .skeleton-card div[style*="border-top"] {
+  border-top-color: #334155 !important;
+}
+
+/* Badges y botones de acción dentro de #taskDetailBody */
+html[data-theme="dark"] #taskDetailBody span[style*="background:#DCFCE7"],
+html[data-theme="dark"] #taskDetailBody span[style*="background: #DCFCE7"] {
+  background: rgba(22, 163, 74, 0.22) !important;
+  color: #86efac !important;
+  border: 1px solid rgba(74, 222, 128, 0.4) !important;
+}
+
+html[data-theme="dark"] #taskDetailBody span[style*="background:#E0F2FE"],
+html[data-theme="dark"] #taskDetailBody span[style*="background: #E0F2FE"] {
+  background: rgba(14, 165, 233, 0.22) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+html[data-theme="dark"] #taskDetailBody span[style*="background:#FEF3C7"],
+html[data-theme="dark"] #taskDetailBody span[style*="background: #FEF3C7"] {
+  background: rgba(217, 119, 6, 0.22) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+}
+
+html[data-theme="dark"] #taskDetailBody span[style*="background:#F3F4F6"],
+html[data-theme="dark"] #taskDetailBody span[style*="background: #F3F4F6"] {
+  background: #334155 !important;
+  color: #e2e8f0 !important;
+  border: 1px solid #475569 !important;
+}
+
+html[data-theme="dark"] #taskDetailBody button[style*="background: #DCFCE7"] {
+  background: rgba(22, 163, 74, 0.24) !important;
+  color: #86efac !important;
+  border: 1px solid rgba(74, 222, 128, 0.45) !important;
+}
+
+html[data-theme="dark"] #taskDetailBody button[style*="background: #FEF3C7"] {
+  background: rgba(217, 119, 6, 0.24) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(251, 191, 36, 0.45) !important;
+}
+
+html[data-theme="dark"] #taskDetailBody button[style*="background: #FEE2E2"] {
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.45) !important;
+}
+
+/* Badges de eventos en comentarios / timeline (Reabierto, Cerrado, Estado, Prioridad) */
+html[data-theme="dark"] .comment-header span[style*="background:#DCFCE7"],
+html[data-theme="dark"] .timeline-header span[style*="background:#DCFCE7"] {
+  background: rgba(22, 163, 74, 0.22) !important;
+  color: #86efac !important;
+  border: 1px solid rgba(74, 222, 128, 0.4) !important;
+}
+
+html[data-theme="dark"] .comment-header span[style*="background:#FEE2E2"],
+html[data-theme="dark"] .timeline-header span[style*="background:#FEE2E2"] {
+  background: rgba(239, 68, 68, 0.22) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(239, 68, 68, 0.4) !important;
+}
+
+html[data-theme="dark"] .comment-header span[style*="background:#fff3cd"],
+html[data-theme="dark"] .timeline-header span[style*="background:#fff3cd"] {
+  background: rgba(245, 158, 11, 0.22) !important;
+  color: #fde68a !important;
+  border: 1px solid rgba(251, 191, 36, 0.4) !important;
+}
+
+html[data-theme="dark"] .comment-header span[style*="background:#E0F2FE"],
+html[data-theme="dark"] .timeline-header span[style*="background:#E0F2FE"] {
+  background: rgba(14, 165, 233, 0.22) !important;
+  color: #7dd3fc !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
+}
+
+
+
 

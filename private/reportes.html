@@ -10,9 +10,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/notifications.css?v=4.0">
-    <link rel="stylesheet" href="/css/reportes.css?v=4.0">
-    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
+    <link rel="stylesheet" href="/css/notifications.css?v=4.2">
+    <link rel="stylesheet" href="/css/reportes.css?v=4.2">
+    <link rel="stylesheet" href="/css/design-system.css?v=4.5">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         /* Reset base - Consistente con administrador.html */
@@ -135,10 +135,6 @@
                         🔗 Compartir
                     </button>
 
-                    <button class="btn-refresh-data" onclick="refreshData()" title="Actualizar datos" aria-label="Actualizar datos">
-                        🔄 Actualizar
-                    </button>
-
                     <button class="btn-export-csv" onclick="exportReportToCSV()" title="Exportar métricas a CSV" aria-label="Exportar métricas a CSV">
                         📊 CSV
                     </button>
@@ -235,16 +231,16 @@
                 <button class="modal-close" onclick="closeShareModal()" aria-label="Cerrar enlaces públicos">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="color: #6B7280; font-size: 0.88rem; margin-bottom: 1.25rem;">
+                <p class="modal-description-text" style="font-size: 0.88rem; margin-bottom: 0.9rem;">
                     Genera un enlace único de vista pública para compartir métricas y gráficos ejecutivos sin requerir usuario ni contraseña.
                 </p>
 
                 <!-- Formulario de creación -->
                 <div class="share-form-box">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin-bottom: 0.75rem;">Crear Nuevo Enlace</h4>
+                    <h4 class="task-modal-subtitle" style="margin-bottom: 0.65rem;">Crear Nuevo Enlace</h4>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Período del Reporte</label>
+                            <label class="task-form-label" for="sharePeriodSelect" style="font-size: 0.8rem;">Período del Reporte</label>
                             <select id="sharePeriodSelect" class="share-input">
                                 <option value="7d" selected>Últimos 7 días (Semanal)</option>
                                 <option value="1d">Últimas 24 horas (Diario)</option>
@@ -254,7 +250,7 @@
                             </select>
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Departamento / Alcance</label>
+                            <label class="task-form-label" for="shareDepartmentSelect" style="font-size: 0.8rem;">Departamento / Alcance</label>
                             <select id="shareDepartmentSelect" class="share-input">
                                 <option value="all" selected>Todos los departamentos</option>
                             </select>
@@ -263,11 +259,11 @@
 
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Título personalizado (opcional)</label>
+                            <label class="task-form-label" for="shareTitleInput" style="font-size: 0.8rem;">Título personalizado (opcional)</label>
                             <input type="text" id="shareTitleInput" class="share-input" placeholder="Ej: Reporte Semanal de Dirección">
                         </div>
                         <div>
-                            <label style="display: block; font-size: 0.8rem; font-weight: 600; color: #4B5563; margin-bottom: 4px;">Vigencia del enlace</label>
+                            <label class="task-form-label" for="shareExpirationSelect" style="font-size: 0.8rem;">Vigencia del enlace</label>
                             <select id="shareExpirationSelect" class="share-input">
                                 <option value="7" selected>Válido por 7 días</option>
                                 <option value="30">Válido por 30 días</option>
@@ -283,24 +279,24 @@
                 </div>
 
                 <!-- Resultado de enlace generado -->
-                <div id="newShareResult" style="display: none; margin-top: 1rem; padding: 1rem; background: #E6FCF5; border: 1px solid #C3FAE8; border-radius: 8px;">
+                <div id="newShareResult" class="task-share-result-box" style="display: none; margin-top: 0.85rem; margin-bottom: 0;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <strong style="color: #0CA678; font-size: 0.88rem;">✅ ¡Enlace generado con éxito!</strong>
+                        <strong class="task-share-result-title">✅ ¡Enlace generado con éxito!</strong>
                     </div>
                     <div style="display: flex; gap: 8px; align-items: center;">
-                        <input type="text" id="generatedShareUrl" readonly class="share-input" style="background: white; font-size: 0.82rem;" />
+                        <input type="text" id="generatedShareUrl" readonly class="share-input" style="font-size: 0.82rem;" />
                         <button class="btn-copy-link" id="btnCopyGeneratedShare" onclick="copyShareUrlToClipboard()">📋 Copiar</button>
                         <a id="openShareUrlBtn" href="#" target="_blank" class="btn-open-link" style="text-decoration: none;">↗️ Abrir</a>
                     </div>
                 </div>
 
                 <!-- Historial de enlaces activos -->
-                <div style="margin-top: 1.5rem;">
-                    <h4 style="font-size: 0.95rem; font-weight: 700; color: #1F2937; margin-bottom: 0.75rem;">Enlaces Activos Creados</h4>
-                    <div id="sharedLinksListContainer" style="max-height: 180px; overflow-y: auto;">
+                <div style="margin-top: 1.1rem;">
+                    <h4 class="task-modal-subtitle" style="margin-bottom: 0.6rem;">Enlaces Activos Creados</h4>
+                    <div id="sharedLinksListContainer" class="shared-links-container" style="max-height: 185px; overflow-y: auto;">
                         <table class="shared-links-table responsive-table" style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
                             <thead>
-                                <tr style="background: #F3F4F6; text-align: left;">
+                                <tr class="shared-links-thead-row" style="text-align: left;">
                                     <th style="padding: 8px 10px;">Título / Período</th>
                                     <th style="padding: 8px 10px;">Vencimiento</th>
                                     <th style="padding: 8px 10px; text-align: center;">Visitas</th>
@@ -320,9 +316,9 @@
     </div>
 
     <!-- Scripts -->
-    <script src="/js/core-panel.js?v=4.0"></script>
-    <script src="/js/notifications.js?v=4.0"></script>
-    <script src="/js/reportes.js?v=4.0"></script>
+    <script src="/js/core-panel.js?v=4.5"></script>
+    <script src="/js/notifications.js?v=4.5"></script>
+    <script src="/js/reportes.js?v=4.5"></script>
     <script>
         // Initial auth check
         window.addEventListener('load', function () {

@@ -4,7 +4,7 @@
  * Maneja notificaciones push en segundo plano y offline
  */
 
-const CACHE_NAME = 'tiquetera-v2';
+const CACHE_NAME = 'tiquetera-v4.6';
 const NOTIFICATION_ICON = '/img/logo-icon.svg';
 const NOTIFICATION_BADGE = '/img/badge-icon.svg';
 
@@ -45,26 +45,36 @@ self.addEventListener('fetch', (event) => {
     // 2. Navegación y API -> Network First
     
     const url = new URL(event.request.url);
-    const isStatic = url.pathname.match(/\.(js|css|png|jpg|svg|json|ico)$/);
+    const isCodeAsset = url.pathname.match(/\.(js|css)$/);
+    const isImageOrStatic = url.pathname.match(/\.(png|jpg|svg|json|ico)$/);
 
-    if (isStatic) {
+    if (isCodeAsset) {
+        // Network First para JS y CSS para garantizar que los cambios de UI/tema se reflejen al instante
+        event.respondWith(
+            fetch(event.request)
+                .then((networkResponse) => {
+                    if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+                        const responseToCache = networkResponse.clone();
+                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+                    }
+                    return networkResponse;
+                })
+                .catch(() => caches.match(event.request))
+        );
+    } else if (isImageOrStatic) {
         event.respondWith(
             caches.match(event.request).then((cachedResponse) => {
                 if (cachedResponse) {
                     return cachedResponse;
                 }
                 return fetch(event.request).then((networkResponse) => {
-                    // Validar respuesta válida
                     if(!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
                         return networkResponse;
                     }
-
-                    // Guardar en cache para la próxima
                     const responseToCache = networkResponse.clone();
                     caches.open(CACHE_NAME).then((cache) => {
                         cache.put(event.request, responseToCache);
                     });
-
                     return networkResponse;
                 });
             })

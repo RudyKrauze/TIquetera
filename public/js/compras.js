@@ -849,7 +849,7 @@
                 <!-- Descripción -->
                 <div class="detail-row" style="margin-bottom: 15px;">
                     <div class="detail-label" style="font-size: 0.85em; color: #6c757d; font-weight: 600; margin-bottom: 5px;">📝 Descripción</div>
-                    <div class="detail-value" style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 8px;">${escapeHtml(ticket.description)}</div>
+                    <div class="detail-value detail-description-box">${escapeHtml(ticket.description)}</div>
                 </div>
 
                 <div class="detail-row" style="margin-bottom: 15px;">
@@ -864,7 +864,7 @@
 
                 <!-- Estado y Prioridad (Grid Interactivo) -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="margin-bottom: 8px;">📊 Estado</div>
                          <select id="ticketStatusSelect-${ticket.id}" 
                                 data-current-status="${ticket.status}" 
@@ -880,7 +880,7 @@
                         </small>
                     </div>
 
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid ${ticket.priority === 'high' ? '#dc3545' : ticket.priority === 'medium' ? '#ffc107' : '#28a745'};">
+                    <div class="detail-row detail-card" style="border-left: 4px solid ${ticket.priority === 'high' ? '#dc3545' : ticket.priority === 'medium' ? '#ffc107' : '#28a745'};">
                         <div class="detail-label" style="margin-bottom: 8px;">⚠️ Prioridad</div>
                         <select id="ticketPrioritySelect-${ticket.id}" 
                                 data-current-priority="${ticket.priority}" 
@@ -898,26 +898,26 @@
 
                 <!-- Detalles Adicionales (Grid 2 columnas) -->
                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
-                    <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">🏢 Departamento</div>
                         <div class="detail-value" id="ticketDepartment-${ticket.id}">${escapeHtml(ticket.department || 'General')}</div>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">🏢 Sede</div>
                         <div class="detail-value" style="font-size: 1.05em; color: #0d6efd; font-weight: 600;">${escapeHtml(ticket.sede || 'No especificada')}</div>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">👤 Solicitante</div>
                         <div class="detail-value">
                             ${escapeHtml(ticket.created_by_name || 'Anónimo')}
                             ${ticket.created_by_email ? `<div class="text-muted" style="font-size:0.85em;">${escapeHtml(ticket.created_by_email)}</div>` : ''}
                         </div>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">👥 Asignado a</div>
                         <div class="detail-value" id="ticketAssignedTo-${ticket.id}">${escapeHtml(ticket.assigned_to_name || 'No asignado')}</div>
                     </div>
-                     <div class="detail-row" style="margin: 0; padding: 10px; border-bottom: 1px solid #eee;">
+                     <div class="detail-row detail-card">
                         <div class="detail-label" style="font-size: 0.85em; color: #6c757d;">📅 Fecha</div>
                         <div class="detail-value">${new Date(ticket.created_at).toLocaleString()}</div>
                     </div>

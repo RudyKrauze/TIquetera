@@ -484,7 +484,7 @@ function applyFilters() {
 
                 <div class="detail-row" style="margin-bottom: 15px;">
                     <div class="detail-label" style="font-size: 0.85em; color: #6c757d; font-weight: 600; margin-bottom: 5px;">📝 Descripción</div>
-                    <div class="detail-value" style="white-space: pre-wrap; background: #f8f9fa; padding: 15px; border-radius: 8px;">${escapeHtml(ticket.description)}</div>
+                    <div class="detail-value detail-description-box">${escapeHtml(ticket.description)}</div>
                 </div>
 
                 <div class="detail-row" style="margin-bottom: 15px;">
@@ -499,7 +499,7 @@ function applyFilters() {
 
                 <!-- Estado y Prioridad (Grid Interactivo) -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="margin-bottom: 8px;">📊 Estado</div>
                         <select id="ticketStatusSelect-${ticket.id}" 
                                 data-current-status="${ticket.status}" 
@@ -515,7 +515,7 @@ function applyFilters() {
                             ${ticket.status === 'closed' ? 'Ticket cerrado.' : 'Cambiar estado.'}
                         </small>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label" style="margin-bottom: 8px;">⚠️ Prioridad</div>
                         <select id="ticketPrioritySelect-${ticket.id}" 
                                 data-current-priority="${ticket.priority}" 
@@ -531,11 +531,11 @@ function applyFilters() {
 
                 <!-- Info Grid -->
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label">🏢 Departamento</div>
                         <div class="detail-value">${escapeHtml(ticket.department || 'General')}</div>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label">👤 Creado por</div>
                         <div class="detail-value">
                             ${escapeHtml(ticket.created_by_name || 'Anónimo')}<br>
@@ -545,7 +545,7 @@ function applyFilters() {
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 15px 0;">
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label">🔧 Asignado a</div>
                         <div class="detail-value" id="ticketAssignedTo-${ticket.id}">
                             ${escapeHtml(ticket.assigned_to_name || 'Sin asignar')}<br>
@@ -554,7 +554,7 @@ function applyFilters() {
                             </small>
                         </div>
                     </div>
-                    <div class="detail-row" style="margin: 0; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div class="detail-row detail-card">
                         <div class="detail-label">📅 Fecha de Creación</div>
                         <div class="detail-value">${new Date(ticket.created_at).toLocaleString('es-ES')}</div>
                     </div>

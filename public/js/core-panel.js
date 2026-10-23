@@ -1471,8 +1471,8 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         if (!files || files.length === 0) return '';
 
         return `
-            <div class="attachments-section" style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef; margin-top: 15px;">
-                <h4 style="margin: 0 0 10px 0; font-size: 0.95em; color: #2c3e50; display: flex; align-items: center; gap: 6px;">
+            <div class="attachments-section">
+                <h4 class="attachments-section-title">
                     <span>📎</span> <span>Archivos Adjuntos (${files.length})</span>
                 </h4>
                 <div class="attachment-gallery" style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px;">
@@ -1484,7 +1484,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                                  data-url="${safeUrl}"
                                  onclick="window.openLightbox ? window.openLightbox(this.getAttribute('data-url')) : window.open('${safeUrl}', '_blank')" 
                                  title="Clic para ver en pantalla completa"
-                                 style="width: 68px; height: 68px; border-radius: 8px; overflow: hidden; cursor: pointer; border: 2px solid #dee2e6; transition: all 0.18s; position: relative; background: #e2e8f0; display: flex; align-items: center; justify-content: center;">
+                                 style="width: 68px; height: 68px;">
                                 <img src="${safeUrl}" alt="Adjunto" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                         `;
@@ -2091,7 +2091,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
                     <div class="skeleton skeleton-line"></div>
                     <div class="skeleton skeleton-line medium"></div>
                 </div>
-                <div style="padding-top: 8px; border-top: 1px solid #f1f5f9;">
+                <div style="padding-top: 8px; border-top: 1px solid var(--color-border-subtle, #f1f5f9);">
                     <div class="skeleton skeleton-line short"></div>
                     <div class="skeleton skeleton-line medium" style="margin-bottom: 0;"></div>
                 </div>
@@ -2301,6 +2301,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         const navbarActions = document.querySelector('.navbar .navbar-actions');
         const publicNavActions = document.querySelector('.public-navbar .nav-actions');
         const headerActions = document.querySelector('.header .header-actions');
+        const trackingActions = document.querySelector('.tracking-header .tracking-actions');
 
         if (userInfo) {
             const anchor = userInfo.querySelector('.notification-wrapper') || userInfo.querySelector('.logout-btn');
@@ -2315,9 +2316,76 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
             publicNavActions.insertBefore(btn, publicNavActions.firstChild);
         } else if (headerActions) {
             headerActions.appendChild(btn);
+        } else if (trackingActions) {
+            trackingActions.appendChild(btn);
         }
 
         updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
+    }
+
+    function getToggleOrigin(triggerEvent) {
+        if (triggerEvent && typeof triggerEvent.clientX === 'number' && (triggerEvent.clientX > 0 || triggerEvent.clientY > 0)) {
+            return { x: triggerEvent.clientX, y: triggerEvent.clientY };
+        }
+        const btn = document.querySelector('.theme-toggle-btn');
+        if (btn && typeof btn.getBoundingClientRect === 'function') {
+            const rect = btn.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                return {
+                    x: Math.round(rect.left + rect.width / 2),
+                    y: Math.round(rect.top + rect.height / 2)
+                };
+            }
+        }
+        return {
+            x: Math.round(window.innerWidth - 48),
+            y: 36
+        };
+    }
+
+    function animateToggleButtons() {
+        document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+            btn.classList.remove('is-toggling');
+            void btn.offsetWidth;
+            btn.classList.add('is-toggling');
+            setTimeout(() => btn.classList.remove('is-toggling'), 550);
+        });
+    }
+
+    function transitionThemeChange(nextTheme, triggerEvent) {
+        const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        if (!prefersReducedMotion && typeof document.startViewTransition === 'function') {
+            const { x, y } = getToggleOrigin(triggerEvent);
+            const endRadius = Math.ceil(Math.hypot(
+                Math.max(x, window.innerWidth - x),
+                Math.max(y, window.innerHeight - y)
+            ));
+
+            try {
+                const root = document.documentElement;
+                root.style.setProperty('--vt-x', `${x}px`);
+                root.style.setProperty('--vt-y', `${y}px`);
+                root.style.setProperty('--vt-r', `${endRadius}px`);
+
+                document.startViewTransition(() => {
+                    applyTheme(nextTheme, true);
+                });
+
+                animateToggleButtons();
+                return;
+            } catch (_) {}
+        }
+
+        // Fallback con transición CSS suave si el navegador no soporta View Transitions API
+        if (!prefersReducedMotion) {
+            document.documentElement.classList.add('theme-transitioning');
+            setTimeout(() => {
+                document.documentElement.classList.remove('theme-transitioning');
+            }, 460);
+        }
+        applyTheme(nextTheme, true);
+        animateToggleButtons();
     }
 
     window.ThemeManager = {
@@ -2327,16 +2395,16 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         setTheme(theme) {
             applyTheme(theme, true);
         },
-        toggle() {
+        toggle(triggerEvent) {
             const next = this.getTheme() === 'dark' ? 'light' : 'dark';
-            applyTheme(next, true);
+            transitionThemeChange(next, triggerEvent);
             return next;
         },
         mount: mountToggleButton
     };
 
-    window.toggleDarkMode = function () {
-        return window.ThemeManager.toggle();
+    window.toggleDarkMode = function (triggerEvent) {
+        return window.ThemeManager.toggle(triggerEvent);
     };
 
     // Aplicar de inmediato antes del primer renderizado para evitar parpadeos (FOUC)

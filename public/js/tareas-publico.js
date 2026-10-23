@@ -800,11 +800,11 @@
         const container = document.querySelector('.public-container');
         if (container) {
             container.innerHTML = `
-                <div style="background: white; border-radius: 12px; padding: 3rem; text-align: center; border: 1px solid #E5E7EB; max-width: 600px; margin: 3rem auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <div class="state-container" style="background: var(--bg-card, white); border-radius: 12px; padding: 3rem; text-align: center; border: 1px solid var(--border-color, #E5E7EB); max-width: 600px; margin: 3rem auto; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
-                    <h2 style="font-size: 1.5rem; color: #1F2937; margin-bottom: 0.5rem;">Enlace No Disponible</h2>
-                    <p style="color: #4B5563; font-size: 0.95rem; margin-bottom: 1.5rem;">${escapeHtml(msg)}</p>
-                    <p style="color: #4B5563; font-size: 0.85rem;">Si crees que esto es un error, solicita un nuevo enlace público al administrador del sistema.</p>
+                    <h2 class="state-title" style="font-size: 1.5rem; color: var(--text-main, #1F2937); margin-bottom: 0.5rem;">Enlace No Disponible</h2>
+                    <p class="state-desc" style="color: var(--text-muted, #4B5563); font-size: 0.95rem; margin-bottom: 1.5rem;">${escapeHtml(msg)}</p>
+                    <p class="state-desc" style="color: var(--text-muted, #4B5563); font-size: 0.85rem;">Si crees que esto es un error, solicita un nuevo enlace público al administrador del sistema.</p>
                 </div>
             `;
         }
@@ -865,7 +865,10 @@
         }
         updateToggleButtons(normalized);
     }
-    window.toggleDarkMode = function () {
+    window.toggleDarkMode = function (triggerEvent) {
+        if (window.ThemeManager && typeof window.ThemeManager.toggle === 'function') {
+            return window.ThemeManager.toggle(triggerEvent);
+        }
         const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
         const next = current === 'dark' ? 'light' : 'dark';
         applyTheme(next, true);

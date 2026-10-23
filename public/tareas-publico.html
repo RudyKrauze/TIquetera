@@ -11,7 +11,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/mantenimiento.css?v=4.0">
-    <link rel="stylesheet" href="/css/design-system.css?v=4.0">
     <style>
         :root {
             --brand-primary: #008B8B;
@@ -165,6 +164,7 @@
             margin-top: auto;
         }
     </style>
+    <link rel="stylesheet" href="/css/design-system.css?v=4.5">
 </head>
 
 <body>
@@ -179,7 +179,7 @@
             </div>
         </div>
         <div class="nav-actions">
-            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode()" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
+            <button type="button" id="themeToggleBtn" class="theme-toggle-btn" onclick="window.toggleDarkMode && window.toggleDarkMode(event)" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro" aria-pressed="false">
                 <span aria-hidden="true">🌙</span>
             </button>
             <button class="btn-action" onclick="exportTasksToCSV()" title="Descargar datos en CSV">
@@ -372,8 +372,8 @@
         <p>&copy; <span id="currentYear"></span> Sistema de Gestión - Imagen Diagnóstica. Todos los derechos reservados.</p>
     </footer>
 
-    <script src="/js/core-panel.js?v=4.0"></script>
-    <script src="/js/tareas-publico.js?v=4.0"></script>
+    <script src="/js/core-panel.js?v=4.5"></script>
+    <script src="/js/tareas-publico.js?v=4.5"></script>
 </body>
 
 </html>

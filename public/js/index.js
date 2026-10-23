@@ -785,6 +785,12 @@
       // GESTOR DE MODO OSCURO (Portal Principal)
       // ==========================================
       (function () {
+        if (window.ThemeManager && typeof window.ThemeManager.toggle === 'function') {
+          window.toggleDarkMode = function (triggerEvent) {
+            return window.ThemeManager.toggle(triggerEvent);
+          };
+          return;
+        }
         const STORAGE_KEY = 'ticket_theme';
         function getPreferredTheme() {
           try {
@@ -813,33 +819,14 @@
           }
           updateToggleButtons(normalized);
         }
-        window.toggleDarkMode = function () {
+        window.toggleDarkMode = function (triggerEvent) {
+          if (window.ThemeManager && typeof window.ThemeManager.toggle === 'function') {
+            return window.ThemeManager.toggle(triggerEvent);
+          }
           const current = document.documentElement.getAttribute('data-theme') || getPreferredTheme();
           const next = current === 'dark' ? 'light' : 'dark';
           applyTheme(next, true);
           return next;
         };
-        function mountToggle() {
-          if (document.querySelector('.theme-toggle-btn')) {
-            updateToggleButtons(getPreferredTheme());
-            return;
-          }
-          const headerActions = document.querySelector('.header .header-actions');
-          if (headerActions) {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.id = 'themeToggleBtn';
-            btn.className = 'theme-toggle-btn';
-            btn.addEventListener('click', window.toggleDarkMode);
-            headerActions.appendChild(btn);
-            updateToggleButtons(document.documentElement.getAttribute('data-theme') || getPreferredTheme());
-          }
-        }
-        applyTheme(getPreferredTheme(), false);
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', mountToggle);
-        } else {
-          mountToggle();
-        }
       })();
 
