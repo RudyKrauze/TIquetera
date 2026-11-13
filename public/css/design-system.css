@@ -4070,6 +4070,12 @@ html[data-theme="dark"] .calendar-event-pill.priority-low {
   border-left-color: #818cf8 !important;
 }
 
+html[data-theme="dark"] .calendar-event-pill.status-in-progress {
+  background: rgba(14, 165, 233, 0.24) !important;
+  color: #bae6fd !important; /* > 10:1 sobre #1e293b */
+  border-left-color: #38bdf8 !important;
+}
+
 html[data-theme="dark"] .calendar-event-pill.status-completed {
   background: rgba(5, 150, 105, 0.22) !important;
   color: #a7f3d0 !important; /* 9.9:1 sobre #1e293b */
@@ -4098,6 +4104,7 @@ html[data-theme="dark"] .agenda-count-badge {
 
 html[data-theme="dark"] .day-task-status-pill.completed,
 html[data-theme="dark"] .agenda-badge-status.completed,
+html[data-theme="dark"] .agenda-badge-status.status-completed,
 html[data-theme="dark"] .task-status-badge.completed {
   background: rgba(16, 185, 129, 0.22) !important;
   color: #6ee7b7 !important;
@@ -4106,6 +4113,7 @@ html[data-theme="dark"] .task-status-badge.completed {
 
 html[data-theme="dark"] .day-task-status-pill.in-progress,
 html[data-theme="dark"] .agenda-badge-status.in-progress,
+html[data-theme="dark"] .agenda-badge-status.status-in-progress,
 html[data-theme="dark"] .task-status-badge.in-progress {
   background: rgba(14, 165, 233, 0.22) !important;
   color: #7dd3fc !important;
@@ -4114,6 +4122,7 @@ html[data-theme="dark"] .task-status-badge.in-progress {
 
 html[data-theme="dark"] .day-task-status-pill.pending,
 html[data-theme="dark"] .agenda-badge-status.pending,
+html[data-theme="dark"] .agenda-badge-status.status-pending,
 html[data-theme="dark"] .task-status-badge.pending {
   background: rgba(245, 158, 11, 0.22) !important;
   color: #fde68a !important;
@@ -4158,6 +4167,60 @@ html[data-theme="dark"] .week-task-card {
 
 html[data-theme="dark"] .week-task-card:hover {
   background: #273549 !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.priority-urgent,
+html[data-theme="dark"] .week-task-card.priority-urgent,
+html[data-theme="dark"] .day-task-item.priority-urgent,
+html[data-theme="dark"] .agenda-item-row.priority-urgent,
+html[data-theme="dark"] .agenda-task-item.priority-urgent {
+  border-left-color: #f87171 !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.priority-high,
+html[data-theme="dark"] .week-task-card.priority-high,
+html[data-theme="dark"] .day-task-item.priority-high,
+html[data-theme="dark"] .agenda-item-row.priority-high,
+html[data-theme="dark"] .agenda-task-item.priority-high {
+  border-left-color: #fb923c !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.priority-medium,
+html[data-theme="dark"] .week-task-card.priority-medium,
+html[data-theme="dark"] .day-task-item.priority-medium,
+html[data-theme="dark"] .agenda-item-row.priority-medium,
+html[data-theme="dark"] .agenda-task-item.priority-medium {
+  border-left-color: #fbbf24 !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.priority-low,
+html[data-theme="dark"] .week-task-card.priority-low,
+html[data-theme="dark"] .day-task-item.priority-low,
+html[data-theme="dark"] .agenda-item-row.priority-low,
+html[data-theme="dark"] .agenda-task-item.priority-low {
+  border-left-color: #818cf8 !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.status-in-progress,
+html[data-theme="dark"] .week-task-card.in-progress,
+html[data-theme="dark"] .week-task-card.status-in-progress,
+html[data-theme="dark"] .day-task-item.status-in-progress,
+html[data-theme="dark"] .agenda-item-row.status-in-progress,
+html[data-theme="dark"] .agenda-task-item.in-progress,
+html[data-theme="dark"] .agenda-task-item.status-in-progress {
+  background: rgba(14, 165, 233, 0.14) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  border-left-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .calendar-week-card.status-completed,
+html[data-theme="dark"] .week-task-card.completed,
+html[data-theme="dark"] .week-task-card.status-completed,
+html[data-theme="dark"] .day-task-item.status-completed,
+html[data-theme="dark"] .agenda-item-row.status-completed,
+html[data-theme="dark"] .agenda-task-item.completed,
+html[data-theme="dark"] .agenda-task-item.status-completed {
+  border-left-color: #34d399 !important;
 }
 
 html[data-theme="dark"] .calendar-week-column {
@@ -4826,7 +4889,15 @@ html[data-theme="dark"] .calendar-task-pill.priority-low {
   border-left-color: #60a5fa !important;
 }
 
-html[data-theme="dark"] .calendar-task-pill.completed {
+html[data-theme="dark"] .calendar-task-pill.in-progress,
+html[data-theme="dark"] .calendar-task-pill.status-in-progress {
+  background: rgba(14, 165, 233, 0.24) !important;
+  color: #bae6fd !important;
+  border-left-color: #38bdf8 !important;
+}
+
+html[data-theme="dark"] .calendar-task-pill.completed,
+html[data-theme="dark"] .calendar-task-pill.status-completed {
   background: rgba(22, 163, 74, 0.18) !important;
   color: #86efac !important;
   border-left-color: #4ade80 !important;

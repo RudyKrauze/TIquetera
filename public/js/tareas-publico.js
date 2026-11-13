@@ -330,6 +330,8 @@
 
         return tasks.map(task => {
             const isCompleted = task.status === 'completed';
+            const isInProgress = task.status === 'in-progress';
+            const statusClass = isCompleted ? 'status-completed' : (isInProgress ? 'status-in-progress' : '');
             const priorityClass = `priority-${task.priority || 'medium'}`;
             const checklist = Array.isArray(task.checklist) ? task.checklist : [];
             const metrics = task.checklistMetrics || { total: checklist.length, completed: 0 };
@@ -340,9 +342,9 @@
             const displayTitle = rawTitle.length > 15 ? rawTitle.substring(0, 15) + '...' : rawTitle;
 
             return `
-                <div class="calendar-event-pill ${priorityClass} ${isCompleted ? 'status-completed' : ''}" 
+                <div class="calendar-event-pill ${priorityClass} ${statusClass}" 
                      onclick="event.stopPropagation(); openTaskDetailModal(${task.id});"
-                     title="${isCompleted ? '[COMPLETADA] ' : ''}${escapeHtml(rawTitle)} (${escapeHtml(task.category || 'General')}) - Clic para ver detalles">
+                     title="${isCompleted ? '[COMPLETADA] ' : (isInProgress ? '[EN PROGRESO] ' : '')}${escapeHtml(rawTitle)} (${escapeHtml(task.category || 'General')}) - Clic para ver detalles">
                     <span class="event-pill-title">${prefix}${escapeHtml(displayTitle)}</span>
                     ${checkInfo ? `<span class="event-pill-badge">${checkInfo}</span>` : ''}
                 </div>
@@ -393,15 +395,17 @@
 
         return tasks.map(task => {
             const isCompleted = task.status === 'completed';
+            const isInProgress = task.status === 'in-progress';
+            const statusClass = isCompleted ? 'status-completed' : (isInProgress ? 'status-in-progress' : '');
             const priorityClass = `priority-${task.priority || 'medium'}`;
             const checklist = Array.isArray(task.checklist) ? task.checklist : [];
             const metrics = task.checklistMetrics || { total: checklist.length, completed: 0 };
             const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
 
             return `
-                <div class="calendar-week-card ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                <div class="calendar-week-card ${priorityClass} ${statusClass}"
                      onclick="event.stopPropagation(); openTaskDetailModal(${task.id});"
-                     title="${isCompleted ? '[COMPLETADA] ' : ''}${escapeHtml(task.title)} (${escapeHtml(task.category || 'General')}) - Sede: ${escapeHtml(task.sede || 'Todas')}">
+                     title="${isCompleted ? '[COMPLETADA] ' : (isInProgress ? '[EN PROGRESO] ' : '')}${escapeHtml(task.title)} (${escapeHtml(task.category || 'General')}) - Sede: ${escapeHtml(task.sede || 'Todas')}">
                     <div class="card-top-line">
                         <span class="card-category">${escapeHtml(task.category || 'General')}</span>
                         ${task.is_recurring ? '<span class="card-recurring-icon" title="Rutina Recurrente">🔁</span>' : ''}
@@ -466,13 +470,15 @@
                     <div class="agenda-group-cards">
                         ${tasks.map(task => {
                             const isCompleted = task.status === 'completed';
+                            const isInProgress = task.status === 'in-progress';
+                            const statusClass = isCompleted ? 'status-completed' : (isInProgress ? 'status-in-progress' : '');
                             const priorityClass = `priority-${task.priority || 'medium'}`;
                             const checklist = Array.isArray(task.checklist) ? task.checklist : [];
                             const metrics = task.checklistMetrics || { total: checklist.length, completed: 0, percent: 0 };
                             const percent = metrics.percent || 0;
 
                             return `
-                                <div class="agenda-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}" onclick="openTaskDetailModal(${task.id})">
+                                <div class="agenda-task-item ${priorityClass} ${statusClass}" onclick="openTaskDetailModal(${task.id})">
                                     <div class="agenda-item-left">
                                         <div class="agenda-item-title">
                                             ${task.is_recurring ? '🔁 ' : ''}${escapeHtml(task.title)}
@@ -554,16 +560,18 @@
                 <div class="day-tasks-list">
                     ${dayTasks.map(task => {
                         const isCompleted = task.status === 'completed';
+                        const isInProgress = task.status === 'in-progress';
+                        const itemStatusClass = isCompleted ? 'status-completed' : (isInProgress ? 'status-in-progress' : '');
                         const priorityClass = `priority-${task.priority || 'medium'}`;
                         const checklist = Array.isArray(task.checklist) ? task.checklist : [];
                         const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
                         const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
                         const prefix = isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '');
-                        const statusLabel = isCompleted ? 'Completada' : (task.status === 'in-progress' ? 'En Progreso' : 'Pendiente');
-                        const statusClass = isCompleted ? 'completed' : (task.status === 'in-progress' ? 'in-progress' : 'pending');
+                        const statusLabel = isCompleted ? 'Completada' : (isInProgress ? 'En Progreso' : 'Pendiente');
+                        const statusClass = isCompleted ? 'completed' : (isInProgress ? 'in-progress' : 'pending');
 
                         return `
-                            <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                            <div class="day-task-item ${priorityClass} ${itemStatusClass}"
                                  onclick="openTaskFromDayModal(${task.id})"
                                  title="Clic para ver detalle de la tarea">
                                 <div class="day-task-item-header">

@@ -1944,6 +1944,17 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         window.activeConfirmDialog = null;
     };
 
+    window.formatConfirmDialogHtml = function (input) {
+        return String(input ?? '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, function (match, tag) {
+            const lower = tag.toLowerCase();
+            if (lower === 'br') return '<br>';
+            if (lower === 'strong' || lower === 'b' || lower === 'em') {
+                return match.startsWith('</') ? '</' + lower + '>' : '<' + lower + '>';
+            }
+            return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        });
+    };
+
     window.openConfirmDialog = function (options) {
         const opts = options || {};
         const title = opts.title || 'Confirmar acción';
@@ -1972,7 +1983,7 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         const messageEl = document.createElement('div');
         messageEl.id = 'coreConfirmDialogMsg';
         messageEl.className = 'confirm-dialog-message';
-        messageEl.textContent = message;
+        messageEl.innerHTML = window.formatConfirmDialogHtml(message);
 
         const actions = document.createElement('div');
         actions.className = 'confirm-dialog-actions';

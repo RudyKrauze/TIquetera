@@ -2311,6 +2311,12 @@
     border-left-color: #3B82F6;
 }
 
+.day-task-item.status-in-progress {
+    background: #F0F9FF;
+    border-color: #BAE6FD;
+    border-left-color: #0284C7;
+}
+
 .day-task-item.status-completed {
     background: #F8FAFC;
     opacity: 0.85;
@@ -2337,22 +2343,26 @@
     flex: 1;
 }
 
-.day-task-status-pill {
+.day-task-status-pill,
+.task-status-badge {
     font-size: 0.72rem;
     font-weight: 700;
     padding: 3px 8px;
     border-radius: 6px;
     white-space: nowrap;
 }
-.day-task-status-pill.completed {
+.day-task-status-pill.completed,
+.task-status-badge.completed {
     background: #D1FAE5;
     color: #065F46;
 }
-.day-task-status-pill.in-progress {
+.day-task-status-pill.in-progress,
+.task-status-badge.in-progress {
     background: #E0F2FE;
     color: #0369A1;
 }
-.day-task-status-pill.pending {
+.day-task-status-pill.pending,
+.task-status-badge.pending {
     background: #FEF3C7;
     color: #92400E;
 }
@@ -2430,7 +2440,8 @@
     overflow-x: hidden;
 }
 
-.calendar-event-pill {
+.calendar-event-pill,
+.calendar-task-pill {
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.76rem;
@@ -2448,39 +2459,55 @@
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    cursor: pointer;
 }
 
-.calendar-event-pill:hover {
+.calendar-event-pill:hover,
+.calendar-task-pill:hover {
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.09);
     filter: brightness(0.97);
 }
 
-.calendar-event-pill.priority-urgent {
+.calendar-event-pill.priority-urgent,
+.calendar-task-pill.priority-urgent {
     background: #FEE2E2;
     color: #991B1B;
     border-left: 3px solid #DC2626;
 }
 
-.calendar-event-pill.priority-high {
+.calendar-event-pill.priority-high,
+.calendar-task-pill.priority-high {
     background: #FFEDD5;
     color: #9A3412;
     border-left: 3px solid #EA580C;
 }
 
-.calendar-event-pill.priority-medium {
+.calendar-event-pill.priority-medium,
+.calendar-task-pill.priority-medium {
     background: #FEF3C7;
     color: #92400E;
     border-left: 3px solid #D97706;
 }
 
-.calendar-event-pill.priority-low {
+.calendar-event-pill.priority-low,
+.calendar-task-pill.priority-low {
     background: #E0E7FF;
     color: #3730A3;
     border-left: 3px solid #4F46E5;
 }
 
-.calendar-event-pill.status-completed {
+.calendar-event-pill.status-in-progress,
+.calendar-task-pill.in-progress,
+.calendar-task-pill.status-in-progress {
+    background: #E0F2FE;
+    color: #0369A1;
+    border-left: 3px solid #0284C7;
+}
+
+.calendar-event-pill.status-completed,
+.calendar-task-pill.completed,
+.calendar-task-pill.status-completed {
     background: #ECFDF5;
     color: #065F46;
     border-left: 3px solid #10B981;
@@ -2618,7 +2645,8 @@
 }
 
 /* Tarjeta Semanal compacta, elegante y armónica */
-.calendar-week-card {
+.calendar-week-card,
+.week-task-card {
     background: #FFFFFF;
     border: 1px solid #E2E8F0;
     border-left: 3.5px solid #008B8B;
@@ -2636,25 +2664,42 @@
     box-sizing: border-box;
 }
 
-.calendar-week-card:hover {
+.calendar-week-card:hover,
+.week-task-card:hover {
     background: #F8FAFC;
     border-color: #CBD5E1;
     transform: translateY(-1px);
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.07);
 }
 
-.calendar-week-card.priority-urgent { border-left-color: #DC2626 !important; }
-.calendar-week-card.priority-high { border-left-color: #EA580C !important; }
-.calendar-week-card.priority-medium { border-left-color: #F59E0B !important; }
-.calendar-week-card.priority-low { border-left-color: #3B82F6 !important; }
+.calendar-week-card.priority-urgent,
+.week-task-card.priority-urgent { border-left-color: #DC2626 !important; }
+.calendar-week-card.priority-high,
+.week-task-card.priority-high { border-left-color: #EA580C !important; }
+.calendar-week-card.priority-medium,
+.week-task-card.priority-medium { border-left-color: #F59E0B !important; }
+.calendar-week-card.priority-low,
+.week-task-card.priority-low { border-left-color: #3B82F6 !important; }
 
-.calendar-week-card.status-completed {
+.calendar-week-card.status-in-progress,
+.week-task-card.in-progress,
+.week-task-card.status-in-progress {
+    background: #F0F9FF !important;
+    border-color: #BAE6FD;
+    border-left-color: #0284C7 !important;
+}
+
+.calendar-week-card.status-completed,
+.week-task-card.completed,
+.week-task-card.status-completed {
     opacity: 0.65;
     background: #F8FAFC !important;
     border-left-color: #10B981 !important;
 }
 
-.calendar-week-card.status-completed .card-title {
+.calendar-week-card.status-completed .card-title,
+.week-task-card.completed .card-title,
+.week-task-card.status-completed .card-title {
     text-decoration: line-through;
     color: #64748B;
 }
@@ -2831,7 +2876,16 @@
 .agenda-item-row.priority-low,
 .agenda-task-item.priority-low { border-left-color: #3B82F6 !important; }
 
+.agenda-item-row.status-in-progress,
+.agenda-task-item.in-progress,
+.agenda-task-item.status-in-progress {
+    background: #F0F9FF !important;
+    border-color: #BAE6FD;
+    border-left-color: #0284C7 !important;
+}
+
 .agenda-item-row.status-completed,
+.agenda-task-item.completed,
 .agenda-task-item.status-completed {
     opacity: 0.7;
     background: #F9FAFB !important;
@@ -2839,6 +2893,7 @@
 }
 
 .agenda-item-row.status-completed strong,
+.agenda-task-item.completed .agenda-item-title,
 .agenda-task-item.status-completed .agenda-item-title {
     text-decoration: line-through;
     color: #64748B;

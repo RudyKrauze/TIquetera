@@ -1797,12 +1797,14 @@ function renderCalendarCell(dateKey, dayNum, isOtherMonth, todayStr) {
 
     let tasksHtml = visibleTasks.map(task => {
         const isCompleted = task.status === 'completed';
+        const isInProgress = task.status === 'in-progress';
+        const statusClass = isCompleted ? 'completed status-completed' : (isInProgress ? 'in-progress status-in-progress' : '');
         const priorityClass = `priority-${task.priority || 'medium'}`;
         const prefix = isCompleted ? '✓ ' : (task.is_recurring ? '🔁 ' : '');
         return `
-            <div class="calendar-task-pill ${priorityClass} ${isCompleted ? 'completed' : ''}"
+            <div class="calendar-task-pill ${priorityClass} ${statusClass}"
                  onclick="event.stopPropagation(); openTaskDetailModal(${task.id})"
-                 title="${escapeHtml(task.title)}">
+                 title="${isCompleted ? '[COMPLETADA] ' : (isInProgress ? '[EN PROGRESO] ' : '')}${escapeHtml(task.title)}">
                 <span class="pill-text">${prefix}${escapeHtml(task.title)}</span>
             </div>
         `;
@@ -1851,14 +1853,16 @@ function renderCalendarWeek() {
 
         const tasksHtml = tasks.map(task => {
             const isCompleted = task.status === 'completed';
+            const isInProgress = task.status === 'in-progress';
+            const statusClass = isCompleted ? 'completed status-completed' : (isInProgress ? 'in-progress status-in-progress' : '');
             const priorityClass = `priority-${task.priority || 'medium'}`;
             const checklist = Array.isArray(task.checklist) ? task.checklist : [];
             const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
             const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total}` : '';
 
             return `
-                <div class="week-task-card ${priorityClass} ${isCompleted ? 'completed' : ''}"
-                     onclick="openTaskDetailModal(${task.id})">
+                <div class="week-task-card ${priorityClass} ${statusClass}"
+                     onclick="event.stopPropagation(); openTaskDetailModal(${task.id})">
                     <div class="card-title" style="font-weight: 600; font-size: 0.85rem; margin-bottom: 4px;">
                         ${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}
                     </div>
@@ -1921,13 +1925,15 @@ function renderCalendarAgenda() {
                 <div class="agenda-tasks-list">
                     ${tasks.map(task => {
                         const isCompleted = task.status === 'completed';
+                        const isInProgress = task.status === 'in-progress';
+                        const statusClass = isCompleted ? 'completed status-completed' : (isInProgress ? 'in-progress status-in-progress' : '');
                         const priorityClass = `priority-${task.priority || 'medium'}`;
                         const checklist = Array.isArray(task.checklist) ? task.checklist : [];
                         const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
                         const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
 
                         return `
-                            <div class="agenda-task-item ${priorityClass} ${isCompleted ? 'completed' : ''}"
+                            <div class="agenda-task-item ${priorityClass} ${statusClass}"
                                  onclick="openTaskDetailModal(${task.id})">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <span class="agenda-item-title" style="font-weight: 700; font-size: 0.95rem;">
@@ -1973,13 +1979,15 @@ function openDayTasksModal(dateKey) {
         } else {
             body.innerHTML = tasks.map(task => {
                 const isCompleted = task.status === 'completed';
+                const isInProgress = task.status === 'in-progress';
+                const itemStatusClass = isCompleted ? 'status-completed' : (isInProgress ? 'status-in-progress' : '');
                 const priorityClass = `priority-${task.priority || 'medium'}`;
                 const checklist = Array.isArray(task.checklist) ? task.checklist : [];
                 const metrics = task.checklistMetrics || { total: checklist.length, completed: checklist.filter(c => c.done).length };
                 const checkInfo = checklist.length > 0 ? `✓ ${metrics.completed}/${metrics.total} pasos` : '';
 
                 return `
-                    <div class="day-task-item ${priorityClass} ${isCompleted ? 'status-completed' : ''}"
+                    <div class="day-task-item ${priorityClass} ${itemStatusClass}"
                          onclick="openTaskFromDayModal(${task.id})">
                         <div class="day-task-item-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                             <span class="day-task-item-title" style="font-weight: 700;">${isCompleted ? '✅ ' : (task.is_recurring ? '🔁 ' : '')}${escapeHtml(task.title)}</span>
@@ -2028,6 +2036,9 @@ function openTaskModal(taskToEdit = null, defaultDate = null) {
     const form = document.getElementById('taskFormElement');
 
     if (!modal) return;
+    const wasOpen = modal.style.display === 'flex';
+    const newChkInput = document.getElementById('newChecklistItemInput');
+    if (newChkInput) newChkInput.value = '';
 
     if (taskToEdit) {
         if (titleEl) titleEl.textContent = '✏️ Editar Tarea de Gerencia';
@@ -2051,7 +2062,7 @@ function openTaskModal(taskToEdit = null, defaultDate = null) {
             document.getElementById('taskRecurrenceIntervalInput').value = taskToEdit.recurrence_interval;
         }
 
-        taskChecklistBuilderItems = Array.isArray(taskToEdit.checklist) ? [...taskToEdit.checklist] : [];
+        taskChecklistBuilderItems = Array.isArray(taskToEdit.checklist) ? taskToEdit.checklist.map(i => ({ ...i })) : [];
     } else {
         if (titleEl) titleEl.textContent = '➕ Nueva Tarea de Gerencia';
         if (form) form.reset();
@@ -2065,13 +2076,14 @@ function openTaskModal(taskToEdit = null, defaultDate = null) {
 
     renderChecklistBuilderList();
     modal.style.display = 'flex';
-    if (window.ModalScrollLock) window.ModalScrollLock.lock();
+    if (!wasOpen && window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeTaskModal() {
     const modal = document.getElementById('taskModalDialog');
+    const wasOpen = modal && modal.style.display !== 'none';
     if (modal) modal.style.display = 'none';
-    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
+    if (wasOpen && window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 function toggleRecurrenceOptions(show) {
@@ -2153,6 +2165,11 @@ function renderChecklistBuilderList() {
 async function handleSaveTask(event) {
     event.preventDefault();
 
+    const pendingChecklistInput = document.getElementById('newChecklistItemInput');
+    if (pendingChecklistInput && pendingChecklistInput.value.trim()) {
+        addChecklistItemBuilder();
+    }
+
     const taskId = document.getElementById('taskIdInput')?.value;
     const title = document.getElementById('taskTitleInput')?.value;
     const description = document.getElementById('taskDescInput')?.value;
@@ -2218,6 +2235,7 @@ function openTaskDetailModal(taskId) {
 
     if (!modal || !body) return;
 
+    const wasOpen = modal.style.display === 'flex';
     if (headerTitle) headerTitle.textContent = `📋 ${task.title}`;
 
     const checklist = Array.isArray(task.checklist) ? task.checklist : [];
@@ -2257,9 +2275,9 @@ function openTaskDetailModal(taskId) {
                     <div style="background: #10B981; width: ${percent}%; height: 100%; transition: width 0.3s ease;"></div>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
-                    ${checklist.map(item => `
+                    ${checklist.map((item, idx) => `
                         <label class="task-detail-checklist-item ${item.done ? 'is-done' : ''}">
-                            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${task.id}, '${item.id}', this.checked)" style="width: 18px; height: 18px; accent-color: #10B981;">
+                            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleChecklistItem(${task.id}, '${item.id || idx}', this.checked)" style="width: 18px; height: 18px; accent-color: #10B981;">
                             <span class="chk-detail-text">${escapeHtml(item.text)}</span>
                         </label>
                     `).join('')}
@@ -2283,13 +2301,14 @@ function openTaskDetailModal(taskId) {
     `;
 
     modal.style.display = 'flex';
-    if (window.ModalScrollLock) window.ModalScrollLock.lock();
+    if (!wasOpen && window.ModalScrollLock) window.ModalScrollLock.lock();
 }
 
 function closeTaskDetailModal() {
     const modal = document.getElementById('taskDetailModalDialog');
+    const wasOpen = modal && modal.style.display !== 'none';
     if (modal) modal.style.display = 'none';
-    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
+    if (wasOpen && window.ModalScrollLock) window.ModalScrollLock.unlock();
 }
 
 async function toggleChecklistItem(taskId, itemId, newDone) {
@@ -2302,19 +2321,71 @@ async function toggleChecklistItem(taskId, itemId, newDone) {
         });
 
         if (!response.ok) throw new Error('Error al actualizar ítem de checklist');
-        const updatedTask = await response.json();
+        const result = await response.json();
+        const serverTask = (result && result.task) ? result.task : result;
+        const checklist = Array.isArray(serverTask?.checklist) ? serverTask.checklist : [];
+        const completedCount = checklist.filter(i => i && i.done).length;
+        const metrics = result?.checklistMetrics || serverTask?.checklistMetrics || {
+            total: checklist.length,
+            completed: completedCount,
+            percent: checklist.length > 0 ? Math.round((completedCount / checklist.length) * 100) : 0,
+            allDone: checklist.length > 0 && completedCount === checklist.length
+        };
 
-        const idx = allGerenciaTasks.findIndex(t => t.id === taskId);
-        if (idx !== -1) allGerenciaTasks[idx] = updatedTask;
+        const idx = allGerenciaTasks.findIndex(t => String(t.id) === String(taskId));
+        if (idx !== -1) {
+            allGerenciaTasks[idx] = {
+                ...allGerenciaTasks[idx],
+                ...serverTask,
+                checklist,
+                checklistMetrics: metrics
+            };
+        }
+
+        const countBadge = document.getElementById('tasksCountBadge');
+        if (countBadge) {
+            const activeCount = allGerenciaTasks.filter(t => t.status !== 'completed').length;
+            countBadge.textContent = activeCount;
+        }
 
         renderCalendar();
+        loadGerenciaTaskStats();
         openTaskDetailModal(taskId);
+
+        if (metrics.allDone && newDone) {
+            showNotification('🎉 ¡Todos los pasos del checklist completados!', 'success');
+        }
     } catch (err) {
         showNotification(`❌ Error: ${err.message}`, 'error');
+        openTaskDetailModal(taskId);
     }
 }
 
-async function changeTaskStatus(taskId, newStatus) {
+async function changeTaskStatus(taskId, newStatus, skipConfirm = false) {
+    const task = allGerenciaTasks.find(t => String(t.id) === String(taskId));
+    if (newStatus === 'completed' && !skipConfirm && task) {
+        const checklistItems = Array.isArray(task.checklist) ? task.checklist : [];
+        const totalSteps = checklistItems.length > 0 ? checklistItems.length : (task.checklistMetrics?.total || 0);
+        const completedSteps = checklistItems.length > 0
+            ? checklistItems.filter(i => Boolean(i && i.done)).length
+            : (task.checklistMetrics?.completed || 0);
+        const pendingSteps = Math.max(0, totalSteps - completedSteps);
+
+        if (pendingSteps > 0) {
+            showConfirmDialog({
+                icon: '⚠️',
+                title: '¿Completar con pasos pendientes?',
+                message: `Aún quedan <strong>${pendingSteps}</strong> ${pendingSteps === 1 ? 'paso sin tildar' : 'pasos sin tildar'} en el checklist.<br>¿Deseas marcar la tarea como completada de todas formas?`,
+                confirmText: '✅ Sí, completar',
+                isDanger: false,
+                onConfirm: async () => {
+                    await changeTaskStatus(taskId, 'completed', true);
+                }
+            });
+            return;
+        }
+    }
+
     try {
         const response = await fetch(`/api/maintenance/tasks/${taskId}/status`, {
             method: 'PATCH',
@@ -2324,12 +2395,22 @@ async function changeTaskStatus(taskId, newStatus) {
         });
 
         if (!response.ok) throw new Error('Error al cambiar estado');
-        const updatedTask = await response.json();
+        const result = await response.json();
+        const serverTask = (result && result.task) ? result.task : result;
 
-        const idx = allGerenciaTasks.findIndex(t => t.id === taskId);
-        if (idx !== -1) allGerenciaTasks[idx] = updatedTask;
+        const idx = allGerenciaTasks.findIndex(t => String(t.id) === String(taskId));
+        if (idx !== -1 && serverTask) {
+            allGerenciaTasks[idx] = {
+                ...allGerenciaTasks[idx],
+                ...serverTask
+            };
+        }
 
-        showNotification(`✅ Estado actualizado a ${newStatus === 'completed' ? 'Completada' : (newStatus === 'in-progress' ? 'En Progreso' : 'Pendiente')}`, 'success');
+        if (result && result.isRecurringCycleReset) {
+            showNotification('🎉 ¡Ciclo completado! Tarea renovada y programada para el próximo vencimiento.', 'success');
+        } else {
+            showNotification(`✅ Estado actualizado a ${newStatus === 'completed' ? 'Completada' : (newStatus === 'in-progress' ? 'En Progreso' : 'Pendiente')}`, 'success');
+        }
         loadGerenciaTasks();
         loadGerenciaTaskStats();
         closeTaskDetailModal();
@@ -2366,36 +2447,83 @@ function deleteTask(taskId) {
 
 // Confirmation Dialog helper
 let currentConfirmCallback = null;
+let currentCancelCallback = null;
+let currentConfirmResolve = null;
 
-function showConfirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '¿Estás seguro?', confirmText = 'Confirmar', isDanger = true, onConfirm = null }) {
+function formatConfirmHtml(input) {
+    if (typeof window.formatConfirmDialogHtml === 'function') {
+        return window.formatConfirmDialogHtml(input);
+    }
+    return String(input ?? '').replace(/<\/?([a-zA-Z][a-zA-Z0-9]*)\b[^>]*>/g, function (match, tag) {
+        const lower = tag.toLowerCase();
+        if (lower === 'br') return '<br>';
+        if (lower === 'strong' || lower === 'b' || lower === 'em') {
+            return match.startsWith('</') ? '</' + lower + '>' : '<' + lower + '>';
+        }
+        return match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    });
+}
+
+function showConfirmDialog({ icon = '⚠️', title = '¿Confirmar?', message = '¿Estás seguro?', confirmText, confirmLabel, confirmColor, isDanger = true, onConfirm = null, onCancel = null }) {
     const modal = document.getElementById('confirmActionModal');
     const iconEl = document.getElementById('confirmIcon');
     const titleEl = document.getElementById('confirmTitle');
     const msgEl = document.getElementById('confirmMessage');
     const btnEl = document.getElementById('confirmActionButton');
 
-    if (!modal) return;
-    if (iconEl) iconEl.textContent = icon;
-    if (titleEl) titleEl.textContent = title;
-    if (msgEl) msgEl.textContent = message;
-    if (btnEl) {
-        btnEl.textContent = confirmText;
-        btnEl.style.background = isDanger ? '#DC2626' : '#4F46E5';
-        currentConfirmCallback = onConfirm;
-        btnEl.onclick = () => {
-            closeConfirmModal();
-            if (typeof currentConfirmCallback === 'function') currentConfirmCallback();
-        };
+    if (!modal) return Promise.resolve(false);
+
+    if (typeof currentConfirmResolve === 'function') {
+        currentConfirmResolve(false);
+        currentConfirmResolve = null;
     }
 
-    modal.style.display = 'flex';
-    if (window.ModalScrollLock) window.ModalScrollLock.lock();
+    const wasOpen = modal.style.display === 'flex';
+    if (iconEl) iconEl.textContent = icon;
+    if (titleEl) titleEl.innerHTML = formatConfirmHtml(title);
+    if (msgEl) msgEl.innerHTML = formatConfirmHtml(message);
+
+    return new Promise((resolve) => {
+        currentConfirmCallback = onConfirm;
+        currentCancelCallback = onCancel;
+        currentConfirmResolve = resolve;
+
+        if (btnEl) {
+            btnEl.textContent = confirmText || confirmLabel || 'Confirmar';
+            btnEl.style.background = confirmColor || (isDanger ? '#DC2626' : '#4F46E5');
+            btnEl.onclick = async () => {
+                const cb = currentConfirmCallback;
+                const resFn = currentConfirmResolve;
+                currentConfirmCallback = null;
+                currentCancelCallback = null;
+                currentConfirmResolve = null;
+                closeConfirmModal();
+                if (typeof cb === 'function') await cb();
+                if (typeof resFn === 'function') resFn(true);
+            };
+        }
+
+        modal.style.display = 'flex';
+        if (!wasOpen && window.ModalScrollLock) window.ModalScrollLock.lock();
+    });
 }
 
 function closeConfirmModal() {
     const modal = document.getElementById('confirmActionModal');
+    const wasOpen = modal && modal.style.display !== 'none';
     if (modal) modal.style.display = 'none';
-    if (window.ModalScrollLock) window.ModalScrollLock.unlock();
+    if (wasOpen && window.ModalScrollLock) window.ModalScrollLock.unlock();
+    const cancelCb = currentCancelCallback;
+    const resFn = currentConfirmResolve;
+    currentConfirmCallback = null;
+    currentCancelCallback = null;
+    currentConfirmResolve = null;
+    if (typeof cancelCb === 'function') {
+        cancelCb();
+    }
+    if (typeof resFn === 'function') {
+        resFn(false);
+    }
 }
 
 // =======================================================

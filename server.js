@@ -3364,6 +3364,28 @@ const isMaintenanceRole = (req, res, next) => {
   return res.status(403).json({ error: 'Acceso no autorizado al módulo de tareas' });
 };
 
+function buildTaskWithChecklistMetrics(task) {
+  if (!task) return task;
+  const items = Array.isArray(task.checklist) ? task.checklist : [];
+  const totalItems = items.length;
+  const completedItems = items.filter(i => i && i.done).length;
+  const allDone = totalItems > 0 && completedItems === totalItems;
+  const progressPercent = totalItems > 0
+    ? Math.round((completedItems / totalItems) * 100)
+    : (task.status === 'completed' ? 100 : 0);
+
+  return {
+    ...task,
+    checklist: items,
+    checklistMetrics: {
+      total: totalItems,
+      completed: completedItems,
+      percent: progressPercent,
+      allDone
+    }
+  };
+}
+
 // GET /api/maintenance/tasks - Listar tareas con filtros
 app.get('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (req, res) => {
   try {
@@ -3446,22 +3468,7 @@ app.get('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (r
     const result = await pool.query(query, params);
 
     // Calcular métricas de checklist
-    const tasks = result.rows.map(task => {
-      const items = Array.isArray(task.checklist) ? task.checklist : [];
-      const totalItems = items.length;
-      const completedItems = items.filter(i => i && i.done).length;
-      const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (task.status === 'completed' ? 100 : 0);
-
-      return {
-        ...task,
-        checklist: items,
-        checklistMetrics: {
-          total: totalItems,
-          completed: completedItems,
-          percent: progressPercent
-        }
-      };
-    });
+    const tasks = result.rows.map(buildTaskWithChecklistMetrics);
 
     res.json(tasks);
   } catch (error) {
@@ -3588,7 +3595,7 @@ app.post('/api/maintenance/tasks', authenticateToken, isMaintenanceRole, async (
     const createdTask = result.rows[0];
     await logAudit(req.user.id, 'create_maintenance_task', `/api/maintenance/tasks/${createdTask.id}`, { title: createdTask.title }, req.ip);
 
-    res.status(201).json(createdTask);
+    res.status(201).json(buildTaskWithChecklistMetrics(createdTask));
   } catch (error) {
     console.error('Error al crear tarea de mantenimiento:', error.message);
     res.status(500).json({ error: 'Error al crear la tarea de mantenimiento' });
@@ -3620,9 +3627,10 @@ app.put('/api/maintenance/tasks/:id', authenticateToken, isMaintenanceRole, asyn
           text: String(item.text || item).trim(),
           done: Boolean(item.done),
           done_at: item.done_at || null,
-          done_by: item.done_by || null
+          done_by: item.done_by || null,
+          done_by_name: item.done_by_name || null
         })).filter(i => i.text.length > 0)
-      : [];
+      : null;
 
     const result = await pool.query(`
       UPDATE maintenance_tasks
@@ -3637,7 +3645,7 @@ app.put('/api/maintenance/tasks/:id', authenticateToken, isMaintenanceRole, asyn
         due_date = $8,
         is_recurring = COALESCE($9, is_recurring),
         recurrence_interval = COALESCE($10, recurrence_interval),
-        checklist = $11,
+        checklist = COALESCE($11::jsonb, checklist),
         status = COALESCE($12, status),
         updated_at = NOW()
       WHERE id = $13
@@ -3653,7 +3661,7 @@ app.put('/api/maintenance/tasks/:id', authenticateToken, isMaintenanceRole, asyn
       due_date ? parseLocalDate(due_date) : null,
       is_recurring !== undefined ? Boolean(is_recurring) : null,
       recurrence_interval,
-      JSON.stringify(formattedChecklist),
+      formattedChecklist !== null ? JSON.stringify(formattedChecklist) : null,
       status,
       parseInt(id, 10)
     ]);
@@ -3662,7 +3670,7 @@ app.put('/api/maintenance/tasks/:id', authenticateToken, isMaintenanceRole, asyn
       return res.status(404).json({ error: 'Tarea no encontrada' });
     }
 
-    res.json(result.rows[0]);
+    res.json(buildTaskWithChecklistMetrics(result.rows[0]));
   } catch (error) {
     console.error('Error al actualizar tarea de mantenimiento:', error.message);
     res.status(500).json({ error: 'Error al actualizar la tarea' });
@@ -3683,11 +3691,13 @@ app.patch('/api/maintenance/tasks/:id/checklist/:itemId', authenticateToken, isM
     const task = taskResult.rows[0];
     const items = Array.isArray(task.checklist) ? task.checklist : [];
     
-    const updatedItems = items.map(item => {
-      if (String(item.id) === String(itemId)) {
+    const updatedItems = items.map((item, idx) => {
+      const currentItemId = item && item.id !== undefined && item.id !== null ? String(item.id) : String(idx);
+      if (currentItemId === String(itemId)) {
         const isDone = done !== undefined ? Boolean(done) : !item.done;
         return {
           ...item,
+          id: item && item.id !== undefined && item.id !== null ? item.id : `chk_${Date.now()}_${idx}`,
           done: isDone,
           done_at: isDone ? new Date().toISOString() : null,
           done_by_name: isDone ? req.user.name || 'Personal Mantenimiento' : null
@@ -3696,14 +3706,14 @@ app.patch('/api/maintenance/tasks/:id/checklist/:itemId', authenticateToken, isM
       return item;
     });
 
-    const total = updatedItems.length;
-    const completed = updatedItems.filter(i => i.done).length;
-    const allDone = total > 0 && completed === total;
+    const completed = updatedItems.filter(i => i && i.done).length;
 
-    // Si todos los ítems fueron tildados, sugerir o avanzar a en progreso/completada
+    // Avanzar automáticamente a "en progreso" al tildar al menos un paso (y volver a "pendiente" si se destildan todos)
     let newStatus = task.status;
     if (task.status === 'pending' && completed > 0) {
       newStatus = 'in-progress';
+    } else if (task.status === 'in-progress' && updatedItems.length > 0 && completed === 0) {
+      newStatus = 'pending';
     }
 
     const updateRes = await pool.query(`
@@ -3713,15 +3723,12 @@ app.patch('/api/maintenance/tasks/:id/checklist/:itemId', authenticateToken, isM
       RETURNING *
     `, [JSON.stringify(updatedItems), newStatus, parseInt(id, 10)]);
 
+    const enrichedTask = buildTaskWithChecklistMetrics(updateRes.rows[0]);
+
     res.json({
       success: true,
-      task: updateRes.rows[0],
-      checklistMetrics: {
-        total,
-        completed,
-        percent: total > 0 ? Math.round((completed / total) * 100) : 0,
-        allDone
-      }
+      task: enrichedTask,
+      checklistMetrics: enrichedTask.checklistMetrics
     });
   } catch (error) {
     console.error('Error al actualizar ítem de checklist:', error.message);
@@ -3884,8 +3891,8 @@ app.patch('/api/maintenance/tasks/:id/status', authenticateToken, isMaintenanceR
 
       return res.json({
         success: true,
-        task: updateResult.rows[0],
-        nextTask: nextTaskResult.rows[0],
+        task: buildTaskWithChecklistMetrics(updateResult.rows[0]),
+        nextTask: buildTaskWithChecklistMetrics(nextTaskResult.rows[0]),
         isRecurringCycleReset: true,
         nextDueDate: nextDueDate
       });
@@ -3893,7 +3900,7 @@ app.patch('/api/maintenance/tasks/:id/status', authenticateToken, isMaintenanceR
 
     res.json({
       success: true,
-      task: updateResult.rows[0],
+      task: buildTaskWithChecklistMetrics(updateResult.rows[0]),
       isRecurringCycleReset: false
     });
   } catch (error) {
@@ -4182,22 +4189,7 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
 
     const tasksResult = await pool.query(tasksQuery, params);
 
-    const tasks = tasksResult.rows.map(task => {
-      const items = Array.isArray(task.checklist) ? task.checklist : [];
-      const totalItems = items.length;
-      const completedItems = items.filter(i => i && i.done).length;
-      const progressPercent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : (task.status === 'completed' ? 100 : 0);
-
-      return {
-        ...task,
-        checklist: items,
-        checklistMetrics: {
-          total: totalItems,
-          completed: completedItems,
-          percent: progressPercent
-        }
-      };
-    });
+    const tasks = tasksResult.rows.map(buildTaskWithChecklistMetrics);
 
     const stats = {
       total: tasks.length,
