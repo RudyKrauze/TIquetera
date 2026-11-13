@@ -245,6 +245,77 @@ async function initializeDatabase(pool) {
       console.log('ℹ️ Nota: Error no crítico al verificar tabla shared_tasks_boards:', stbError.message);
     }
 
+    // 8. Tabla de eventos de seguridad para creación de tickets (anti-spam, replay y duplicados)
+    try {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS ticket_security_events (
+          id SERIAL PRIMARY KEY,
+          ip_address TEXT NOT NULL,
+          email TEXT,
+          content_hash TEXT NOT NULL,
+          form_jti TEXT UNIQUE,
+          event_type TEXT NOT NULL DEFAULT 'ticket_created',
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_ticket_sec_ip_created ON ticket_security_events(ip_address, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ticket_sec_email_created ON ticket_security_events(email, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_ticket_sec_hash_created ON ticket_security_events(content_hash, created_at DESC);
+      `);
+      console.log('✅ Verificación de tabla ticket_security_events completada.');
+    } catch (secErr) {
+      console.log('ℹ️ Nota: Error no crítico al verificar ticket_security_events:', secErr.message);
+    }
+
+    // 9. Habilitar Row Level Security (RLS) en todas las tablas públicas (defensa en profundidad en Supabase)
+    try {
+      const rlsTables = [
+        'users',
+        'tickets',
+        'ticket_updates',
+        'notifications',
+        'notification_settings',
+        'audit_log',
+        'report_cache',
+        'push_subscriptions',
+        'ticket_departments',
+        'ticket_categories',
+        'maintenance_tasks',
+        'shared_tasks_boards',
+        'ticket_security_events'
+      ];
+      for (const tbl of rlsTables) {
+        await pool.query(`ALTER TABLE IF EXISTS ${tbl} ENABLE ROW LEVEL SECURITY`);
+      }
+      console.log('✅ Verificación de RLS en tablas públicas completada.');
+    } catch (rlsErr) {
+      console.log('ℹ️ Nota: Error no crítico al habilitar RLS:', rlsErr.message);
+    }
+
+    // 10. Endurecer límites del bucket de Supabase Storage (4MB, sin SVG) y limpiar política UPDATE si es posible
+    try {
+      const bucketCheck = await pool.query(`SELECT to_regclass('storage.buckets') AS tbl`);
+      if (bucketCheck.rows[0] && bucketCheck.rows[0].tbl) {
+        await pool.query(`
+          UPDATE storage.buckets
+          SET file_size_limit = 4194304,
+              allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif']
+          WHERE id = 'ticket-attachments'
+        `);
+        console.log('✅ Límites de bucket ticket-attachments actualizados (4MB, sin SVG).');
+      }
+    } catch (bucketErr) {
+      console.log('ℹ️ Nota: No se pudo actualizar storage.buckets desde db_init (aplicar supabase/security_hardening.sql):', bucketErr.message);
+    }
+
+    try {
+      const objCheck = await pool.query(`SELECT to_regclass('storage.objects') AS tbl`);
+      if (objCheck.rows[0] && objCheck.rows[0].tbl) {
+        await pool.query(`DROP POLICY IF EXISTS "Allow Updates ticket-attachments" ON storage.objects`);
+      }
+    } catch (polErr) {
+      console.log('ℹ️ Nota: Sin permisos de propietario para DROP POLICY en storage.objects (ejecutar supabase/security_hardening.sql en SQL Editor):', polErr.message);
+    }
+
     console.log('🚀 Inicialización de base de datos finalizada con éxito.');
   } catch (error) {
     console.error('❌ Error crítico durante la inicialización de la base de datos:', error.message);

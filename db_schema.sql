@@ -185,3 +185,34 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_ticket_updates_ticket_id ON ticket_updates(ticket_id);
 
+-- Tabla de seguridad anti-spam, replay y duplicados en creación de tickets
+CREATE TABLE IF NOT EXISTS ticket_security_events (
+  id SERIAL PRIMARY KEY,
+  ip_address TEXT NOT NULL,
+  email TEXT,
+  content_hash TEXT NOT NULL,
+  form_jti TEXT UNIQUE,
+  event_type TEXT NOT NULL DEFAULT 'ticket_created',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_ip_created ON ticket_security_events(ip_address, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_email_created ON ticket_security_events(email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_hash_created ON ticket_security_events(content_hash, created_at DESC);
+
+-- Defensa en profundidad en Supabase: habilitar RLS en todas las tablas públicas
+-- (El rol postgres/backend bypassea RLS, mientras PostgREST anon/authenticated queda bloqueado)
+ALTER TABLE IF EXISTS users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS notification_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS report_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS maintenance_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS shared_tasks_boards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_security_events ENABLE ROW LEVEL SECURITY;
+

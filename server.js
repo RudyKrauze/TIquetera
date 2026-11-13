@@ -35,6 +35,19 @@ try {
 // Configuración de Supabase (PostgreSQL y Storage)
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  try {
+    const jwtParts = process.env.SUPABASE_SERVICE_ROLE_KEY.split('.');
+    if (jwtParts.length === 3) {
+      const payload = JSON.parse(Buffer.from(jwtParts[1], 'base64url').toString('utf8'));
+      if (payload && payload.role === 'anon') {
+        console.warn('⚠️ SEGURIDAD: SUPABASE_SERVICE_ROLE_KEY contiene una clave con rol "anon". Reemplázala por la clave real "service_role" en .env y Vercel.');
+      }
+    }
+  } catch (e) {
+    // Ignorar si el formato no es JWT estándar
+  }
+}
 const supabase = (supabaseUrl && supabaseKey && createClient) ? createClient(supabaseUrl, supabaseKey) : null;
 const useSupabaseStorage = !!supabase;
 
@@ -45,47 +58,52 @@ function resolveView(folder, filename) {
   return path.join(__dirname, folder, filename);
 }
 
-// Configuración de Multer para subida de archivos (Memoria para Supabase Storage / Serverless, Disco para local)
-const storage = (useSupabaseStorage || isServerless)
-  ? multer.memoryStorage()
-  : multer.diskStorage({
-      destination: function (req, file, cb) {
-        const uploadDir = path.join(process.cwd(), 'public/uploads/tickets');
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        cb(null, uploadDir);
-      },
-      filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'ticket-' + uniqueSuffix + path.extname(file.originalname));
-      }
-    });
+// Límite estricto compatible con Vercel Serverless (máx 4.5MB por request)
+const MAX_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/avif'
+]);
+const ALLOWED_IMAGE_EXTENSIONS = new Set([
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.avif'
+]);
 
-// Filtro de archivos (solo imágenes)
+// Siempre usar memoryStorage para validar magic bytes antes de guardar en Supabase Storage o disco local
+const storage = multer.memoryStorage();
+
+// Filtro de archivos (solo imágenes seguras, bloquea SVG y ejecutables)
 const fileFilter = (req, file, cb) => {
-  // Aceptar si es tipo imagen
-  if (file.mimetype.startsWith('image/')) {
-    return cb(null, true);
+  const mime = String(file.mimetype || '').toLowerCase();
+  const ext = path.extname(String(file.originalname || '')).toLowerCase();
+
+  if (mime.includes('svg') || ext === '.svg') {
+    const err = new Error('No se permiten archivos SVG por seguridad.');
+    err.status = 400;
+    return cb(err, false);
   }
-  
-  // Fallback: Verificar extensiones conocidas para formatos móviles (HEIC/HEIF)
-  // que a veces no reportan mimetype 'image/*' consistentemente
-  const ext = path.extname(file.originalname).toLowerCase();
-  const allowedExtensions = ['.heic', '.heif', '.webp', '.avif'];
-  
-  if (allowedExtensions.includes(ext)) {
+
+  if (ALLOWED_IMAGE_MIME_TYPES.has(mime) || (!mime.startsWith('image/') && ALLOWED_IMAGE_EXTENSIONS.has(ext))) {
     return cb(null, true);
   }
 
-  cb(new Error('Solo se permiten imágenes (JPG, PNG, WebP, HEIC/HEIF)'), false);
+  const err = new Error('Solo se permiten imágenes válidas (JPG, PNG, GIF, WebP, HEIC/HEIF).');
+  err.status = 400;
+  return cb(err, false);
 };
 
-const upload = multer({ 
+const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB en total (se valida por archivo, pero controlaremos el total en el handler)
-    files: 3 // Máximo 3 archivos
+    fileSize: MAX_ATTACHMENT_BYTES, // Máx 4MB por archivo (y validado en total en el handler)
+    files: 3, // Máximo 3 archivos
+    fieldSize: 32 * 1024, // 32KB máx por campo de texto
+    fields: 20
   },
   fileFilter: fileFilter
 });
@@ -200,6 +218,39 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: {
     error: 'Demasiados intentos fallidos de inicio de sesión desde esta IP. Por seguridad, intente de nuevo en 15 minutos.'
+  }
+});
+
+// Rate Limiting para obtención de tokens anti-bot de formulario
+const formTokenLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: parseInt(process.env.FORM_TOKEN_RATE_LIMIT_MAX, 10) || 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Demasiadas solicitudes de formulario desde esta IP. Intente nuevamente en unos minutos.'
+  }
+});
+
+// Rate Limiting de ráfaga en memoria para creación de tickets
+const ticketCreateBurstLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minuto
+  max: parseInt(process.env.TICKET_CREATE_BURST_MAX, 10) || 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Estás enviando solicitudes demasiado rápido. Espera un minuto antes de crear otro ticket.'
+  }
+});
+
+// Rate Limiting para consulta pública de seguimiento de tickets
+const trackLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: parseInt(process.env.TRACK_RATE_LIMIT_MAX, 10) || 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Demasiadas consultas de seguimiento desde esta IP. Intente nuevamente en unos minutos.'
   }
 });
 
@@ -639,8 +690,130 @@ const DEPARTMENT_TO_ROLE = {
 // Función auxiliar para validar email
 function isValidEmail(email) {
   if (!email) return true; // Email es opcional en algunos casos
+  const normalized = String(email).trim();
+  if (!normalized || normalized.length > 254 || /[\r\n]/.test(normalized)) return false;
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  return emailRegex.test(normalized);
+}
+
+// --- HELPERS DE SEGURIDAD PARA CREACIÓN DE TICKETS ---
+const parsedMinFillMs = parseInt(process.env.TICKET_MIN_FILL_MS || '3000', 10);
+const TICKET_MIN_FILL_MS = Number.isFinite(parsedMinFillMs) ? Math.max(0, parsedMinFillMs) : 3000;
+const TICKET_IP_LIMIT_10M = parseInt(process.env.TICKET_IP_LIMIT_10M || '5', 10) || 5;
+const TICKET_IP_LIMIT_1H = parseInt(process.env.TICKET_IP_LIMIT_1H || '15', 10) || 15;
+const TICKET_EMAIL_LIMIT_1H = parseInt(process.env.TICKET_EMAIL_LIMIT_1H || '6', 10) || 6;
+const TICKET_EMAIL_LIMIT_24H = parseInt(process.env.TICKET_EMAIL_LIMIT_24H || '15', 10) || 15;
+const TICKET_EMAIL_NOTIFY_LIMIT_10M = parseInt(process.env.TICKET_EMAIL_NOTIFY_LIMIT_10M || '3', 10) || 3;
+
+function getClientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  let ip = Array.isArray(fwd) ? fwd[0] : (typeof fwd === 'string' ? fwd.split(',')[0] : '');
+  ip = String(ip || req.ip || req.socket?.remoteAddress || 'unknown').trim();
+  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+  return ip.slice(0, 64) || 'unknown';
+}
+
+function getOptionalAuthenticatedUser(req) {
+  try {
+    const authHeader = req.headers['authorization'];
+    let token = authHeader && authHeader.split(' ')[1];
+    if (token === 'null' || token === 'undefined' || token === '') {
+      token = undefined;
+    }
+    if (!token && req.cookies) {
+      token = req.cookies.token;
+    }
+    if (!token) return null;
+    return jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return null;
+  }
+}
+
+function normalizeSingleLineInput(val) {
+  if (val === null || val === undefined) return '';
+  return String(val)
+    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normalizeMultiLineInput(val) {
+  if (val === null || val === undefined) return '';
+  return String(val)
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim();
+}
+
+function hasMaliciousMarkup(text) {
+  if (!text) return false;
+  const s = String(text);
+  return /<\s*(script|iframe|object|embed|svg|style|link|meta|base)\b|<\/\s*script\b|\bon[a-z]+\s*=|javascript\s*:|vbscript\s*:|data\s*:\s*(text\/html|image\/svg\+xml)/i.test(s);
+}
+
+function countUrls(text) {
+  if (!text) return 0;
+  const matches = String(text).match(/(?:https?:\/\/|www\.)\S+/gi);
+  return matches ? matches.length : 0;
+}
+
+/**
+ * Verifica la firma binaria real (magic bytes) del adjunto.
+ * Bloquea SVG, HTML y ejecutables disfrazados con extensión de imagen.
+ */
+function detectImageSignature(buffer) {
+  if (!Buffer.isBuffer(buffer) || buffer.length < 8) return null;
+
+  // Bloquear contenido textual SVG/XML aunque tenga encabezado parcial
+  const headText = buffer.subarray(0, Math.min(512, buffer.length)).toString('utf8').toLowerCase();
+  if (headText.includes('<svg') || headText.includes('<script') || headText.includes('<!doctype html') || headText.includes('<html')) {
+    return null;
+  }
+
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return { ext: '.jpg', mime: 'image/jpeg' };
+  }
+
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47 &&
+    buffer[4] === 0x0D && buffer[5] === 0x0A && buffer[6] === 0x1A && buffer[7] === 0x0A
+  ) {
+    return { ext: '.png', mime: 'image/png' };
+  }
+
+  // GIF87a / GIF89a
+  const ascii6 = buffer.subarray(0, 6).toString('ascii');
+  if (ascii6 === 'GIF87a' || ascii6 === 'GIF89a') {
+    return { ext: '.gif', mime: 'image/gif' };
+  }
+
+  // WebP: RIFF....WEBP
+  if (
+    buffer.length >= 12 &&
+    buffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    buffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  ) {
+    return { ext: '.webp', mime: 'image/webp' };
+  }
+
+  // ISO BMFF (HEIC / HEIF / AVIF): bytes 4..7 == 'ftyp', brand en 8..11
+  if (buffer.length >= 12 && buffer.subarray(4, 8).toString('ascii') === 'ftyp') {
+    const brand = buffer.subarray(8, 12).toString('ascii').toLowerCase();
+    if (['heic', 'heix', 'hevc', 'hevx'].includes(brand)) {
+      return { ext: '.heic', mime: 'image/heic' };
+    }
+    if (['mif1', 'msf1', 'heif'].includes(brand)) {
+      return { ext: '.heif', mime: 'image/heif' };
+    }
+    if (['avif', 'avis'].includes(brand)) {
+      return { ext: '.avif', mime: 'image/avif' };
+    }
+  }
+
+  return null;
 }
 
 // Función auxiliar para construir consultas SQL parametrizadas con filtros y paginación
@@ -843,86 +1016,259 @@ app.get('/api/tickets/assigned/:userId', authenticateToken, canManageTickets, as
   }
 });
 
-app.post('/api/tickets', (req, res, next) => {
+// Endpoint público para obtener token anti-bot de un solo uso y tiempo mínimo de llenado
+app.get('/api/tickets/form-token', formTokenLimiter, (req, res) => {
+  const issuedAt = Date.now();
+  const jti = crypto.randomUUID();
+  const formToken = jwt.sign(
+    {
+      purpose: 'ticket_form',
+      jti,
+      iatMs: issuedAt
+    },
+    JWT_SECRET,
+    { expiresIn: '2h' }
+  );
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    form_token: formToken,
+    min_fill_ms: TICKET_MIN_FILL_MS
+  });
+});
+
+app.post('/api/tickets', ticketCreateBurstLimiter, (req, res, next) => {
   // Envolver middleware de multer para manejar errores específicamente
   upload.array('attachments', 3)(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      // Error de Multer (ej. límite de archivos)
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Cada imagen adjunta debe pesar como máximo 4MB.' });
+      }
+      if (err.code === 'LIMIT_FILE_COUNT') {
+        return res.status(400).json({ error: 'Máximo 3 imágenes adjuntas permitidas.' });
+      }
       return res.status(400).json({ error: `Error de subida: ${err.message}` });
     } else if (err) {
-      // Otro error desconocido
-      return res.status(500).json({ error: `Error interno de subida: ${err.message}` });
+      const status = err.status === 400 ? 400 : 400;
+      return res.status(status).json({ error: err.message || 'Archivo adjunto no permitido.' });
     }
-    // Si no hay error, continuar con el controlador
     next();
   });
 }, async (req, res) => {
   try {
-    const { title, description, department, name, email, priority, sede } = req.body;
     const files = req.files || [];
 
-    // Validaciones básicas
+    // 1. Validación Honeypot (campo oculto que solo completan bots)
+    const honeypotVal = normalizeSingleLineInput(req.body.website_url || req.body.hp_website || '');
+    if (honeypotVal) {
+      console.warn(`🛡️ Ticket bloqueado por honeypot desde IP ${getClientIp(req)}`);
+      return res.status(400).json({
+        error: 'Solicitud rechazada por validación de seguridad.',
+        refreshToken: true
+      });
+    }
+
+    // 2. Validación de token anti-bot JWT + tiempo mínimo de llenado + un solo uso
+    const rawFormToken = typeof req.body.form_token === 'string' ? req.body.form_token.trim() : '';
+    if (!rawFormToken) {
+      return res.status(403).json({
+        error: 'Falta el token de seguridad del formulario. Recarga la página e intenta nuevamente.',
+        refreshToken: true
+      });
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(rawFormToken, JWT_SECRET);
+    } catch (tokenErr) {
+      return res.status(403).json({
+        error: 'La sesión del formulario expiró o es inválida. Se renovó automáticamente, intenta enviar de nuevo.',
+        refreshToken: true
+      });
+    }
+
+    if (!decodedToken || decodedToken.purpose !== 'ticket_form' || typeof decodedToken.jti !== 'string' || typeof decodedToken.iatMs !== 'number') {
+      return res.status(403).json({
+        error: 'Token de formulario inválido.',
+        refreshToken: true
+      });
+    }
+
+    if (Date.now() - decodedToken.iatMs < TICKET_MIN_FILL_MS) {
+      return res.status(429).json({
+        error: 'Envío demasiado rápido. Por favor aguarda unos segundos antes de enviar el ticket.'
+      });
+    }
+
+    const usedCheck = await pool.query(
+      `SELECT 1 FROM ticket_security_events WHERE form_jti = $1 LIMIT 1`,
+      [decodedToken.jti]
+    );
+    if (usedCheck.rows.length > 0) {
+      return res.status(403).json({
+        error: 'Este formulario ya fue enviado anteriormente. Se renovó el token para un nuevo envío.',
+        refreshToken: true
+      });
+    }
+
+    // 3. Sanitización y validación estricta de campos
+    const title = normalizeSingleLineInput(req.body.title);
+    const description = normalizeMultiLineInput(req.body.description);
+    const department = normalizeSingleLineInput(req.body.department);
+    const name = normalizeSingleLineInput(req.body.name);
+    const email = normalizeSingleLineInput(req.body.email);
+    const priority = normalizeSingleLineInput(req.body.priority || 'medium').toLowerCase();
+    const sede = normalizeSingleLineInput(req.body.sede);
+    const affectedArea = normalizeSingleLineInput(req.body.affected_area || '');
+
     if (!title || !description || !name || !email) {
       return res.status(400).json({ error: 'Nombre, email, título y descripción son requeridos' });
     }
 
-    // Validar que no estén vacíos después de trim
-    if (!title.trim() || !description.trim() || !name.trim()) {
-      return res.status(400).json({ error: 'Los campos no pueden contener solo espacios' });
+    if (name.length < 2 || name.length > 100) {
+      return res.status(400).json({ error: 'El nombre debe tener entre 2 y 100 caracteres' });
     }
 
-    // Validar área obligatoria
-    if (!department) {
-      return res.status(400).json({ error: 'El área de asignación es requerida' });
+    if (title.length < 3 || title.length > 200) {
+      return res.status(400).json({ error: 'El título debe tener entre 3 y 200 caracteres' });
     }
 
-    // Validar que el área sea válida
-    if (!VALID_DEPARTMENTS.includes(department)) {
-      return res.status(400).json({ error: 'Área de asignación inválida' });
+    if (description.length < 5 || description.length > 2000) {
+      return res.status(400).json({ error: 'La descripción debe tener entre 5 y 2000 caracteres' });
     }
 
-    // Validar sede obligatoria
+    if (affectedArea.length > 120) {
+      return res.status(400).json({ error: 'El área afectada no puede exceder 120 caracteres' });
+    }
+
+    if (!department || !VALID_DEPARTMENTS.includes(department)) {
+      return res.status(400).json({ error: 'Área de asignación inválida o requerida' });
+    }
+
     const VALID_SEDES = ['Ciudad', 'Maipú', 'San Martín'];
-    if (!sede) {
-      return res.status(400).json({ error: 'La sede es requerida' });
-    }
-    if (!VALID_SEDES.includes(sede)) {
+    if (!sede || !VALID_SEDES.includes(sede)) {
       return res.status(400).json({ error: 'Sede inválida. Debe ser: Ciudad, Maipú o San Martín' });
     }
 
-    // Validar formato de email si se proporciona
-    if (email && !isValidEmail(email)) {
+    if (!isValidEmail(email)) {
       return res.status(400).json({ error: 'Formato de email inválido' });
     }
 
-    // Validar longitudes
-    if (title.length > 200) {
-      return res.status(400).json({ error: 'El título no puede exceder 200 caracteres' });
-    }
-
-    if (description.length > 2000) {
-      return res.status(400).json({ error: 'La descripción no puede exceder 2000 caracteres' });
-    }
-
-    // Validar prioridad si se proporciona
-    if (priority && !['low', 'medium', 'high'].includes(priority)) {
+    if (!['low', 'medium', 'high', 'urgent'].includes(priority)) {
       return res.status(400).json({ error: 'Prioridad inválida' });
     }
 
-    // Procesar archivos adjuntos (Supabase Storage o almacenamiento local)
+    if (
+      hasMaliciousMarkup(name) ||
+      hasMaliciousMarkup(title) ||
+      hasMaliciousMarkup(description) ||
+      hasMaliciousMarkup(affectedArea)
+    ) {
+      return res.status(400).json({
+        error: 'El contenido contiene etiquetas o patrones HTML/script no permitidos.'
+      });
+    }
+
+    if (countUrls(`${title} ${description}`) > 2) {
+      return res.status(400).json({
+        error: 'Por seguridad no se permiten más de 2 enlaces en un mismo ticket.'
+      });
+    }
+
+    // Solo personal autenticado puede pre-asignar assigned_technician al crear ticket
+    const authUser = getOptionalAuthenticatedUser(req);
+    const canAssignTechnician = !!(authUser && ['support', 'administrador', 'gerencia', 'rrhh', 'mantenimiento', 'compras'].includes(authUser.role));
+    const assignedTechnician = (canAssignTechnician && req.body.assigned_technician)
+      ? normalizeSingleLineInput(req.body.assigned_technician).slice(0, 120)
+      : null;
+
+    // 4. Validación binaria de archivos adjuntos (límite total 4MB + magic bytes reales)
+    const totalAttachmentBytes = files.reduce((sum, f) => sum + (f.size || (f.buffer ? f.buffer.length : 0)), 0);
+    if (totalAttachmentBytes > MAX_ATTACHMENT_BYTES) {
+      return res.status(400).json({ error: 'El tamaño total de los archivos adjuntos supera el límite de 4MB.' });
+    }
+
+    const verifiedFiles = [];
+    for (const file of files) {
+      const sig = detectImageSignature(file.buffer);
+      if (!sig) {
+        return res.status(400).json({
+          error: 'Uno de los archivos adjuntos no es una imagen válida (JPG, PNG, GIF, WebP o HEIC/HEIF).'
+        });
+      }
+      verifiedFiles.push({ file, sig });
+    }
+
+    // 5. Rate limiting y detección de duplicados persistentes en PostgreSQL
+    const clientIp = getClientIp(req);
+    const emailLower = email.toLowerCase();
+    const contentHash = crypto
+      .createHash('sha256')
+      .update(`${emailLower}|${department}|${sede}|${title.toLowerCase()}|${description.toLowerCase()}`)
+      .digest('hex');
+
+    const rateCheckResult = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE ip_address = $1 AND created_at >= NOW() - INTERVAL '10 minutes')::int AS ip_10m,
+         COUNT(*) FILTER (WHERE ip_address = $1 AND created_at >= NOW() - INTERVAL '1 hour')::int AS ip_1h,
+         COUNT(*) FILTER (WHERE email = $2 AND created_at >= NOW() - INTERVAL '1 hour')::int AS email_1h,
+         COUNT(*) FILTER (WHERE email = $2 AND created_at >= NOW() - INTERVAL '24 hours')::int AS email_24h,
+         COUNT(*) FILTER (WHERE content_hash = $3 AND created_at >= NOW() - INTERVAL '10 minutes')::int AS dup_10m,
+         COUNT(*) FILTER (WHERE email = $2 AND created_at >= NOW() - INTERVAL '10 minutes')::int AS email_10m
+       FROM ticket_security_events
+       WHERE created_at >= NOW() - INTERVAL '24 hours'
+         AND (ip_address = $1 OR email = $2 OR content_hash = $3)`,
+      [clientIp, emailLower, contentHash]
+    );
+
+    const secStats = rateCheckResult.rows[0] || {};
+    if ((secStats.ip_10m || 0) >= TICKET_IP_LIMIT_10M || (secStats.ip_1h || 0) >= TICKET_IP_LIMIT_1H) {
+      return res.status(429).json({
+        error: 'Has alcanzado el límite temporal de creación de tickets desde tu red. Espera unos minutos antes de intentar nuevamente.'
+      });
+    }
+
+    if ((secStats.email_1h || 0) >= TICKET_EMAIL_LIMIT_1H || (secStats.email_24h || 0) >= TICKET_EMAIL_LIMIT_24H) {
+      return res.status(429).json({
+        error: 'Este correo electrónico alcanzó el límite temporal de creación de tickets.'
+      });
+    }
+
+    if ((secStats.dup_10m || 0) >= 1) {
+      return res.status(409).json({
+        error: 'Ya se registró un ticket idéntico hace pocos minutos. Verifica tu código de seguimiento o espera un momento.'
+      });
+    }
+
+    // 6. Consumir atómicamente el form_jti (anti-replay / double-submit) después de pasar validaciones
+    const consumeResult = await pool.query(
+      `INSERT INTO ticket_security_events (ip_address, email, content_hash, form_jti, event_type)
+       VALUES ($1, $2, $3, $4, 'ticket_created')
+       ON CONFLICT (form_jti) DO NOTHING
+       RETURNING id`,
+      [clientIp, emailLower, contentHash, decodedToken.jti]
+    );
+
+    if (consumeResult.rows.length === 0) {
+      return res.status(403).json({
+        error: 'Este formulario ya fue procesado. Se renovó la sesión de envío.',
+        refreshToken: true
+      });
+    }
+
+    // 7. Subir archivos adjuntos verificados (nombres UUID + extensión derivada de magic bytes, upsert: false)
     let attachments = [];
-    if (useSupabaseStorage && files.length > 0) {
-      for (const file of files) {
+    if (useSupabaseStorage && verifiedFiles.length > 0) {
+      for (const { file, sig } of verifiedFiles) {
         try {
-          const ext = path.extname(file.originalname).toLowerCase();
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          const filePath = `tickets/${uniqueSuffix}${ext}`;
+          const safeFilename = `${crypto.randomUUID()}${sig.ext}`;
+          const filePath = `tickets/${safeFilename}`;
 
           const { error: uploadError } = await supabase.storage
             .from('ticket-attachments')
             .upload(filePath, file.buffer, {
-              contentType: file.mimetype || 'image/jpeg',
-              upsert: true
+              contentType: sig.mime,
+              upsert: false
             });
 
           if (uploadError) {
@@ -939,29 +1285,35 @@ app.post('/api/tickets', (req, res, next) => {
           console.error('⚠️ Excepción al procesar adjunto en Supabase Storage:', storageErr.message);
         }
       }
-    } else if (files.length > 0) {
-      attachments = files.map(file => {
-        if (file.buffer) {
-          return `data:${file.mimetype || 'image/jpeg'};base64,${file.buffer.toString('base64')}`;
+    } else if (verifiedFiles.length > 0) {
+      for (const { file, sig } of verifiedFiles) {
+        if (isServerless) {
+          attachments.push(`data:${sig.mime};base64,${file.buffer.toString('base64')}`);
+        } else {
+          const uploadDir = path.join(process.cwd(), 'public/uploads/tickets');
+          if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+          }
+          const safeFilename = `ticket-${crypto.randomUUID()}${sig.ext}`;
+          fs.writeFileSync(path.join(uploadDir, safeFilename), file.buffer);
+          attachments.push(`/uploads/tickets/${safeFilename}`);
         }
-        return `/uploads/tickets/${file.filename}`;
-      });
+      }
     }
 
-    // Generar tracking ID único
+    // 8. Generar tracking ID único con CSPRNG
     const generateTrackingId = () => {
       const timestamp = Date.now().toString(36).toUpperCase();
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const random = crypto.randomBytes(3).toString('hex').toUpperCase();
       return `TKT-${timestamp}-${random}`;
     };
 
     const trackingId = generateTrackingId();
 
-    // Determinar si se debe asignar automáticamente
+    // 9. Determinar si se debe asignar automáticamente
     let assignedTo = null;
 
     if (AUTO_ASSIGN_DEPARTMENTS.includes(department)) {
-      // Buscar el usuario activo del área correspondiente
       const role = DEPARTMENT_TO_ROLE[department];
       const userResult = await pool.query(
         `SELECT id FROM users 
@@ -979,7 +1331,6 @@ app.post('/api/tickets', (req, res, next) => {
       }
     }
 
-    // Query actualizada para incluir attachments, sede y assigned_technician
     const query = `
       INSERT INTO tickets (tracking_id, title, description, department, created_by_name, created_by_email, priority, assigned_to, attachments, affected_area, sede, assigned_technician)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -996,13 +1347,12 @@ app.post('/api/tickets', (req, res, next) => {
       priority || 'medium',
       assignedTo,
       JSON.stringify(attachments),
-      req.body.affected_area || null,
+      affectedArea || null,
       sede,
-      req.body.assigned_technician ? String(req.body.assigned_technician).trim() : null
+      assignedTechnician
     ]);
 
-    // Debugging Priority Issue
-    console.log(`[CREATE TICKET DEBUG] TrackingID: ${trackingId} | Raw Priority: "${priority}" | Inserted Priority: "${priority || 'medium'}"`);
+    console.log(`[CREATE TICKET DEBUG] TrackingID: ${trackingId} | Priority: "${priority || 'medium'}" | Attachments: ${attachments.length}`);
 
     const createdTicket = result.rows[0];
 
@@ -1018,7 +1368,6 @@ app.post('/api/tickets', (req, res, next) => {
 
     const notification = notifResult.rows[0];
 
-    // Emitir notificación en tiempo real via WebSocket
     io.to(`department:${department}`).emit('new_notification', {
       id: notification.id,
       ticketId: createdTicket.id,
@@ -1030,19 +1379,18 @@ app.post('/api/tickets', (req, res, next) => {
       createdAt: notification.created_at
     });
 
-    // Enviar Push Notification al departamento
-    if (typeof sendPushToDepartment === 'function') {
-        sendPushToDepartment(department, {
+    const outboundDisabled = process.env.DISABLE_OUTBOUND_NOTIFICATIONS === 'true';
+
+    if (!outboundDisabled && typeof sendPushToDepartment === 'function') {
+      sendPushToDepartment(department, {
         id: notification.id,
         ticketId: createdTicket.id,
         trackingId: trackingId,
         title: notificationTitle,
         message: notificationMessage
-        }, priority || 'medium');
+      }, priority || 'medium');
     }
 
-    // También notificar al Administrador si el ticket no es para su área
-    // EXCEPTO para departamentos restringidos (RRHH, Compras) que son confidenciales
     if (department !== 'Administrador' && !RESTRICTED_DEPARTMENTS.includes(department)) {
       const adminNotifResult = await pool.query(
         `INSERT INTO notifications (ticket_id, department, title, message, ticket_tracking_id, created_by_name)
@@ -1062,35 +1410,34 @@ app.post('/api/tickets', (req, res, next) => {
         createdAt: adminNotification.created_at
       });
 
-      // Enviar Push Notification al Administrador
-      if (typeof sendPushToDepartment === 'function') {
+      if (!outboundDisabled && typeof sendPushToDepartment === 'function') {
         sendPushToDepartment('Administrador', {
-            id: adminNotification.id,
-            ticketId: createdTicket.id,
-            trackingId: trackingId,
-            title: notificationTitle,
-            message: notificationMessage
+          id: adminNotification.id,
+          ticketId: createdTicket.id,
+          trackingId: trackingId,
+          title: notificationTitle,
+          message: notificationMessage
         }, priority || 'medium');
       }
     }
 
-
-    // Enviar notificación de email de confirmación al creador
-    if (emailService && typeof emailService.sendTicketCreated === 'function') {
-      try {
-        emailService.sendTicketCreated(createdTicket);
-      } catch (emailErr) {
-        console.error('Error sending confirmation email:', emailErr);
+    // Enviar email de confirmación (con cuota anti-email-bombing por destinatario)
+    if (!outboundDisabled && emailService && typeof emailService.sendTicketCreated === 'function') {
+      if ((secStats.email_10m || 0) < TICKET_EMAIL_NOTIFY_LIMIT_10M) {
+        try {
+          emailService.sendTicketCreated(createdTicket);
+        } catch (emailErr) {
+          console.error('Error sending confirmation email:', emailErr);
+        }
+      } else {
+        console.warn(`📧 Email de confirmación omitido por cuota anti-bombing (${emailLower})`);
       }
     }
 
-    // Invalidar caché de reportes para reflejar el nuevo ticket
     if (typeof invalidateReportCache === 'function') invalidateReportCache();
 
-    // Notificar a todos los clientes conectados que hay un ticket nuevo (refresco reactivo)
     io.emit('ticket_updated', { action: 'created', department, ticketId: createdTicket.id });
 
-    // Enviar respuesta exitosa al cliente para detener el spinner
     res.status(201).json({
       id: createdTicket.id,
       tracking_id: trackingId,
@@ -1098,8 +1445,8 @@ app.post('/api/tickets', (req, res, next) => {
       ticket: createdTicket
     });
   } catch (error) {
-    console.error('Error al crear ticket:', error.message);
-    res.status(500).json({ error: error.message || 'Error al crear ticket' });
+    console.error('Error al crear ticket:', error);
+    res.status(500).json({ error: 'No se pudo crear el ticket en este momento. Intenta nuevamente.' });
   }
 });
 
@@ -1986,7 +2333,7 @@ app.get('/track/:trackingId', (req, res) => {
 });
 
 // API pública para obtener ticket por tracking ID
-app.get('/api/track/:trackingId', async (req, res) => {
+app.get('/api/track/:trackingId', trackLimiter, async (req, res) => {
   const { trackingId } = req.params;
 
   try {
@@ -4270,6 +4617,11 @@ if (!process.env.VERCEL) {
     console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
   });
 }
+
+// Exponer referencias internas para pruebas aisladas sin alterar export de Vercel
+app.locals.pool = pool;
+app.locals.supabase = supabase;
+app.locals.ensureDatabaseInitialized = ensureDatabaseInitialized;
 
 // Exportar app para despliegue Serverless en Vercel
 module.exports = app;

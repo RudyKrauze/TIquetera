@@ -30,15 +30,42 @@ const COLORS = {
 };
 
 /**
+ * Escapa caracteres especiales HTML para prevenir XSS en correos electrónicos
+ */
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/**
+ * Limpia encabezados/asuntos para evitar inyección de cabeceras CRLF
+ */
+function sanitizeSubjectText(value, maxLen = 120) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, maxLen);
+}
+
+/**
  * Función auxiliar para generar el wrapper HTML común
  */
 function getEmailTemplate(title, content) {
+  const safeTitle = escapeHtml(title || 'Sistema de Tickets');
   return `
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${safeTitle}</title>
       <style>
         body { margin: 0; padding: 0; font-family: 'Montserrat', Arial, sans-serif; background-color: ${COLORS.bg}; color: ${COLORS.textMain}; }
         .container { max-width: 600px; margin: 0 auto; background-color: ${COLORS.surface}; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
@@ -77,51 +104,68 @@ function getEmailTemplate(title, content) {
 }
 
 /**
- * Envía un correo de confirmación al crear un ticket
- * @param {Object} ticket - Objeto del ticket creado
+ * Construye el HTML seguro del email de creación de ticket
  */
-async function sendTicketCreated(ticket) {
-  if (!ticket.created_by_email) return;
+function buildTicketCreatedHtml(ticket) {
+  const safeTrackingId = escapeHtml(ticket.tracking_id || '');
+  const safeName = escapeHtml(ticket.created_by_name || '');
+  const safeTitle = escapeHtml(ticket.title || '');
+  const safeDepartment = escapeHtml(ticket.department || '');
+  const safeSede = escapeHtml(ticket.sede || 'No especificada');
+  const rawPriority = String(ticket.priority || 'medium');
+  const safePriority = escapeHtml(rawPriority.charAt(0).toUpperCase() + rawPriority.slice(1));
+  const safeDescription = escapeHtml(ticket.description || '');
+  const ticketUrl = `${BASE_URL}/track/${encodeURIComponent(ticket.tracking_id || '')}`;
 
-  const ticketUrl = `${BASE_URL}/track/${ticket.tracking_id}`;
-  
   const htmlContent = `
     <h2>¡Ticket Recibido!</h2>
-    <p>Hola <strong>${ticket.created_by_name}</strong>,</p>
+    <p>Hola <strong>${safeName}</strong>,</p>
     <p>Hemos recibido tu solicitud correctamente. Nuestro equipo ya ha sido notificado y comenzará a trabajar en ello pronto.</p>
     
     <div class="info-box">
       <span class="label">ID de Seguimiento</span>
-      <span class="value" style="font-size: 18px; font-family: monospace;">${ticket.tracking_id}</span>
+      <span class="value" style="font-size: 18px; font-family: monospace;">${safeTrackingId}</span>
       
       <span class="label">Título</span>
-      <span class="value">${ticket.title}</span>
+      <span class="value">${safeTitle}</span>
       
       <span class="label">Departamento</span>
-      <span class="value">${ticket.department}</span>
+      <span class="value">${safeDepartment}</span>
       
       <span class="label">Sede</span>
-      <span class="value">${ticket.sede || 'No especificada'}</span>
+      <span class="value">${safeSede}</span>
       
       <span class="label">Prioridad</span>
-      <span class="value" style="margin-bottom: 0;">${ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}</span>
+      <span class="value" style="margin-bottom: 0;">${safePriority}</span>
     </div>
 
-    <p style="font-size: 14px; border-left: 2px solid #e2e8f0; padding-left: 10px; color: ${COLORS.textMuted};">
-      "${ticket.description}"
+    <p style="font-size: 14px; border-left: 2px solid #e2e8f0; padding-left: 10px; color: ${COLORS.textMuted}; white-space: pre-wrap;">
+      &ldquo;${safeDescription}&rdquo;
     </p>
 
     <div style="text-align: center;">
-      <a href="${ticketUrl}" class="btn">Ver estado del Ticket</a>
+      <a href="${escapeHtml(ticketUrl)}" class="btn">Ver estado del Ticket</a>
     </div>
   `;
 
+  return getEmailTemplate('Ticket Recibido', htmlContent);
+}
+
+/**
+ * Envía un correo de confirmación al crear un ticket
+ * @param {Object} ticket - Objeto del ticket creado
+ */
+async function sendTicketCreated(ticket) {
+  if (!ticket || !ticket.created_by_email) return;
+
   try {
+    const safeSubjectTracking = sanitizeSubjectText(ticket.tracking_id, 40);
+    const safeSubjectTitle = sanitizeSubjectText(ticket.title, 120);
     const info = await transporter.sendMail({
       from: defaultFrom,
       to: ticket.created_by_email,
-      subject: `[Ticket #${ticket.tracking_id}] Recibido: ${ticket.title}`,
-      html: getEmailTemplate('Ticket Recibido', htmlContent),
+      subject: `[Ticket #${safeSubjectTracking}] Recibido: ${safeSubjectTitle}`,
+      html: buildTicketCreatedHtml(ticket),
     });
     console.log(`📧 Email de creación enviado a ${ticket.created_by_email} (MsgID: ${info.messageId})`);
   } catch (error) {
@@ -135,28 +179,34 @@ async function sendTicketCreated(ticket) {
 async function sendTicketResponse(ticket, update, recipientEmail, recipientName) {
   if (!recipientEmail) return;
 
-  const ticketUrl = `${BASE_URL}/track/${ticket.tracking_id}`;
+  const ticketUrl = `${BASE_URL}/track/${encodeURIComponent(ticket.tracking_id || '')}`;
+  const safeRecipientName = escapeHtml(recipientName || '');
+  const safeTrackingId = escapeHtml(ticket.tracking_id || '');
+  const safeAuthor = escapeHtml((update && update.user_name) || 'Sistema');
+  const safeContent = escapeHtml((update && update.content) || '');
 
   const htmlContent = `
     <h2>Nueva Actualización</h2>
-    <p>Hola <strong>${recipientName}</strong>,</p>
-    <p>Se ha agregado un nuevo comentario al ticket <strong>#${ticket.tracking_id}</strong>.</p>
+    <p>Hola <strong>${safeRecipientName}</strong>,</p>
+    <p>Se ha agregado un nuevo comentario al ticket <strong>#${safeTrackingId}</strong>.</p>
     
     <div style="background-color: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 20px 0;">
-      <p style="margin: 0; font-weight: 600; color: ${COLORS.primary}; font-size: 12px;">${update.user_name || 'Sistema'} escribió:</p>
-      <p style="margin: 8px 0 0; white-space: pre-wrap; color: ${COLORS.textMain};">${update.content}</p>
+      <p style="margin: 0; font-weight: 600; color: ${COLORS.primary}; font-size: 12px;">${safeAuthor} escribió:</p>
+      <p style="margin: 8px 0 0; white-space: pre-wrap; color: ${COLORS.textMain};">${safeContent}</p>
     </div>
 
     <div style="text-align: center;">
-      <a href="${ticketUrl}" class="btn">Ver conversación completa</a>
+      <a href="${escapeHtml(ticketUrl)}" class="btn">Ver conversación completa</a>
     </div>
   `;
 
   try {
+    const safeSubjectTracking = sanitizeSubjectText(ticket.tracking_id, 40);
+    const safeSubjectTitle = sanitizeSubjectText(ticket.title, 120);
     const info = await transporter.sendMail({
       from: defaultFrom,
       to: recipientEmail,
-      subject: `[Ticket #${ticket.tracking_id}] Nueva actualización: ${ticket.title}`,
+      subject: `[Ticket #${safeSubjectTracking}] Nueva actualización: ${safeSubjectTitle}`,
       html: getEmailTemplate('Nueva Actualización', htmlContent),
     });
     console.log(`📧 Email de respuesta enviado a ${recipientEmail} (MsgID: ${info.messageId})`);
@@ -169,9 +219,9 @@ async function sendTicketResponse(ticket, update, recipientEmail, recipientName)
  * Envía notificación de cambio de estado de ticket
  */
 async function sendTicketStatusChange(ticket, newStatus) {
-  if (!ticket.created_by_email) return;
+  if (!ticket || !ticket.created_by_email) return;
 
-  const ticketUrl = `${BASE_URL}/track/${ticket.tracking_id}`;
+  const ticketUrl = `${BASE_URL}/track/${encodeURIComponent(ticket.tracking_id || '')}`;
   
   const statusMap = {
     'open': { label: 'Abierto', color: COLORS.info },
@@ -181,21 +231,25 @@ async function sendTicketStatusChange(ticket, newStatus) {
 
   const statusInfo = statusMap[newStatus] || { label: newStatus, color: COLORS.secondary };
   const isClosed = newStatus === 'closed';
+  const safeName = escapeHtml(ticket.created_by_name || '');
+  const safeTrackingId = escapeHtml(ticket.tracking_id || '');
+  const safeTitle = escapeHtml(ticket.title || '');
+  const safeStatusLabel = escapeHtml(statusInfo.label || '');
 
   const htmlContent = `
     <h2 style="color: ${statusInfo.color}">Estado Actualizado</h2>
-    <p>Hola <strong>${ticket.created_by_name}</strong>,</p>
-    <p>El estado del ticket <strong>#${ticket.tracking_id}</strong> ha cambiado a:</p>
+    <p>Hola <strong>${safeName}</strong>,</p>
+    <p>El estado del ticket <strong>#${safeTrackingId}</strong> ha cambiado a:</p>
     
     <div style="text-align: center; margin: 25px 0;">
       <span style="display: inline-block; padding: 10px 20px; background-color: ${statusInfo.color}; color: #fff; border-radius: 4px; font-weight: bold; font-size: 16px;">
-        ${statusInfo.label}
+        ${safeStatusLabel}
       </span>
     </div>
     
     <div class="info-box">
       <span class="label">Título del Ticket</span>
-      <span class="value" style="margin-bottom: 0;">${ticket.title}</span>
+      <span class="value" style="margin-bottom: 0;">${safeTitle}</span>
     </div>
 
     ${isClosed 
@@ -203,15 +257,17 @@ async function sendTicketStatusChange(ticket, newStatus) {
       : '<p>Te mantendremos informado sobre cualquier novedad adicional en tu caso.</p>'}
 
     <div style="text-align: center;">
-      <a href="${ticketUrl}" class="btn">Ver detalle del Ticket</a>
+      <a href="${escapeHtml(ticketUrl)}" class="btn">Ver detalle del Ticket</a>
     </div>
   `;
 
   try {
+    const safeSubjectTracking = sanitizeSubjectText(ticket.tracking_id, 40);
+    const safeSubjectStatus = sanitizeSubjectText(statusInfo.label, 40);
     const info = await transporter.sendMail({
       from: defaultFrom,
       to: ticket.created_by_email,
-      subject: `[Ticket #${ticket.tracking_id}] Estado Actualizado: ${statusInfo.label}`,
+      subject: `[Ticket #${safeSubjectTracking}] Estado Actualizado: ${safeSubjectStatus}`,
       html: getEmailTemplate('Estado Actualizado', htmlContent),
     });
     console.log(`📧 Email de cambio de estado (${newStatus}) enviado a ${ticket.created_by_email} (MsgID: ${info.messageId})`);
@@ -223,5 +279,7 @@ async function sendTicketStatusChange(ticket, newStatus) {
 module.exports = {
   sendTicketCreated,
   sendTicketResponse,
-  sendTicketStatusChange
+  sendTicketStatusChange,
+  buildTicketCreatedHtml,
+  escapeHtml
 };

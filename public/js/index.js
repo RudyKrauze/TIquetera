@@ -167,6 +167,47 @@
         });
       }
 
+      // ============ SEGURIDAD ANTI-BOT (FORM TOKEN) ============
+      let currentFormToken = "";
+      let tokenFetchedAtMs = 0;
+      let minFillMs = 3000;
+      let tokenFetchPromise = null;
+
+      async function fetchFormToken() {
+        if (tokenFetchPromise) return tokenFetchPromise;
+        tokenFetchPromise = (async () => {
+          try {
+            const resp = await fetch("/api/tickets/form-token", { cache: "no-store" });
+            if (!resp.ok) return null;
+            const data = await resp.json();
+            if (data && data.form_token) {
+              currentFormToken = data.form_token;
+              tokenFetchedAtMs = Date.now();
+              if (typeof data.min_fill_ms === "number" && data.min_fill_ms >= 0) {
+                minFillMs = data.min_fill_ms;
+              }
+              const tokenEl = document.getElementById("formToken");
+              if (tokenEl) tokenEl.value = currentFormToken;
+              return currentFormToken;
+            }
+          } catch (err) {
+            console.warn("No se pudo obtener form_token:", err);
+          } finally {
+            tokenFetchPromise = null;
+          }
+          return null;
+        })();
+        return tokenFetchPromise;
+      }
+
+      fetchFormToken();
+      setInterval(fetchFormToken, 60 * 60 * 1000);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible" && Date.now() - tokenFetchedAtMs > 60 * 60 * 1000) {
+          fetchFormToken();
+        }
+      });
+
       // ============ MANEJO DE ARCHIVOS ============
       let selectedFiles = [];
 
@@ -174,9 +215,52 @@
       const attachmentsPreview = document.getElementById('attachmentsPreview');
       const attachmentsError = document.getElementById('attachmentsError');
       const MAX_FILES = 3;
-      const MAX_SIZE_MB = 20;
+      const MAX_SIZE_MB = 4;
+      const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
 
-      fileInput.addEventListener('change', function(e) {
+      async function compressImageIfNeeded(file) {
+        const compressibleTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!file || !compressibleTypes.includes((file.type || '').toLowerCase()) || file.size <= 1.2 * 1024 * 1024) {
+          return file;
+        }
+        try {
+          const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          const img = await new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => resolve(image);
+            image.onerror = reject;
+            image.src = dataUrl;
+          });
+          const maxDim = 1920;
+          let width = img.naturalWidth || img.width;
+          let height = img.naturalHeight || img.height;
+          if (!width || !height) return file;
+          if (width > maxDim || height > maxDim) {
+            const scale = Math.min(maxDim / width, maxDim / height);
+            width = Math.round(width * scale);
+            height = Math.round(height * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) return file;
+          ctx.drawImage(img, 0, 0, width, height);
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.82));
+          if (!blob || blob.size >= file.size) return file;
+          const baseName = file.name.replace(/\.[^.]+$/, '') || 'imagen';
+          return new File([blob], `${baseName}.jpg`, { type: 'image/jpeg' });
+        } catch (err) {
+          return file;
+        }
+      }
+
+      fileInput.addEventListener('change', async function(e) {
         const files = Array.from(e.target.files);
         
         // Limpiar error previo
@@ -186,38 +270,50 @@
         if (selectedFiles.length + files.length > MAX_FILES) {
            attachmentsError.textContent = `Máximo ${MAX_FILES} archivos permitidos`;
            attachmentsError.classList.add('show');
+           fileInput.value = '';
            return;
         }
 
-        // Procesar archivos
-        files.forEach(file => {
+        // Procesar y comprimir archivos
+        for (const rawFile of files) {
+          const lowerName = (rawFile.name || '').toLowerCase();
+          const lowerMime = (rawFile.type || '').toLowerCase();
+
+          // Bloquear SVG explícitamente
+          if (lowerMime.includes('svg') || lowerName.endsWith('.svg')) {
+            attachmentsError.textContent = 'Los archivos SVG no están permitidos por seguridad.';
+            attachmentsError.classList.add('show');
+            continue;
+          }
+
           // Validar tipo (MIME o extensión para soporte móvil)
-          const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
+          const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/avif'];
           const validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.heic', '.heif', '.avif'];
           
-          const isImageMime = file.type.startsWith('image/');
-          const hasValidExt = validExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+          const isValidMime = validMimes.includes(lowerMime);
+          const hasValidExt = validExtensions.some(ext => lowerName.endsWith(ext));
 
-          if (!isImageMime && !hasValidExt) {
-            attachmentsError.textContent = 'Solo se permiten imágenes (JPG, PNG, WebP, HEIC)';
+          if (!isValidMime && (!lowerMime && !hasValidExt) && !(lowerMime.startsWith('image/') && hasValidExt)) {
+            attachmentsError.textContent = 'Solo se permiten imágenes (JPG, PNG, GIF, WebP, HEIC/HEIF)';
             attachmentsError.classList.add('show');
-            return;
+            continue;
           }
 
-          // Verificar duplicados (por nombre y tamaño simple)
-          if (selectedFiles.some(f => f.name === file.name && f.size === file.size)) {
-            return;
+          const processedFile = await compressImageIfNeeded(rawFile);
+
+          // Verificar duplicados
+          if (selectedFiles.some(f => f.name === processedFile.name && f.size === processedFile.size)) {
+            continue;
           }
 
-          selectedFiles.push(file);
-        });
+          const currentTotal = selectedFiles.reduce((acc, f) => acc + f.size, 0);
+          if (currentTotal + processedFile.size > MAX_SIZE_BYTES) {
+            attachmentsError.textContent = `El tamaño total supera el máximo permitido de ${MAX_SIZE_MB}MB`;
+            attachmentsError.classList.add('show');
+            continue;
+          }
 
-        // Validar tamaño total
-        const totalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
-        if (totalSize > MAX_SIZE_MB * 1024 * 1024) {
-           attachmentsError.textContent = `El tamaño total excede ${MAX_SIZE_MB}MB`;
-           attachmentsError.classList.add('show');
-           // Revertir último agregado si es necesario, o dejar que el usuario borre
+          selectedFiles.push(processedFile);
         }
 
         renderPreviews();
@@ -252,7 +348,7 @@
         
         // Re-validar tamaño total por si había error
         const totalSize = selectedFiles.reduce((acc, file) => acc + file.size, 0);
-        if (totalSize <= MAX_SIZE_MB * 1024 * 1024) {
+        if (totalSize <= MAX_SIZE_BYTES) {
            attachmentsError.classList.remove('show');
         }
       }
@@ -353,21 +449,6 @@
             return;
           }
 
-          // Preparar FormData
-          const formData = new FormData();
-          formData.append('name', nameField.value.trim());
-          if (emailField.value.trim()) formData.append('email', emailField.value.trim());
-          formData.append('affected_area', affectedAreaField.value.trim());
-          formData.append('sede', sedeField.value);
-          formData.append('department', departmentField.value);
-          formData.append('title', titleField.value.trim());
-          formData.append('description', descriptionField.value.trim());
-          
-          // Adjuntar archivos
-          selectedFiles.forEach(file => {
-            formData.append('attachments', file);
-          });
-
           const submitBtn = this.querySelector(".btn");
           const errorMessage = document.getElementById("errorMessage");
 
@@ -380,6 +461,37 @@
           submitBtn.classList.add("btn-loading");
 
           try {
+            // Asegurar token anti-bot y respetar tiempo mínimo de llenado sin bloquear usuarios rápidos
+            if (!currentFormToken) {
+              await fetchFormToken();
+            }
+            const elapsedMs = Date.now() - tokenFetchedAtMs;
+            const requiredWaitMs = minFillMs + 50;
+            if (tokenFetchedAtMs && elapsedMs < requiredWaitMs) {
+              submitBtn.textContent = "⏳ Validando envío...";
+              await new Promise((resolve) => setTimeout(resolve, requiredWaitMs - elapsedMs));
+              submitBtn.textContent = "⏳ Creando ticket...";
+            }
+
+            // Preparar FormData
+            const formData = new FormData();
+            formData.append('name', nameField.value.trim());
+            if (emailField.value.trim()) formData.append('email', emailField.value.trim());
+            formData.append('affected_area', affectedAreaField.value.trim());
+            formData.append('sede', sedeField.value);
+            formData.append('department', departmentField.value);
+            formData.append('title', titleField.value.trim());
+            formData.append('description', descriptionField.value.trim());
+            formData.append('form_token', currentFormToken || '');
+
+            const websiteUrlField = document.getElementById('websiteUrl');
+            formData.append('website_url', websiteUrlField ? websiteUrlField.value : '');
+
+            // Adjuntar archivos
+            selectedFiles.forEach(file => {
+              formData.append('attachments', file);
+            });
+
             // Nota: Al enviar FormData, NO se debe establecer Content-Type header manualmente
             // fetch lo establece automáticamente con el boundary correcto
             const response = await fetch("/api/tickets", {
@@ -400,6 +512,8 @@
               this.reset();
               selectedFiles = []; // Limpiar archivos seleccionados
               renderPreviews();
+              currentFormToken = "";
+              fetchFormToken();
               
               charCount.textContent = "0";
               titleCharCount.textContent = "0";
@@ -423,6 +537,10 @@
               titleField.classList.remove("valid", "invalid");
               descriptionField.classList.remove("valid", "invalid");
             } else {
+              if (result && result.refreshToken) {
+                currentFormToken = "";
+                fetchFormToken();
+              }
               errorMessage.textContent =
                 result.error || "Error al crear el ticket";
               errorMessage.style.display = "block";
@@ -434,7 +552,7 @@
             errorMessage.style.display = "block";
           } finally {
             // Reset button
-            submitBtn.textContent = "🚀 Crear Ticket";
+            submitBtn.textContent = "🚀 Crear y Enviar Ticket";
             submitBtn.disabled = false;
             submitBtn.classList.remove("btn-loading");
           }

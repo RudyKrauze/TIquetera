@@ -193,16 +193,55 @@ CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_ticket_updates_ticket_id ON ticket_updates(ticket_id);
 
+-- Tabla de seguridad anti-spam, replay y duplicados en creación de tickets
+CREATE TABLE IF NOT EXISTS ticket_security_events (
+    id SERIAL PRIMARY KEY,
+    ip_address TEXT NOT NULL,
+    email TEXT,
+    content_hash TEXT NOT NULL,
+    form_jti TEXT UNIQUE,
+    event_type TEXT NOT NULL DEFAULT 'ticket_created',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_ip_created ON ticket_security_events(ip_address, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_email_created ON ticket_security_events(email, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ticket_sec_hash_created ON ticket_security_events(content_hash, created_at DESC);
+
+-- Bloqueo de PostgREST anon/authenticated mediante RLS en todas las tablas públicas
+ALTER TABLE IF EXISTS users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_updates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS notification_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS report_cache ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS push_subscriptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_departments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_categories ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS maintenance_tasks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS shared_tasks_boards ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS ticket_security_events ENABLE ROW LEVEL SECURITY;
+
 -- 4. USUARIOS INICIALES
 -- Nota de seguridad: Los usuarios iniciales NO se insertan con hashes estáticos aquí.
 -- Al iniciar el backend (db_init.js), se crean automáticamente utilizando las contraseñas
 -- configuradas en las variables de entorno (ADMIN_PASSWORD, DEFAULT_*_PASSWORD) o claves aleatorias seguras.
 
 -- 5. CONFIGURACIÓN DEL BUCKET DE SUPABASE STORAGE (Para imágenes adjuntas)
--- Crea el bucket público "ticket-attachments" en storage.buckets si no existe
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('ticket-attachments', 'ticket-attachments', true)
-ON CONFLICT (id) DO UPDATE SET public = true;
+-- Crea o actualiza el bucket "ticket-attachments" con límite de 4MB y tipos MIME seguros (sin SVG)
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'ticket-attachments',
+    'ticket-attachments',
+    true,
+    4194304,
+    ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif']
+)
+ON CONFLICT (id) DO UPDATE
+SET public = true,
+    file_size_limit = 4194304,
+    allowed_mime_types = ARRAY['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'];
 
 -- Política de lectura pública para que los navegadores puedan ver las fotos de tickets
 DO $$
@@ -217,16 +256,16 @@ BEGIN
     END IF;
 END $$;
 
--- Política de inserción restringida a service_role (el backend sube los archivos de forma controlada)
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_policies 
-        WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'Allow Uploads ticket-attachments'
-    ) THEN
-        CREATE POLICY "Allow Uploads ticket-attachments"
-        ON storage.objects FOR INSERT
-        TO service_role
-        WITH CHECK (bucket_id = 'ticket-attachments');
-    END IF;
-END $$;
+-- Eliminar política insegura de UPDATE si existiera (evita sobrescrituras)
+DROP POLICY IF EXISTS "Allow Updates ticket-attachments" ON storage.objects;
+
+-- Política de inserción restringida a service_role, ruta tickets/* y extensiones de imagen válidas
+DROP POLICY IF EXISTS "Allow Uploads ticket-attachments" ON storage.objects;
+CREATE POLICY "Allow Uploads ticket-attachments"
+ON storage.objects FOR INSERT
+TO service_role
+WITH CHECK (
+    bucket_id = 'ticket-attachments'
+    AND name LIKE 'tickets/%'
+    AND lower(storage.extension(name)) IN ('jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif')
+);

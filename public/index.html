@@ -843,6 +843,17 @@
           max-width: 100%;
         }
       }
+
+      /* Campo trampa honeypot invisible para humanos pero visible para bots */
+      .hp-field-trap {
+        position: absolute !important;
+        left: -9999px !important;
+        width: 1px !important;
+        height: 1px !important;
+        overflow: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+      }
     </style>
     <link rel="stylesheet" href="/css/design-system.css?v=4.6" />
   </head>
@@ -912,6 +923,19 @@
         <div class="error-message" id="errorMessage" role="alert" aria-live="assertive"></div>
 
         <form id="ticketForm">
+          <!-- Token anti-bot y honeypot -->
+          <input type="hidden" id="formToken" name="form_token" value="" />
+          <div class="hp-field-trap" aria-hidden="true">
+            <label for="websiteUrl">Sitio web</label>
+            <input
+              type="text"
+              id="websiteUrl"
+              name="website_url"
+              tabindex="-1"
+              autocomplete="off"
+            />
+          </div>
+
           <!-- Grid Superior de 3 Columnas -->
           <div class="form-grid-3">
             <!-- Nombre -->
@@ -1046,7 +1070,7 @@
                 <input
                   type="file"
                   id="ticketAttachments"
-                  accept="image/*,.heic,.heif"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/heic,image/heif,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif"
                   multiple
                   aria-describedby="attachmentsError"
                   style="display: none"
@@ -1056,7 +1080,7 @@
                   class="btn-upload-photos"
                   onclick="document.getElementById('ticketAttachments').click()"
                 >
-                  📷 Subir Fotos <span class="upload-hint">(Máx 3, 20MB)</span>
+                  📷 Subir Fotos <span class="upload-hint">(Máx 3, 4MB total)</span>
                 </button>
                 <div id="attachmentsPreview" class="attachments-preview"></div>
                 <div class="field-error" id="attachmentsError" role="alert"></div>
@@ -1160,8 +1184,8 @@
       </div>
     </div>
 
-    <script src="/js/core-panel.js?v=4.6"></script>
-    <script src="/js/index.js?v=4.6"></script>
+    <script src="/js/core-panel.js?v=4.7"></script>
+    <script src="/js/index.js?v=4.7"></script>
     <script src="/js/pwa-install.js"></script>
   </body>
 </html>

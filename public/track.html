@@ -770,12 +770,38 @@
                 // Attachments
                 const attachmentsContainer = document.getElementById('attachmentsContainer');
                 const attachmentsGrid = document.getElementById('attachmentsGrid');
+
+                function sanitizeTrackAttachmentUrl(rawUrl) {
+                    if (!rawUrl || typeof rawUrl !== 'string') return '';
+                    let clean = rawUrl.trim().replace(/\\/g, '/');
+                    if (!clean || /^[\x00-\x1F\x7F]/.test(clean)) return '';
+                    const lower = clean.toLowerCase();
+                    if (
+                        lower.startsWith('javascript:') ||
+                        lower.startsWith('vbscript:') ||
+                        lower.startsWith('data:text/html') ||
+                        lower.startsWith('data:image/svg+xml')
+                    ) {
+                        return '';
+                    }
+                    if (lower.startsWith('data:') && !/^data:image\/(jpeg|jpg|png|gif|webp|heic|heif|avif);base64,/i.test(clean)) {
+                        return '';
+                    }
+                    if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:') && !clean.startsWith('/')) {
+                        clean = '/' + clean;
+                    }
+                    return clean;
+                }
                 
-                if (data.attachments && data.attachments.length > 0) {
+                const safeAttachments = Array.isArray(data.attachments)
+                    ? data.attachments.map(sanitizeTrackAttachmentUrl).filter(Boolean)
+                    : [];
+
+                if (safeAttachments.length > 0) {
                     attachmentsContainer.style.display = 'block';
-                    attachmentsGrid.innerHTML = data.attachments.map(url => `
-                        <div class="attachment-item" style="cursor: pointer;" onclick="openTrackLightbox('${url}')" title="Clic para ver en pantalla completa">
-                            <img src="${url}" alt="Adjunto" loading="lazy">
+                    attachmentsGrid.innerHTML = safeAttachments.map(url => `
+                        <div class="attachment-item" style="cursor: pointer;" data-url="${escapeHtml(url)}" onclick="openTrackLightbox(this.dataset.url)" title="Clic para ver en pantalla completa">
+                            <img src="${escapeHtml(url)}" alt="Adjunto" loading="lazy">
                         </div>
                     `).join('');
                 } else {
@@ -837,8 +863,21 @@
 
         // Lightbox de track.html
         function openTrackLightbox(url) {
-            if (!url) return;
-            let clean = String(url).trim().replace(/\\/g, '/');
+            if (!url || typeof url !== 'string') return;
+            let clean = url.trim().replace(/\\/g, '/');
+            if (!clean || /^[\x00-\x1F\x7F]/.test(clean)) return;
+            const lower = clean.toLowerCase();
+            if (
+                lower.startsWith('javascript:') ||
+                lower.startsWith('vbscript:') ||
+                lower.startsWith('data:text/html') ||
+                lower.startsWith('data:image/svg+xml')
+            ) {
+                return;
+            }
+            if (lower.startsWith('data:') && !/^data:image\/(jpeg|jpg|png|gif|webp|heic|heif|avif);base64,/i.test(clean)) {
+                return;
+            }
             if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:') && !clean.startsWith('/')) {
                 clean = '/' + clean;
             }

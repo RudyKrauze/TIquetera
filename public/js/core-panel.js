@@ -1193,6 +1193,19 @@ window.copyToClipboard = function (text, successMessage = 'Copiado al portapapel
         }
         if (typeof url !== 'string') return '';
         let clean = url.trim().replace(/\\/g, '/');
+        if (!clean || /^[\x00-\x1F\x7F]/.test(clean)) return '';
+        const lower = clean.toLowerCase();
+        if (
+            lower.startsWith('javascript:') ||
+            lower.startsWith('vbscript:') ||
+            lower.startsWith('data:text/html') ||
+            lower.startsWith('data:image/svg+xml')
+        ) {
+            return '';
+        }
+        if (lower.startsWith('data:') && !/^data:image\/(jpeg|jpg|png|gif|webp|heic|heif|avif);base64,/i.test(clean)) {
+            return '';
+        }
         if (!clean.startsWith('http://') && !clean.startsWith('https://') && !clean.startsWith('data:') && !clean.startsWith('blob:') && !clean.startsWith('/')) {
             clean = '/' + clean;
         }
