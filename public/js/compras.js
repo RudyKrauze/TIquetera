@@ -82,12 +82,19 @@
             fetch('/api/tickets/department/Compras%20e%20Insumos', {
             })
                 .then(response => {
+                    if (response.status === 401) {
+                        if (typeof window.handleSessionExpired === 'function') {
+                            window.handleSessionExpired('session_expired');
+                        }
+                        return null;
+                    }
                     if (!response.ok) {
-                        throw new Error('Error al cargar tickets');
+                        throw new Error(`Error al cargar tickets (${response.status})`);
                     }
                     return response.json();
                 })
                 .then(data => {
+                    if (!data) return;
                     allTickets = data;
                     applyFilters();
                     updateStats();
@@ -99,9 +106,7 @@
                 .catch(error => {
 
                     isLoading = false;
-                    if (error.message.includes('401') || error.message.includes('403')) {
-                        logout();
-                    } else if (!silentRefresh) {
+                    if (!silentRefresh) {
                         document.getElementById('ticketsList').innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;">❌ Error al cargar tickets. <button onclick="loadTickets()" style="margin-top: 1rem; padding: 0.5rem 1rem; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Reintentar</button></div>';
                     }
                 });

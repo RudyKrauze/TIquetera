@@ -19,6 +19,331 @@ window.kanbanDragTicketId = null;
 window.kanbanDragSourceStatus = null;
 
 // ==========================================
+// GESTIÓN DE SESIÓN RENOVABLE (12h Sliding Session) E INTERCEPTOR GLOBAL
+// ==========================================
+window.SessionGuard = (function () {
+    const ACTIVITY_WINDOW_MS = 15 * 60 * 1000; // Ventana de actividad real: 15 minutos
+    const REVALIDATE_STALE_MS = 2 * 60 * 1000; // Revalidar al volver tras >2 min inactivo
+    const ACTIVITY_GAP_REVALIDATE_MS = 5 * 60 * 1000; // Revalidar al primer input tras >5 min sin actividad
+    const PROTECTED_PATHS = [
+        '/administrador',
+        '/gerencia',
+        '/support',
+        '/rrhh',
+        '/mantenimiento',
+        '/compras',
+        '/notificaciones',
+        '/reportes',
+        '/admin',
+        '/reports'
+    ];
+
+    const _nativeFetch = window.fetch.bind(window);
+    window._nativeFetch = _nativeFetch;
+
+    let lastUserActivityAt = Date.now();
+    let lastActivityThrottleAt = 0;
+    let lastRevalidatedAt = Date.now();
+    let sessionExpiresAtMs = null;
+    let expiryTimerId = null;
+    let hiddenAtMs = null;
+    let revalidatingPromise = null;
+    let stopped = false;
+
+    function isProtectedContext() {
+        const p = (window.location && window.location.pathname) ? window.location.pathname : '/';
+        if (
+            p === '/' ||
+            p === '/index.html' ||
+            p.startsWith('/track/') ||
+            p.startsWith('/reportes/publico/') ||
+            p.startsWith('/tareas/publico/')
+        ) {
+            return false;
+        }
+        if (window._isProtectedPanel === true) return true;
+        return PROTECTED_PATHS.some(route => p === route || p.startsWith(route + '/'));
+    }
+
+    function hasRecentUserActivity() {
+        return (Date.now() - lastUserActivityAt) < ACTIVITY_WINDOW_MS;
+    }
+
+    function clearExpiryTimer() {
+        if (expiryTimerId) {
+            clearTimeout(expiryTimerId);
+            expiryTimerId = null;
+        }
+    }
+
+    function updateExpiresAt(expiresAtMs) {
+        if (!Number.isFinite(expiresAtMs) || expiresAtMs <= 0) return;
+        sessionExpiresAtMs = expiresAtMs;
+        if (stopped || !isProtectedContext() || window._isHandlingSessionExpiry) return;
+
+        clearExpiryTimer();
+        const delayMs = Math.max(1000, expiresAtMs - Date.now() + 500);
+        expiryTimerId = setTimeout(onExpiryTimerFired, delayMs);
+    }
+
+    async function onExpiryTimerFired() {
+        expiryTimerId = null;
+        if (stopped || !isProtectedContext() || window._isHandlingSessionExpiry) return;
+
+        if (hasRecentUserActivity()) {
+            await revalidateSession(false);
+            return;
+        }
+
+        // Sin actividad humana reciente: verificar en segundo plano sin renovar
+        try {
+            const resp = await _nativeFetch('/api/auth/verify', {
+                credentials: 'include',
+                headers: { 'X-Background-Check': '1' }
+            });
+            if (resp.status === 401) {
+                window.handleSessionExpired('session_expired');
+                return;
+            }
+            const expHeader = resp.headers.get('X-Session-Expires-At');
+            if (expHeader) {
+                updateExpiresAt(Number(expHeader));
+            } else if (resp.ok) {
+                const data = await resp.json().catch(() => null);
+                if (data && data.expiresAt) {
+                    updateExpiresAt(Number(data.expiresAt));
+                }
+            }
+        } catch (_) {
+            // Fallo de red transitorio: reintentar suavemente en 30s
+            if (!stopped && !window._isHandlingSessionExpiry) {
+                expiryTimerId = setTimeout(onExpiryTimerFired, 30000);
+            }
+        }
+    }
+
+    async function revalidateSession(triggerTicketsRefresh = false) {
+        if (stopped || !isProtectedContext() || window._isHandlingSessionExpiry) return true;
+        if (revalidatingPromise) return revalidatingPromise;
+
+        revalidatingPromise = (async () => {
+            try {
+                const headers = {};
+                if (hasRecentUserActivity()) {
+                    headers['X-User-Activity'] = '1';
+                } else {
+                    headers['X-Background-Check'] = '1';
+                }
+
+                const resp = await _nativeFetch('/api/auth/verify', {
+                    credentials: 'include',
+                    headers
+                });
+
+                lastRevalidatedAt = Date.now();
+
+                if (resp.status === 401) {
+                    window.handleSessionExpired('session_expired');
+                    return false;
+                }
+
+                const expHeader = resp.headers.get('X-Session-Expires-At');
+                if (expHeader) {
+                    updateExpiresAt(Number(expHeader));
+                }
+
+                if (resp.ok) {
+                    const data = await resp.json().catch(() => null);
+                    if (data && data.expiresAt) {
+                        updateExpiresAt(Number(data.expiresAt));
+                    }
+                    if (triggerTicketsRefresh && window.TicketRefresh) {
+                        window.TicketRefresh.trigger();
+                    }
+                }
+                return true;
+            } catch (_) {
+                // No cerrar sesión ante error transitorio de red/servidor
+                if (triggerTicketsRefresh && window.TicketRefresh) {
+                    window.TicketRefresh.trigger();
+                }
+                return true;
+            } finally {
+                revalidatingPromise = null;
+            }
+        })();
+
+        return revalidatingPromise;
+    }
+
+    function recordUserActivity() {
+        const now = Date.now();
+        if (now - lastActivityThrottleAt < 5000) return;
+        lastActivityThrottleAt = now;
+
+        const idleGapMs = now - lastUserActivityAt;
+        lastUserActivityAt = now;
+
+        if (!stopped && isProtectedContext() && !window._isHandlingSessionExpiry) {
+            if (idleGapMs >= ACTIVITY_GAP_REVALIDATE_MS || (sessionExpiresAtMs && now >= sessionExpiresAtMs)) {
+                revalidateSession(true);
+            }
+        }
+    }
+
+    ['pointerdown', 'keydown', 'mousedown', 'touchstart', 'scroll'].forEach(evt => {
+        window.addEventListener(evt, recordUserActivity, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            hiddenAtMs = Date.now();
+            return;
+        }
+
+        const now = Date.now();
+        const hiddenDuration = hiddenAtMs ? (now - hiddenAtMs) : 0;
+        hiddenAtMs = null;
+
+        if (!isProtectedContext()) return;
+
+        if (
+            hiddenDuration > REVALIDATE_STALE_MS ||
+            (now - lastRevalidatedAt) > REVALIDATE_STALE_MS ||
+            (sessionExpiresAtMs && now >= sessionExpiresAtMs)
+        ) {
+            revalidateSession(true);
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        if (!isProtectedContext() || document.hidden) return;
+        const now = Date.now();
+        if ((now - lastRevalidatedAt) > REVALIDATE_STALE_MS || (sessionExpiresAtMs && now >= sessionExpiresAtMs)) {
+            revalidateSession(true);
+        }
+    });
+
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted && isProtectedContext()) {
+            revalidateSession(true);
+        }
+    });
+
+    // Interceptor global de fetch para rutas same-origin /api/*
+    window.fetch = async function (input, init = {}) {
+        let requestUrl = '';
+        if (typeof input === 'string') {
+            requestUrl = input;
+        } else if (input && typeof input.url === 'string') {
+            requestUrl = input.url;
+        }
+
+        let parsedUrl = null;
+        try {
+            parsedUrl = new URL(requestUrl, window.location.origin);
+        } catch (_) {}
+
+        const isSameOriginApi = !!(
+            parsedUrl &&
+            parsedUrl.origin === window.location.origin &&
+            parsedUrl.pathname.startsWith('/api/')
+        );
+
+        if (!isSameOriginApi) {
+            return _nativeFetch(input, init);
+        }
+
+        const headers = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
+        const skipAuthRedirect = headers.get('X-Skip-Auth-Redirect') === '1';
+        headers.delete('X-Skip-Auth-Redirect');
+
+        if (window._forceBackgroundFetch && !headers.has('X-Background-Check')) {
+            headers.set('X-Background-Check', '1');
+        }
+
+        const isSessionControlEndpoint =
+            parsedUrl.pathname === '/api/login' ||
+            parsedUrl.pathname === '/api/logout' ||
+            parsedUrl.pathname.startsWith('/api/push/metrics');
+
+        if (!headers.has('X-Background-Check') && !isSessionControlEndpoint && hasRecentUserActivity()) {
+            headers.set('X-User-Activity', '1');
+        }
+
+        const response = await _nativeFetch(input, {
+            ...init,
+            credentials: init.credentials || 'include',
+            headers
+        });
+
+        const expHeader = response.headers.get('X-Session-Expires-At');
+        if (expHeader) {
+            updateExpiresAt(Number(expHeader));
+        }
+
+        const isExpired = response.status === 401 && response.headers.get('X-Session-Expired') === '1';
+        if (isExpired && isProtectedContext() && !skipAuthRedirect && !isSessionControlEndpoint) {
+            window.handleSessionExpired('session_expired');
+            // Promesa pendiente mientras navega para evitar falsos carteles de error en pantalla
+            return new Promise(() => {});
+        }
+
+        return response;
+    };
+
+    return {
+        isProtectedContext,
+        hasRecentUserActivity,
+        updateExpiresAt,
+        revalidateSession,
+        stop() {
+            stopped = true;
+            clearExpiryTimer();
+        }
+    };
+})();
+
+window.handleSessionExpired = function (reason = 'session_expired') {
+    if (window.SessionGuard && !window.SessionGuard.isProtectedContext()) return;
+    if (window._isHandlingSessionExpiry) return;
+    window._isHandlingSessionExpiry = true;
+
+    if (window.refreshInterval) clearInterval(window.refreshInterval);
+    if (window.autoRefreshInterval) clearInterval(window.autoRefreshInterval);
+    if (window.TicketRefresh && typeof window.TicketRefresh.unregister === 'function') {
+        window.TicketRefresh.unregister();
+    }
+    if (window.SessionGuard && typeof window.SessionGuard.stop === 'function') {
+        window.SessionGuard.stop();
+    }
+    if (window.notificationSystem) {
+        if (typeof window.notificationSystem.stopPollingFallback === 'function') {
+            window.notificationSystem.stopPollingFallback();
+        }
+        if (typeof window.notificationSystem.disconnect === 'function') {
+            window.notificationSystem.disconnect();
+        }
+    }
+
+    const doFetch = window._nativeFetch || window.fetch;
+    doFetch('/api/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+
+    const targetUrl = '/?error=' + encodeURIComponent(reason || 'session_expired');
+    if (document.hidden) {
+        window.location.replace(targetUrl);
+        return;
+    }
+
+    if (typeof window.showToast === 'function') {
+        window.showToast('🔒 Tu sesión ha expirado por inactividad. Redirigiendo...', 'warning', 2500);
+    }
+    setTimeout(() => {
+        window.location.replace(targetUrl);
+    }, 450);
+};
+
+// ==========================================
 // SISTEMA DE REFRESCO REACTIVO (Anti-Egress)
 // ==========================================
 /**
@@ -41,11 +366,19 @@ window.TicketRefresh = (function () {
     const DEBOUNCE_MS  = 800;            // evita ráfagas de eventos
 
     function _triggerRefresh() {
-        if (!_callback) return;
+        if (!_callback || window._isHandlingSessionExpiry) return;
         clearTimeout(_debounceTimer);
         _debounceTimer = setTimeout(() => {
-            if (!window.isLoading && _callback) {
-                _callback();
+            if (!window.isLoading && _callback && !window._isHandlingSessionExpiry) {
+                const isIdle = window.SessionGuard && !window.SessionGuard.hasRecentUserActivity();
+                if (isIdle) {
+                    window._forceBackgroundFetch = true;
+                }
+                try {
+                    _callback();
+                } finally {
+                    window._forceBackgroundFetch = false;
+                }
             }
         }, DEBOUNCE_MS);
     }
@@ -113,25 +446,13 @@ window.TicketRefresh = (function () {
          */
         unregister() {
             _callback = null;
+            clearTimeout(_debounceTimer);
             _stopHeartbeat();
         },
 
         /** Fuerza un refresco manual (e.g., al volver a la pestaña). */
         trigger: _triggerRefresh
     };
-})();
-
-// Refresco al volver a la pestaña si estuvo inactiva más de 2 minutos
-(function () {
-    let _hiddenAt = null;
-    const STALE_MS = 2 * 60 * 1000;
-    document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-            _hiddenAt = Date.now();
-        } else if (_hiddenAt && (Date.now() - _hiddenAt) > STALE_MS) {
-            if (window.TicketRefresh) window.TicketRefresh.trigger();
-        }
-    });
 })();
 
 // ==========================================
@@ -268,12 +589,29 @@ window.getPriorityBadge = function (priority) {
 // 5. AUTENTICACIÓN Y SESIÓN
 // ==========================================
 window.logout = function () {
+    window._isHandlingSessionExpiry = true;
     if (window.refreshInterval) clearInterval(window.refreshInterval);
     if (window.autoRefreshInterval) clearInterval(window.autoRefreshInterval);
+    if (window.TicketRefresh && typeof window.TicketRefresh.unregister === 'function') {
+        window.TicketRefresh.unregister();
+    }
+    if (window.SessionGuard && typeof window.SessionGuard.stop === 'function') {
+        window.SessionGuard.stop();
+    }
+    if (window.notificationSystem) {
+        if (typeof window.notificationSystem.stopPollingFallback === 'function') {
+            window.notificationSystem.stopPollingFallback();
+        }
+        if (typeof window.notificationSystem.disconnect === 'function') {
+            window.notificationSystem.disconnect();
+        }
+    }
 
-    fetch('/api/logout', { method: 'POST', credentials: 'include' })
+    const doFetch = window._nativeFetch || window.fetch;
+    doFetch('/api/logout', { method: 'POST', credentials: 'include' })
+        .catch(() => {})
         .finally(() => {
-            window.location.href = '/';
+            window.location.replace('/');
         });
 };
 
@@ -301,13 +639,25 @@ window.togglePassword = function (inputId, button) {
 };
 
 window.verifySession = function (allowedRoles, onSuccessCallback) {
+    window._isProtectedPanel = true;
+    window._allowedRoles = allowedRoles;
+
     return fetch('/api/auth/verify', {
-        credentials: 'include'
+        credentials: 'include',
+        headers: { 'X-Skip-Auth-Redirect': '1' }
     })
         .then(async response => {
-            if (response.status === 401 || response.status === 403) {
-                // Token realmente inválido o expirado
-                window.location.href = '/?error=invalid_token';
+            if (response.status === 401) {
+                // Sesión realmente inválida o expirada
+                if (typeof window.handleSessionExpired === 'function') {
+                    window.handleSessionExpired('session_expired');
+                } else {
+                    window.location.replace('/?error=session_expired');
+                }
+                return null;
+            }
+            if (response.status === 403) {
+                window.location.replace('/?error=access_denied');
                 return null;
             }
             if (response.status === 429) {
@@ -327,6 +677,9 @@ window.verifySession = function (allowedRoles, onSuccessCallback) {
         })
         .then(data => {
             if (!data) return;
+            if (data.expiresAt && window.SessionGuard && typeof window.SessionGuard.updateExpiresAt === 'function') {
+                window.SessionGuard.updateExpiresAt(Number(data.expiresAt));
+            }
             if (data.user && allowedRoles.includes(data.user.role)) {
                 window.currentUser = data.user;
 
@@ -346,7 +699,7 @@ window.verifySession = function (allowedRoles, onSuccessCallback) {
                     onSuccessCallback(data.user);
                 }
             } else {
-                window.location.href = '/?error=access_denied';
+                window.location.replace('/?error=access_denied');
             }
         })
         .catch(err => {
@@ -386,17 +739,14 @@ window.apiFetch = async function (url, options = {}) {
 
     const response = await fetch(url, config);
 
-    if (response.status === 401 || response.status === 403) {
-        // Sesión expirada o no autorizada
+    if (response.status === 401 && response.headers.get('X-Session-Expired') === '1') {
         if (!url.includes('/api/auth/verify')) {
-            if (typeof window.showToast === 'function') {
-                window.showToast('Sesión expirada. Redirigiendo...', 'error');
+            if (typeof window.handleSessionExpired === 'function') {
+                window.handleSessionExpired('session_expired');
+                return new Promise(() => {});
             }
-            setTimeout(() => {
-                window.location.href = '/?error=session_expired';
-            }, 1000);
         }
-        throw new Error(`Acceso denegado (${response.status})`);
+        throw new Error(`Sesión expirada (${response.status})`);
     }
 
     if (response.status === 429) {

@@ -167,7 +167,8 @@ const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(64).toString('ba
 // Middleware
 app.use(cors({
   origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3005'],
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['X-Session-Expired', 'X-Session-Expires-At']
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -254,6 +255,93 @@ const trackLimiter = rateLimit({
   }
 });
 
+// Configuración de sesiones renovables (Sliding Session de 12 horas por defecto)
+const SESSION_TTL_HOURS = Math.max(1, parseInt(process.env.SESSION_TTL_HOURS || '12', 10) || 12);
+const SESSION_TTL_SECONDS = parseInt(process.env.SESSION_TTL_SECONDS || '', 10) > 0
+  ? parseInt(process.env.SESSION_TTL_SECONDS, 10)
+  : SESSION_TTL_HOURS * 60 * 60; // 43200s (12 horas)
+const SESSION_TTL_MS = SESSION_TTL_SECONDS * 1000;
+const SESSION_RENEW_INTERVAL_SECONDS = parseInt(process.env.SESSION_RENEW_INTERVAL_SECONDS || '', 10) > 0
+  ? parseInt(process.env.SESSION_RENEW_INTERVAL_SECONDS, 10)
+  : 15 * 60; // Renovar como máximo cada 15 min de actividad real
+
+function isSecureRequest(req) {
+  if (process.env.VERCEL === '1') return true;
+  if (req && req.secure) return true;
+  const proto = req?.headers?.['x-forwarded-proto'];
+  if (typeof proto === 'string' && proto.split(',')[0].trim().toLowerCase() === 'https') return true;
+  return false;
+}
+
+function getAuthCookieOptions(req, includeMaxAge = true) {
+  const options = {
+    httpOnly: true,
+    secure: isSecureRequest(req),
+    sameSite: 'lax',
+    path: '/'
+  };
+  if (includeMaxAge) {
+    options.maxAge = SESSION_TTL_MS;
+  }
+  return options;
+}
+
+function clearAuthCookie(req, res) {
+  res.clearCookie('token', getAuthCookieOptions(req, false));
+}
+
+function issueSessionCookie(req, res, user) {
+  const token = jwt.sign(
+    { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department },
+    JWT_SECRET,
+    { expiresIn: SESSION_TTL_SECONDS }
+  );
+  const decoded = jwt.decode(token);
+  const expiresAt = (decoded && decoded.exp) ? decoded.exp * 1000 : (Date.now() + SESSION_TTL_MS);
+  res.cookie('token', token, getAuthCookieOptions(req, true));
+  res.setHeader('X-Session-Expires-At', String(expiresAt));
+  req.sessionExpiresAt = expiresAt;
+  return { token, expiresAt };
+}
+
+async function maybeRenewSession(req, res, decodedUser, forceActivity = false) {
+  const isBackground = req.headers['x-background-check'] === '1';
+  const reqPath = req.originalUrl ? req.originalUrl.split('?')[0] : req.path;
+  const isMutating = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)
+    && !reqPath.startsWith('/api/push/metrics')
+    && reqPath !== '/api/logout';
+  const hasUserActivity = !isBackground && (forceActivity || req.headers['x-user-activity'] === '1' || isMutating);
+
+  const nowSec = Math.floor(Date.now() / 1000);
+  const tokenAgeSec = decodedUser.iat ? (nowSec - decodedUser.iat) : SESSION_RENEW_INTERVAL_SECONDS;
+
+  if (decodedUser.exp) {
+    const currentExpMs = decodedUser.exp * 1000;
+    req.sessionExpiresAt = currentExpMs;
+    res.setHeader('X-Session-Expires-At', String(currentExpMs));
+  }
+
+  if (!hasUserActivity || tokenAgeSec < SESSION_RENEW_INTERVAL_SECONDS) {
+    return { valid: true, user: decodedUser };
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT id, name, email, role, department, active FROM users WHERE id = $1',
+      [decodedUser.id]
+    );
+    if (result.rows.length === 0 || result.rows[0].active === false) {
+      return { valid: false, reason: 'ACCOUNT_DISABLED' };
+    }
+    const freshUser = result.rows[0];
+    issueSessionCookie(req, res, freshUser);
+    return { valid: true, user: freshUser };
+  } catch (err) {
+    console.warn('⚠️ Error transitorio al renovar sesión:', err.message);
+    return { valid: true, user: decodedUser };
+  }
+}
+
 // Middleware de autenticación JWT (acepta token de header o cookie)
 function authenticateToken(req, res, next) {
   // Intentar obtener token de header primero (para compatibilidad)
@@ -271,21 +359,39 @@ function authenticateToken(req, res, next) {
   }
 
   if (!token) {
-    return res.status(401).json({ error: 'Token no proporcionado' });
+    res.setHeader('X-Session-Expired', '1');
+    return res.status(401).json({ error: 'Sesión no iniciada o expirada', code: 'AUTH_REQUIRED' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
-      return res.status(403).json({ error: 'Token inválido o expirado' });
+      clearAuthCookie(req, res);
+      res.setHeader('X-Session-Expired', '1');
+      return res.status(401).json({ error: 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.', code: 'SESSION_EXPIRED' });
     }
-    req.user = user;
-    next();
+    try {
+      const renewal = await maybeRenewSession(req, res, decoded, false);
+      if (!renewal.valid) {
+        clearAuthCookie(req, res);
+        res.setHeader('X-Session-Expired', '1');
+        return res.status(401).json({
+          error: 'Tu usuario está desactivado o la sesión ya no es válida.',
+          code: renewal.reason || 'SESSION_EXPIRED'
+        });
+      }
+      req.user = renewal.user;
+      next();
+    } catch (error) {
+      console.error('Error en authenticateToken:', error.message);
+      return res.status(500).json({ error: 'Error interno al validar la sesión' });
+    }
   });
 }
 
 // Middleware para proteger rutas HTML (redirige a login)
 // Bloqueamos acceso antes de que los archivos privados se carguen (previene Skeletal View Exposure)
 function requireAuthPage(req, res, next) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   const token = req.cookies.token;
 
   if (!token) {
@@ -293,19 +399,24 @@ function requireAuthPage(req, res, next) {
     return res.redirect('/?error=auth_required');
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
+  jwt.verify(token, JWT_SECRET, async (err, decoded) => {
     if (err) {
       console.log('❌ Token validation failed in requireAuthPage:', err.message);
-      res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production' || process.env.VERCEL === '1',
-        sameSite: (process.env.NODE_ENV === 'production' || process.env.VERCEL === '1') ? 'none' : 'lax',
-        path: '/'
-      });
-      return res.redirect('/?error=invalid_token');
+      clearAuthCookie(req, res);
+      return res.redirect('/?error=session_expired');
     }
-    req.user = user;
-    next();
+    try {
+      const renewal = await maybeRenewSession(req, res, decoded, true);
+      if (!renewal.valid) {
+        clearAuthCookie(req, res);
+        return res.redirect('/?error=session_expired');
+      }
+      req.user = renewal.user;
+      next();
+    } catch (error) {
+      console.error('Error en requireAuthPage:', error.message);
+      return res.redirect('/?error=session_expired');
+    }
   });
 }
 
@@ -594,15 +705,19 @@ app.get('/api/auth/verify', authenticateToken, async (req, res) => {
       [req.user.id]
     );
     if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Usuario no encontrado' });
+      clearAuthCookie(req, res);
+      res.setHeader('X-Session-Expired', '1');
+      return res.status(401).json({ error: 'Usuario no encontrado', code: 'ACCOUNT_DISABLED' });
     }
 
     const user = result.rows[0];
     if (user.active === false) {
-      return res.status(403).json({ error: 'Tu usuario está desactivado. Por favor contacta con la administración.' });
+      clearAuthCookie(req, res);
+      res.setHeader('X-Session-Expired', '1');
+      return res.status(401).json({ error: 'Tu usuario está desactivado. Por favor contacta con la administración.', code: 'ACCOUNT_DISABLED' });
     }
 
-    res.json({ user });
+    res.json({ user, expiresAt: req.sessionExpiresAt || null });
   } catch (error) {
     console.error('Error en verificación de auth:', error.message);
     return res.status(500).json({ error: 'Error interno del servidor' });
@@ -2281,26 +2396,12 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       return res.status(403).json({ error: 'Tu usuario está desactivado. Por favor contacta con la administración.' });
     }
 
-    // Create JWT token con expiración de 24 horas
-    const token = jwt.sign(
-      { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    // Establecer token en cookie
-    // secure:true en Vercel (HTTPS), false en red local (HTTP)
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-    res.cookie('token', token, {
-      httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000 // 24 horas
-    });
+    // Crear JWT y cookie HttpOnly con expiración renovable de 12 horas
+    const { token, expiresAt } = issueSessionCookie(req, res, user);
 
     res.json({
       token, // También enviar en respuesta para compatibilidad
+      expiresAt,
       user: {
         id: user.id,
         name: user.name,
@@ -2317,13 +2418,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 
 // Logout endpoint
 app.post('/api/logout', (req, res) => {
-  const isProduction = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
-    path: '/'
-  });
+  clearAuthCookie(req, res);
   res.json({ message: 'Sesión cerrada exitosamente' });
 });
 
@@ -3650,12 +3745,14 @@ io.on('connection', (socket) => {
 
       if (!token) {
         socket.emit('error', { message: 'Token no proporcionado' });
+        socket.emit('auth_expired', { code: 'SESSION_EXPIRED', message: 'Sesión expirada' });
         return;
       }
 
       jwt.verify(token, JWT_SECRET, (err, user) => {
         if (err) {
           socket.emit('error', { message: 'Token inválido' });
+          socket.emit('auth_expired', { code: 'SESSION_EXPIRED', message: 'Sesión expirada' });
           return;
         }
 
@@ -3703,7 +3800,8 @@ io.on('connection', (socket) => {
 
 const isMaintenanceRole = (req, res, next) => {
   if (!req.user) {
-    return res.status(401).json({ error: 'No autenticado' });
+    res.setHeader('X-Session-Expired', '1');
+    return res.status(401).json({ error: 'No autenticado', code: 'AUTH_REQUIRED' });
   }
   if (['support', 'mantenimiento', 'administrador', 'gerencia'].includes(req.user.role)) {
     return next();
@@ -4571,26 +4669,15 @@ app.get('/api/maintenance/tasks/public/:token', async (req, res) => {
 // ==============================================
 app.get('/reports', (req, res) => res.redirect('/reportes'));
 
-app.get('/reportes', (req, res, next) => {
+app.get('/reportes', requireAuthPage, (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
-  const token = req.cookies.token;
 
-  if (!token) {
-    return res.redirect('/?error=auth_required');
+  // Permitir acceso a gerencia, administrador, mantenimiento, soporte, rrhh y compras
+  if (!['gerencia', 'administrador', 'mantenimiento', 'support', 'rrhh', 'compras'].includes(req.user.role)) {
+    return res.redirect('/?error=access_denied');
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.redirect('/?error=invalid_token');
-    }
-
-    // Permitir acceso a gerencia, administrador, mantenimiento, soporte, rrhh y compras
-    if (!['gerencia', 'administrador', 'mantenimiento', 'support', 'rrhh', 'compras'].includes(user.role)) {
-      return res.redirect('/?error=access_denied');
-    }
-
-    res.sendFile(resolveView('private', 'reportes.html'));
-  });
+  res.sendFile(resolveView('private', 'reportes.html'));
 });
 
 // Start server with WebSocket support (solo en entornos locales / servidores dedicados)

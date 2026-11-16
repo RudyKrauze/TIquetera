@@ -80,12 +80,19 @@ function loadMyTickets(silentRefresh = false) {
     fetch(`/api/tickets/assigned/${currentUser.id}`, {
     })
         .then(response => {
+            if (response.status === 401) {
+                if (typeof window.handleSessionExpired === 'function') {
+                    window.handleSessionExpired('session_expired');
+                }
+                return null;
+            }
             if (!response.ok) {
-                throw new Error('Error al cargar tickets');
+                throw new Error(`Error al cargar tickets (${response.status})`);
             }
             return response.json();
         })
         .then(data => {
+            if (!data) return;
             allTickets = data;
             applyFilters();
             updateStats();
@@ -97,9 +104,7 @@ function loadMyTickets(silentRefresh = false) {
         .catch(error => {
 
             isLoading = false;
-            if (error.message.includes('401') || error.message.includes('403')) {
-                logout();
-            } else if (!silentRefresh) {
+            if (!silentRefresh) {
                 document.getElementById('ticketsList').innerHTML = '<div class="error-state-box">❌ Error al cargar tickets. <button onclick="loadMyTickets()" class="btn btn-primary" style="margin-top: 1rem;">Reintentar</button></div>';
             }
         });

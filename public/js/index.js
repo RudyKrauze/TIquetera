@@ -825,25 +825,37 @@
         if (
           error === "auth_required" ||
           error === "invalid_token" ||
+          error === "session_expired" ||
           error === "access_denied"
         ) {
           openLoginModal();
           const errorMessages = {
             auth_required: "Debes iniciar sesión para acceder",
+            session_expired:
+              "Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.",
             invalid_token:
-              "Tu sesión ha expirado, por favor inicia sesión nuevamente",
+              "Tu sesión ha expirado o es inválida. Por favor, inicia sesión nuevamente.",
             access_denied: "No tienes permisos para acceder a esta página",
           };
           const loginError = document.getElementById("loginError");
           loginError.textContent =
             errorMessages[error] || "Error de autenticación";
           loginError.style.display = "block";
+
+          // Limpiar parámetro ?error= de la URL para evitar reapertura en recargas posteriores
+          if (window.history && typeof window.history.replaceState === "function") {
+            urlParams.delete("error");
+            const remainingQuery = urlParams.toString();
+            const cleanUrl = window.location.pathname + (remainingQuery ? `?${remainingQuery}` : "");
+            window.history.replaceState({}, document.title, cleanUrl);
+          }
         }
 
         // Verificar si el usuario está logueado y actualizar el botón
         try {
           const response = await fetch('/api/auth/verify', {
-            credentials: 'include'
+            credentials: 'include',
+            headers: { 'X-Background-Check': '1' }
           });
           
           if (response.ok) {

@@ -201,7 +201,7 @@ class NotificationSystem {
 
         this.socket.on('reconnect', (attemptNumber) => {
 
-            this.loadInitialNotifications(); // Sincronizar notificaciones perdidas
+            this.loadInitialNotifications(true); // Sincronizar notificaciones perdidas
         });
 
         this.socket.on('reconnect_attempt', (attemptNumber) => {
@@ -232,6 +232,12 @@ class NotificationSystem {
         this.socket.on('error', (error) => {
 
         });
+
+        this.socket.on('auth_expired', () => {
+            if (typeof window.handleSessionExpired === 'function') {
+                window.handleSessionExpired('session_expired');
+            }
+        });
     }
 
     /**
@@ -240,7 +246,7 @@ class NotificationSystem {
     startPollingFallback() {
         if (this.pollingInterval) return;
         this.pollingInterval = setInterval(() => {
-            this.loadInitialNotifications();
+            this.loadInitialNotifications(true);
         }, 3 * 60 * 1000); // 3 minutos — solo como fallback de emergencia
     }
 
@@ -280,10 +286,12 @@ class NotificationSystem {
     /**
      * Carga las notificaciones iniciales
      */
-    async loadInitialNotifications() {
+    async loadInitialNotifications(isBackground = false) {
         try {
+            const headers = isBackground ? { 'X-Background-Check': '1' } : {};
             const response = await fetch('/api/notifications/unread', {
-                credentials: 'include'
+                credentials: 'include',
+                headers
             });
             
             if (response.ok) {

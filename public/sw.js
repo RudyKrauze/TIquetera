@@ -4,7 +4,7 @@
  * Maneja notificaciones push en segundo plano y offline
  */
 
-const CACHE_NAME = 'tiquetera-v4.6';
+const CACHE_NAME = 'tiquetera-v4.8';
 const NOTIFICATION_ICON = '/img/logo-icon.svg';
 const NOTIFICATION_BADGE = '/img/badge-icon.svg';
 
@@ -45,6 +45,7 @@ self.addEventListener('fetch', (event) => {
     // 2. Navegación y API -> Network First
     
     const url = new URL(event.request.url);
+    if (url.pathname.startsWith('/api/')) return;
     const isCodeAsset = url.pathname.match(/\.(js|css)$/);
     const isImageOrStatic = url.pathname.match(/\.(png|jpg|svg|json|ico)$/);
 

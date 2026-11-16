@@ -229,8 +229,16 @@ async function loadAllData(silent = false) {
             fetchWithAuth(`/api/reports/kpis?${params}`)
         ]);
 
-        if (statsRes.status === 401 || statsRes.status === 403) {
-            window.location.href = '/?error=auth_required';
+        if (statsRes.status === 401) {
+            if (typeof window.handleSessionExpired === 'function') {
+                window.handleSessionExpired('session_expired');
+            } else {
+                window.location.replace('/?error=session_expired');
+            }
+            return;
+        }
+        if (statsRes.status === 403) {
+            showError('No tienes permisos para ver estos reportes.');
             return;
         }
 
